@@ -1,13 +1,18 @@
 import { CalendarCheck } from "lucide-react";
-import { upcomingEvents } from "@/lib/data";
 import { shortDate } from "@/lib/dates";
 
-export function InventoryCalendar() {
+type UpcomingEvent = {
+  name: string;
+  date: string;
+  location: string;
+};
+
+export function InventoryCalendar({ events = [] }: { events?: UpcomingEvent[] }) {
   return (
     <section className="panel">
       <h2>Upcoming Events</h2>
       <ul className="list">
-        {upcomingEvents.map((event) => (
+        {events.map((event) => (
           <li key={event.name}>
             <span style={{ alignItems: "center", display: "inline-flex", gap: 10 }}>
               <CalendarCheck color="var(--blush)" size={18} />
@@ -18,6 +23,7 @@ export function InventoryCalendar() {
             </span>
           </li>
         ))}
+        {!events.length ? <li>No upcoming events scheduled.</li> : null}
       </ul>
     </section>
   );

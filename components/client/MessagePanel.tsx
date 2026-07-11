@@ -2,13 +2,21 @@ import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function MessagePanel() {
+type Message = {
+  id: string;
+  body: string;
+  fromAdmin?: boolean;
+};
+
+export function MessagePanel({ messages = [] }: { messages?: Message[] }) {
   return (
     <section className="panel">
       <h2>Planner Messages</h2>
       <div className="message-panel">
-        <div className="bubble">Your final design review is scheduled for May 10. We will bring palette options.</div>
-        <div className="bubble admin">Perfect. I uploaded the venue measurements to documents.</div>
+        {messages.map((message) => (
+          <div className={message.fromAdmin ? "bubble admin" : "bubble"} key={message.id}>{message.body}</div>
+        ))}
+        {!messages.length ? <p className="mini-meta">No messages yet.</p> : null}
         <div style={{ display: "flex", gap: 8 }}>
           <Input placeholder="Write a message" />
           <Button type="button" aria-label="Send message">

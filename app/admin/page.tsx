@@ -7,7 +7,6 @@ import { ProposalBuilder } from "@/components/admin/ProposalBuilder";
 import { RevenueChart } from "@/components/admin/RevenueChart";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
-import { tasks } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -23,12 +22,13 @@ const statusColors: Record<string, string> = {
 
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
-  const [{ data: leads }, { data: projects }, { data: invoices }, { count: unreadNotifications }, { count: projectCount }] = await Promise.all([
+  const [{ data: leads }, { data: projects }, { data: invoices }, { count: unreadNotifications }, { count: projectCount }, { data: taskRows }] = await Promise.all([
     supabase.from("leads").select("status,created_at").order("created_at", { ascending: false }),
     supabase.from("projects").select("event_name,event_type,event_date,status,budget").order("created_at", { ascending: false }).limit(6),
     supabase.from("invoices").select("total,balance_due,status,created_at"),
     supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
     supabase.from("projects").select("id", { count: "exact", head: true }),
+    supabase.from("tasks").select("title,due_date,status").neq("status", "complete").order("due_date", { ascending: true }).limit(6),
   ]);
 
   const leadRows = leads ?? [];
@@ -62,6 +62,21 @@ export default async function AdminDashboardPage() {
     payment: "Synced",
     total: project.budget ?? "TBD",
   }));
+  const revenueRows = invoiceRows
+    .filter((invoice) => invoice.status === "paid")
+    .slice(-5)
+    .map((invoice) => ({
+      label: new Date(invoice.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      value: Number(invoice.total ?? 0),
+      amount: currency(Number(invoice.total ?? 0)),
+    }));
+  const upcomingEvents = (projects ?? [])
+    .filter((project) => project.event_date)
+    .map((project) => ({
+      name: project.event_name,
+      date: project.event_date as string,
+      location: project.event_type,
+    }));
 
   return (
     <div>
@@ -74,16 +89,17 @@ export default async function AdminDashboardPage() {
       </div>
       <DashboardStats stats={stats} />
       <div className="dashboard-grid">
-        <RevenueChart />
+        <RevenueChart rows={revenueRows} />
         <LeadPipeline stages={stages} total={leadRows.length} />
-        <InventoryCalendar />
+        <InventoryCalendar events={upcomingEvents} />
         <ProposalBuilder />
         <section className="panel">
           <h2>Today's Tasks</h2>
           <ul className="list">
-            {tasks.map((task) => (
-              <li key={task}>{task}<span className="mini-meta">Today</span></li>
+            {(taskRows ?? []).map((task) => (
+              <li key={task.title}>{task.title}<span className="mini-meta">{task.due_date ?? task.status}</span></li>
             ))}
+            {!taskRows?.length ? <li>No open tasks.</li> : null}
           </ul>
         </section>
         <ProjectTable rows={projectRows} />

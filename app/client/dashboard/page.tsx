@@ -61,6 +61,25 @@ export default async function ClientDashboardPage() {
         .limit(1)
         .maybeSingle()
     : { data: null };
+  const { data: milestones } = project?.id
+    ? await admin
+        .from("milestones")
+        .select("title,due_date,status,completed_at")
+        .eq("project_id", project.id)
+        .eq("client_visible", true)
+        .order("sort_order", { ascending: true })
+    : { data: [] };
+  const { data: conversation } = project?.id
+    ? await admin.from("conversations").select("id").eq("project_id", project.id).maybeSingle()
+    : { data: null };
+  const { data: messages } = conversation?.id
+    ? await admin
+        .from("messages")
+        .select("id,body,sender_id,created_at")
+        .eq("conversation_id", conversation.id)
+        .order("created_at", { ascending: true })
+        .limit(10)
+    : { data: [] };
 
   const clientName = profile?.first_name ?? "Client";
   const eventName = project?.event_name ?? "Your Event";
@@ -86,7 +105,7 @@ export default async function ClientDashboardPage() {
           <img src="/images/client-event.png" alt="Client event preview" />
         </article>
       </section>
-      <EventProgress />
+      <EventProgress status={project?.status ?? "pending"} />
       <div className="client-grid">
         <section className="panel">
           <h2>Next Payment</h2>
@@ -128,9 +147,26 @@ export default async function ClientDashboardPage() {
         </div>
       </section>
       <div className="client-grid">
-        <Timeline />
-        <Checklist />
-        <MessagePanel />
+        <Timeline
+          items={(milestones ?? []).map((item) => ({
+            title: item.title,
+            date: item.due_date ?? "No date set",
+            status: item.status,
+          }))}
+        />
+        <Checklist
+          items={(milestones ?? []).map((item) => ({
+            label: item.title,
+            done: Boolean(item.completed_at) || item.status === "complete",
+          }))}
+        />
+        <MessagePanel
+          messages={(messages ?? []).map((message) => ({
+            id: message.id,
+            body: message.body,
+            fromAdmin: message.sender_id !== profile?.id,
+          }))}
+        />
       </div>
     </div>
   );

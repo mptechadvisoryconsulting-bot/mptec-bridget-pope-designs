@@ -544,6 +544,47 @@ textarea {
   resize: vertical;
 }
 
+.invoice-builder {
+  display: grid;
+  gap: 18px;
+}
+
+.invoice-lines {
+  display: grid;
+  gap: 10px;
+}
+
+.invoice-line-grid {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1.3fr) minmax(78px, 0.45fr) minmax(96px, 0.55fr) minmax(92px, 0.55fr) 44px;
+}
+
+.invoice-line-head {
+  color: var(--rosewood);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.invoice-actions,
+.invoice-total,
+.invoice-preview-grid {
+  align-items: start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.invoice-total {
+  align-items: flex-end;
+  display: grid;
+  justify-items: end;
+  min-width: 220px;
+}
+
 .app-shell {
   background: #f7f2ef;
   display: grid;
@@ -1044,6 +1085,14 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .invoice-line-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-line-head {
+    display: none;
+  }
+
   .dashboard-grid .span-2 {
     grid-column: auto;
   }
@@ -1129,5 +1178,14 @@ textarea {
   .footer-links,
   .cta-inner {
     justify-content: flex-start;
+  }
+
+  .invoice-actions,
+  .invoice-preview-grid {
+    display: grid;
+  }
+
+  .invoice-total {
+    justify-items: start;
   }
 }
