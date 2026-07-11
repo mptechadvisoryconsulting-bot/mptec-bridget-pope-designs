@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { navItems } from "@/lib/data";
 
@@ -40,6 +41,9 @@ export function Hero() {
               with elegant details and flawless execution.
             </p>
             <div className="hero-actions">
+              <ButtonLink href="/inquire">
+                Book a Consultation <ArrowRight size={16} />
+              </ButtonLink>
               <ButtonLink href="/services" variant="secondary">
                 Explore Services
               </ButtonLink>
