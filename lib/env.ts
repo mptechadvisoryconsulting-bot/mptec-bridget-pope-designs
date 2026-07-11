@@ -26,6 +26,10 @@ export function hasSupabasePublicEnv() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+export function hasEmailEnv() {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
 export function safeErrorMessage(error: unknown) {
   if (error instanceof ConfigurationError) {
     return error.message;

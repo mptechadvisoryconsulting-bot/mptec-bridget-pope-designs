@@ -1,9 +1,15 @@
 import { adminStats } from "@/lib/data";
 
-export function DashboardStats() {
+type Stat = {
+  label: string;
+  value: string;
+  note: string;
+};
+
+export function DashboardStats({ stats = adminStats }: { stats?: Stat[] }) {
   return (
     <section className="stats-grid" aria-label="Admin statistics">
-      {adminStats.map((stat) => (
+      {stats.map((stat) => (
         <article className="stat-card" key={stat.label}>
           <span>{stat.label}</span>
           <strong>{stat.value}</strong>

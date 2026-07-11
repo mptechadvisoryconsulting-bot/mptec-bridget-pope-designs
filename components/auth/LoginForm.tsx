@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { credentialToEmail } from "@/lib/auth/portal-credentials";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const adminRoles = new Set(["owner", "admin"]);
@@ -19,7 +20,8 @@ export function LoginForm() {
     setIsSubmitting(true);
     setMessage("");
 
-    const email = String(formData.get("email") ?? "");
+    const credential = String(formData.get("credential") ?? "");
+    const email = credentialToEmail(credential);
     const password = String(formData.get("password") ?? "");
     const supabase = getSupabaseBrowserClient();
 
@@ -49,7 +51,7 @@ export function LoginForm() {
 
   return (
     <form action={signIn} className="form-grid" style={{ gridTemplateColumns: "1fr", marginTop: 20 }}>
-      <Field label="Email"><Input name="email" placeholder="ashley@example.com" required type="email" /></Field>
+      <Field label="Username or Email"><Input name="credential" placeholder="Bridget20" required /></Field>
       <Field label="Password"><Input name="password" placeholder="Password" required type="password" /></Field>
       {message ? <p className="form-error">{message}</p> : null}
       <Button disabled={isSubmitting} type="submit">

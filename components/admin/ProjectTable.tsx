@@ -1,10 +1,19 @@
 import { bookings } from "@/lib/data";
 import { shortDate } from "@/lib/dates";
 
-export function ProjectTable() {
+type ProjectRow = {
+  client: string;
+  eventType: string;
+  eventDate: string;
+  status: string;
+  payment: string;
+  total: string;
+};
+
+export function ProjectTable({ rows = bookings }: { rows?: ProjectRow[] }) {
   return (
     <section className="panel span-2">
-      <h2>Recent Bookings</h2>
+      <h2>Recent Projects</h2>
       <table className="table">
         <thead>
           <tr>
@@ -17,16 +26,21 @@ export function ProjectTable() {
           </tr>
         </thead>
         <tbody>
-          {bookings.map((booking) => (
+          {rows.map((booking) => (
             <tr key={`${booking.client}-${booking.eventDate}`}>
               <td>{booking.client}</td>
               <td>{booking.eventType}</td>
-              <td>{shortDate(booking.eventDate)}</td>
+              <td>{booking.eventDate ? shortDate(booking.eventDate) : "Not set"}</td>
               <td><span className="status">{booking.status}</span></td>
               <td>{booking.payment}</td>
               <td>{booking.total}</td>
             </tr>
           ))}
+          {!rows.length ? (
+            <tr>
+              <td colSpan={6}>No synced projects yet.</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </section>

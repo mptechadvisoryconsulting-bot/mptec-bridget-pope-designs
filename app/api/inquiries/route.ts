@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { appUrl } from "@/lib/env";
+import { appUrl, hasEmailEnv } from "@/lib/env";
 import { emailFrom, resend } from "@/lib/email/resend";
 import { getRequestIp, jsonError, rateLimit } from "@/lib/http";
 import { generateInquiryPdf } from "@/lib/pdf/generate-inquiry-pdf";
@@ -11,6 +11,20 @@ export const runtime = "nodejs";
 function leadNumber() {
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   return `BPD-${stamp}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+async function sendOptionalEmail(input: Parameters<typeof resend.emails.send>[0]) {
+  if (!hasEmailEnv()) {
+    return { skipped: true };
+  }
+
+  try {
+    await resend.emails.send(input);
+    return { skipped: false };
+  } catch (error) {
+    console.error("Optional email failed", error);
+    return { skipped: false, error };
+  }
 }
 
 export async function POST(request: Request) {
@@ -120,32 +134,41 @@ export async function POST(request: Request) {
       ip_address: getRequestIp(request),
     });
 
+    const { data: settings } = await supabase
+      .from("business_settings")
+      .select("business_email")
+      .limit(1)
+      .maybeSingle();
+    const ownerEmail = settings?.business_email ?? process.env.OWNER_EMAIL ?? process.env.ADMIN_EMAIL;
     const adminUrl = `${appUrl()}/admin/leads/${lead.id}`;
-    await resend.emails.send({
-      from: emailFrom(),
-      to: process.env.OWNER_EMAIL!,
-      replyTo: input.email,
-      subject: `New consultation request: ${input.eventType}`,
-      html: `
-        <h2>New consultation request</h2>
-        <p><strong>Lead:</strong> ${lead.lead_number}</p>
-        <p><strong>Client:</strong> ${input.firstName} ${input.lastName}</p>
-        <p><strong>Email:</strong> ${input.email}</p>
-        <p><strong>Phone:</strong> ${input.phone}</p>
-        <p><strong>Event:</strong> ${input.eventType}</p>
-        <p><strong>Date:</strong> ${input.eventDate || "Not provided"}</p>
-        <p><strong>Venue:</strong> ${input.venue || "Not provided"}</p>
-        <p><strong>Guest count:</strong> ${input.guestCount || "Not provided"}</p>
-        <p><strong>Budget:</strong> ${input.estimatedBudget || "Not provided"}</p>
-        <p><strong>Services:</strong> ${input.servicesNeeded.join(", ")}</p>
-        <p><strong>Colors/theme:</strong> ${input.eventColors || "Not provided"} / ${input.eventTheme || "Not provided"}</p>
-        <p><strong>Message:</strong> ${input.message}</p>
-        <p><a href="${adminUrl}">Review request in admin dashboard</a></p>
-      `,
-      attachments: [{ filename: `consultation-${lead.lead_number}.pdf`, content: pdf.toString("base64") }],
-    });
 
-    await resend.emails.send({
+    if (ownerEmail) {
+      await sendOptionalEmail({
+        from: emailFrom(),
+        to: ownerEmail,
+        replyTo: input.email,
+        subject: `New consultation request: ${input.eventType}`,
+        html: `
+          <h2>New consultation request</h2>
+          <p><strong>Lead:</strong> ${lead.lead_number}</p>
+          <p><strong>Client:</strong> ${input.firstName} ${input.lastName}</p>
+          <p><strong>Email:</strong> ${input.email}</p>
+          <p><strong>Phone:</strong> ${input.phone}</p>
+          <p><strong>Event:</strong> ${input.eventType}</p>
+          <p><strong>Date:</strong> ${input.eventDate || "Not provided"}</p>
+          <p><strong>Venue:</strong> ${input.venue || "Not provided"}</p>
+          <p><strong>Guest count:</strong> ${input.guestCount || "Not provided"}</p>
+          <p><strong>Budget:</strong> ${input.estimatedBudget || "Not provided"}</p>
+          <p><strong>Services:</strong> ${input.servicesNeeded.join(", ")}</p>
+          <p><strong>Colors/theme:</strong> ${input.eventColors || "Not provided"} / ${input.eventTheme || "Not provided"}</p>
+          <p><strong>Message:</strong> ${input.message}</p>
+          <p><a href="${adminUrl}">Review request in admin dashboard</a></p>
+        `,
+        attachments: [{ filename: `consultation-${lead.lead_number}.pdf`, content: pdf.toString("base64") }],
+      });
+    }
+
+    await sendOptionalEmail({
       from: emailFrom(),
       to: input.email,
       subject: "We received your consultation request",
