@@ -1,4 +1,4 @@
-import { ServiceCatalog } from "@/components/marketing/Services";
+import { PlanningDetails, ServiceCatalog } from "@/components/marketing/Services";
 import { Footer } from "@/components/marketing/Footer";
 import { MarketingHeader } from "@/components/marketing/Hero";
 
@@ -7,6 +7,7 @@ export default function ServicesPage() {
     <div className="page-shell">
       <MarketingHeader />
       <ServiceCatalog />
+      <PlanningDetails />
       <Footer />
     </div>
   );

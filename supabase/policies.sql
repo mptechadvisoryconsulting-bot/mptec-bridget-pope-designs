@@ -104,6 +104,7 @@ create policy "Participants can view messages" on messages for select to authent
 create policy "Participants can insert messages" on messages for insert to authenticated with check (exists (select 1 from conversations where conversations.id = messages.conversation_id and can_access_project(conversations.project_id)));
 
 create policy "Admins can manage files" on files for all to authenticated using (is_admin()) with check (is_admin());
+create policy "Anyone can view public gallery files" on files for select to anon, authenticated using (visibility = 'public_gallery');
 create policy "Clients can view visible project files" on files for select to authenticated using (visibility in ('client_visible','client_upload') and project_id is not null and can_access_project(project_id));
 
 create policy "Users can view own notifications" on notifications for select to authenticated using (recipient_id = current_profile_id() or is_admin());

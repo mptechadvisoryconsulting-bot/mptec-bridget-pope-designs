@@ -1,4 +1,4 @@
-import { Baby, BriefcaseBusiness, Cake, Flower2, Gift, Sparkles } from "lucide-react";
+import { Baby, BriefcaseBusiness, Cake, Flower2, Gem, Gift, Heart, MapPin, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { services } from "@/lib/data";
 
@@ -54,6 +54,49 @@ export function ServiceCatalog() {
               </article>
             );
           })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function PlanningDetails() {
+  return (
+    <section className="section service-details-band">
+      <div className="container">
+        <div className="section-heading">
+          <span className="eyebrow">Planning details</span>
+          <h2>Designed Around the Way Your Event Should Feel</h2>
+        </div>
+        <div className="feature-strip feature-strip-contained">
+          <div className="feature-item">
+            <Gem size={26} />
+            <div>
+              <strong>Luxury Details</strong>
+              <span>Elevated and elegant</span>
+            </div>
+          </div>
+          <div className="feature-item">
+            <Heart size={26} />
+            <div>
+              <strong>Custom Design</strong>
+              <span>Tailored to you</span>
+            </div>
+          </div>
+          <div className="feature-item">
+            <Sparkles size={26} />
+            <div>
+              <strong>Memorable Experiences</strong>
+              <span>Made to last</span>
+            </div>
+          </div>
+          <div className="feature-item">
+            <MapPin size={26} />
+            <div>
+              <strong>Murfreesboro, TN</strong>
+              <span>And surrounding areas</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

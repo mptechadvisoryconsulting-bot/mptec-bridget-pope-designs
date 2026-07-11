@@ -3,7 +3,7 @@ import { z } from "zod";
 export const fileSchema = z.object({
   projectId: z.string().uuid().optional(),
   leadId: z.string().uuid().optional(),
-  uploadedBy: z.string().uuid(),
+  uploadedBy: z.string().uuid().optional(),
   category: z.string().min(2).max(100),
   fileName: z.string().min(2).max(200),
   storagePath: z.string().min(2).max(500),

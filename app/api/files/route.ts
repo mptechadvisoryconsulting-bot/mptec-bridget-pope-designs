@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     .insert({
       project_id: input.projectId,
       lead_id: input.leadId,
-      uploaded_by: input.uploadedBy,
+      uploaded_by: input.uploadedBy ?? null,
       category: input.category,
       file_name: input.fileName,
       storage_path: input.storagePath,

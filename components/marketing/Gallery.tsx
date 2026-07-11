@@ -1,6 +1,9 @@
-import { galleryItems } from "@/lib/data";
+import { getPublicGalleryItems } from "@/lib/gallery";
 
-export function Gallery() {
+export async function Gallery() {
+  const galleryItems = await getPublicGalleryItems(8);
+  const tabs = ["All Events", ...Array.from(new Set(galleryItems.map((item) => item.category))).slice(0, 4)];
+
   return (
     <section className="section gallery-band">
       <div className="container">
@@ -9,7 +12,7 @@ export function Gallery() {
           <h2>Beautiful Moments, Perfectly Designed</h2>
         </div>
         <div className="gallery-tabs" aria-label="Gallery filters">
-          {["All Events", "Weddings", "Showers", "Birthdays", "Corporate"].map((tab) => (
+          {tabs.map((tab) => (
             <span className="pill" key={tab}>
               {tab}
             </span>

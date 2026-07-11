@@ -1,20 +1,22 @@
 import { Instagram, Mail, Phone } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 
-export function Footer() {
+export function Footer({ showCta = true }: { showCta?: boolean }) {
   return (
     <>
-      <section className="cta-band">
-        <div className="container cta-inner">
-          <div>
-            <h2>Let's Design Your Next Unforgettable Event</h2>
-            <p>Consultations are by appointment. We would love to bring your vision to life.</p>
+      {showCta ? (
+        <section className="cta-band">
+          <div className="container cta-inner">
+            <div>
+              <h2>Let's Design Your Next Unforgettable Event</h2>
+              <p>Consultations are by appointment. We would love to bring your vision to life.</p>
+            </div>
+            <ButtonLink href="/inquire">
+              Book Your Consultation
+            </ButtonLink>
           </div>
-          <ButtonLink href="/inquire">
-            Book Your Consultation
-          </ButtonLink>
-        </div>
-      </section>
+        </section>
+      ) : null}
       <footer className="footer">
         <div className="container footer-grid">
           <div className="brand">

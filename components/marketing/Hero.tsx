@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Gem, Heart, MapPin, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { navItems } from "@/lib/data";
 
-export function MarketingHeader() {
+export function MarketingHeader({ showConsultationCta = true }: { showConsultationCta?: boolean }) {
   return (
     <header className="marketing-header">
       <div className="container marketing-nav">
@@ -18,7 +17,7 @@ export function MarketingHeader() {
             </Link>
           ))}
         </nav>
-        <ButtonLink href="/inquire">Book a Consultation</ButtonLink>
+        {showConsultationCta ? <ButtonLink href="/inquire">Book a Consultation</ButtonLink> : <span aria-hidden="true" />}
       </div>
     </header>
   );
@@ -27,7 +26,7 @@ export function MarketingHeader() {
 export function Hero() {
   return (
     <>
-      <MarketingHeader />
+      <MarketingHeader showConsultationCta={false} />
       <section className="hero">
         <div className="hero-inner">
           <div className="hero-copy">
@@ -41,9 +40,6 @@ export function Hero() {
               with elegant details and flawless execution.
             </p>
             <div className="hero-actions">
-              <ButtonLink href="/inquire">
-                Book a Consultation <ArrowRight size={16} />
-              </ButtonLink>
               <ButtonLink href="/services" variant="secondary">
                 Explore Services
               </ButtonLink>
@@ -52,36 +48,6 @@ export function Hero() {
           <div className="hero-visual" style={{ backgroundImage: "url('/images/event-hero.png')" }} />
         </div>
       </section>
-      <div className="feature-strip">
-        <div className="feature-item">
-          <Gem size={26} />
-          <div>
-            <strong>Luxury Details</strong>
-            <span>Elevated and elegant</span>
-          </div>
-        </div>
-        <div className="feature-item">
-          <Heart size={26} />
-          <div>
-            <strong>Custom Design</strong>
-            <span>Tailored to you</span>
-          </div>
-        </div>
-        <div className="feature-item">
-          <Sparkles size={26} />
-          <div>
-            <strong>Memorable Experiences</strong>
-            <span>Made to last</span>
-          </div>
-        </div>
-        <div className="feature-item">
-          <MapPin size={26} />
-          <div>
-            <strong>Murfreesboro, TN</strong>
-            <span>And surrounding areas</span>
-          </div>
-        </div>
-      </div>
     </>
   );
 }

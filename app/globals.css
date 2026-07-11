@@ -287,6 +287,13 @@ textarea {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.feature-strip-contained {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-top: 28px;
+  overflow: hidden;
+}
+
 .feature-item {
   align-items: center;
   display: flex;
@@ -360,6 +367,11 @@ textarea {
   margin: 0;
 }
 
+.service-details-band {
+  background: #fff;
+  border-top: 1px solid var(--line);
+}
+
 .gallery-band {
   background: #fff;
   border-top: 1px solid var(--line);
@@ -419,6 +431,24 @@ textarea {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 22px;
   font-weight: 400;
+}
+
+.gallery-manager {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 360px 1fr;
+}
+
+.gallery-upload {
+  align-self: start;
+  display: grid;
+  gap: 16px;
+}
+
+.admin-gallery-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .cta-band {
@@ -1002,12 +1032,14 @@ textarea {
   .service-grid,
   .gallery-grid,
   .testimonial-grid,
+  .admin-gallery-grid,
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
   .dashboard-grid,
   .client-grid,
+  .gallery-manager,
   .placeholder-grid {
     grid-template-columns: 1fr;
   }
@@ -1050,6 +1082,7 @@ textarea {
   .service-grid,
   .gallery-grid,
   .testimonial-grid,
+  .admin-gallery-grid,
   .stats-grid,
   .form-grid,
   .quick-grid {

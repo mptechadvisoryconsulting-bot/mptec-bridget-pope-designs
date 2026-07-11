@@ -1,5 +1,7 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminGalleryManager } from "@/components/admin/AdminGalleryManager";
+import { getPublicGalleryItems } from "@/lib/gallery";
 
-export default function AdminGalleryPage() {
-  return <AdminSectionPage eyebrow="Content" title="Gallery Manager" icon="inventory" />;
+export default async function AdminGalleryPage() {
+  const items = await getPublicGalleryItems();
+  return <AdminGalleryManager initialItems={items} />;
 }
