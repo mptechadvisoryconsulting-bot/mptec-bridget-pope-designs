@@ -1,6 +1,7 @@
 import { galleryItems } from "@/lib/data";
 import { hasSupabaseAdminEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { mapSupabaseBucket } from "@/lib/supabase/namespace";
 
 export type PublicGalleryItem = {
   id: string;
@@ -16,7 +17,7 @@ function publicStorageUrl(storagePath: string) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = process.env.NEXT_PUBLIC_GALLERY_BUCKET ?? "event-gallery";
+  const bucket = mapSupabaseBucket(process.env.NEXT_PUBLIC_GALLERY_BUCKET ?? "event-gallery");
 
   if (!supabaseUrl) {
     return storagePath;

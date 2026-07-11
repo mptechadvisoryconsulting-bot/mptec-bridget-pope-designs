@@ -45,7 +45,7 @@ export function ClientSidebar() {
             </Link>
           );
         })}
-        <Link className="side-link" href="/auth/login">
+        <Link className="side-link" href="/auth/logout">
           <LogOut size={16} />
           Log Out
         </Link>

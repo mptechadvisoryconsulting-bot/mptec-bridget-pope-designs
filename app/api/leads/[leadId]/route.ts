@@ -24,7 +24,7 @@ const leadUpdateSchema = z.object({
 export async function GET(_request: Request, { params }: { params: Promise<{ leadId: string }> }) {
   const { leadId } = await params;
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from("leads").select("*, files(*)").eq("id", leadId).single();
+  const { data, error } = await supabase.from("leads").select("*, bpd_files(*)").eq("id", leadId).single();
   if (error) return NextResponse.json({ success: false, message: error.message }, { status: 404 });
   return NextResponse.json({ success: true, lead: data });
 }

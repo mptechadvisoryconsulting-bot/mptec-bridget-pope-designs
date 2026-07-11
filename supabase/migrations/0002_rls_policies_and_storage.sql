@@ -119,3 +119,29 @@ create policy "Admins can view activity logs" on bpd_activity_logs for select to
 create policy "Admins can manage automation logs" on bpd_automation_logs for all to authenticated using (bpd_is_admin()) with check (bpd_is_admin());
 create policy "Admins can view stripe events" on bpd_stripe_events for select to authenticated using (bpd_is_admin());
 create policy "Admins can manage business settings" on bpd_business_settings for all to authenticated using (bpd_is_admin()) with check (bpd_is_admin());
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'bpd-event-gallery',
+  'bpd-event-gallery',
+  true,
+  15728640,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'bpd-inquiry-pdfs',
+  'bpd-inquiry-pdfs',
+  false,
+  10485760,
+  array['application/pdf']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;

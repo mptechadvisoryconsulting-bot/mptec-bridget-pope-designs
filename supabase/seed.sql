@@ -1,10 +1,10 @@
-insert into profiles (id, role, first_name, last_name, email, phone, active)
+insert into bpd_profiles (id, role, first_name, last_name, email, phone, active)
 values
   ('00000000-0000-0000-0000-000000000001', 'owner', 'Bridget', 'Pope', 'owner@example.com', '(629) 295-4210', true),
   ('00000000-0000-0000-0000-000000000002', 'client', 'Sample', 'Client', 'client@example.com', '(629) 555-0100', true)
 on conflict (id) do nothing;
 
-insert into leads (
+insert into bpd_leads (
   id,
   lead_number,
   first_name,
@@ -44,11 +44,11 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into clients (id, profile_id, lead_id)
+insert into bpd_clients (id, profile_id, lead_id)
 values ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001')
 on conflict (id) do nothing;
 
-insert into projects (
+insert into bpd_projects (
   id,
   project_number,
   client_id,
@@ -84,9 +84,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into conversations (id, project_id, client_id)
+insert into bpd_conversations (id, project_id, client_id)
 values ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001')
 on conflict (project_id) do nothing;
 
-insert into business_settings (business_name, business_phone, business_email, timezone)
+insert into bpd_business_settings (business_name, business_phone, business_email, timezone)
 values ('Bridget Pope Designs', '(629) 295-4210', 'inquiries@example.com', 'America/Chicago');

@@ -7,6 +7,7 @@ import {
   GalleryHorizontalEnd,
   LayoutDashboard,
   ListChecks,
+  LogOut,
   Package,
   ReceiptText,
   Settings,
@@ -52,6 +53,10 @@ export function AdminSidebar() {
             </Link>
           );
         })}
+        <Link className="side-link" href="/auth/logout">
+          <LogOut size={16} />
+          Log Out
+        </Link>
       </nav>
     </aside>
   );

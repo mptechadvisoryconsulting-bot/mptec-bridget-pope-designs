@@ -12,7 +12,7 @@ type CountdownProject = {
   event_date: string;
   venue_name?: string | null;
   assigned_admin_id?: string | null;
-  clients?: { profile_id?: string | null } | Array<{ profile_id?: string | null }> | null;
+  bpd_clients?: { profile_id?: string | null } | Array<{ profile_id?: string | null }> | null;
 };
 
 export async function GET(request: Request) {
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const { data: projects, error } = await supabase
     .from("projects")
-    .select("id,event_name,event_date,venue_name,assigned_admin_id,clients(profile_id)")
+    .select("id,event_name,event_date,venue_name,assigned_admin_id,bpd_clients(profile_id)")
     .in("status", ACTIVE_STATUSES)
     .not("event_date", "is", null);
 
@@ -44,9 +44,9 @@ export async function GET(request: Request) {
 
     if (existing) continue;
 
-    const clientProfileId = Array.isArray(project.clients)
-      ? project.clients[0]?.profile_id
-      : project.clients?.profile_id;
+    const clientProfileId = Array.isArray(project.bpd_clients)
+      ? project.bpd_clients[0]?.profile_id
+      : project.bpd_clients?.profile_id;
     const recipients = [project.assigned_admin_id, clientProfileId].filter(Boolean);
 
     if (recipients.length) {

@@ -1,6 +1,6 @@
 create extension if not exists "pgcrypto";
 
-create table if not exists profiles (
+create table if not exists bpd_profiles (
   id uuid primary key default gen_random_uuid(),
   auth_user_id uuid unique,
   role text not null check (role in ('owner','admin','planner','team_member','client')),
@@ -14,7 +14,7 @@ create table if not exists profiles (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists leads (
+create table if not exists bpd_leads (
   id uuid primary key default gen_random_uuid(),
   lead_number text unique not null,
   first_name text not null,
@@ -35,17 +35,17 @@ create table if not exists leads (
   services_needed text[] not null default '{}',
   message text,
   status text not null default 'new' check (status in ('new','contacted','consultation_scheduled','consultation_completed','proposal_preparing','proposal_sent','awaiting_approval','awaiting_contract','awaiting_deposit','converted','lost','archived')),
-  assigned_admin_id uuid references profiles(id),
+  assigned_admin_id uuid references bpd_profiles(id),
   pdf_file_id uuid,
   source text not null default 'public_website',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table if not exists clients (
+create table if not exists bpd_clients (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references profiles(id),
-  lead_id uuid references leads(id),
+  profile_id uuid not null references bpd_profiles(id),
+  lead_id uuid references bpd_leads(id),
   stripe_customer_id text,
   billing_address text,
   notes text,
@@ -54,11 +54,11 @@ create table if not exists clients (
   unique(lead_id)
 );
 
-create table if not exists projects (
+create table if not exists bpd_projects (
   id uuid primary key default gen_random_uuid(),
   project_number text unique default ('PRJ-' || upper(substr(gen_random_uuid()::text, 1, 8))),
-  client_id uuid not null references clients(id),
-  lead_id uuid references leads(id),
+  client_id uuid not null references bpd_clients(id),
+  lead_id uuid references bpd_leads(id),
   event_name text not null,
   event_type text not null,
   event_date date,
@@ -72,16 +72,16 @@ create table if not exists projects (
   color_palette text,
   theme text,
   status text not null default 'pending' check (status in ('pending','booked','planning','design_in_progress','awaiting_client_approval','finalizing','ready_for_event','event_complete','closed','cancelled')),
-  assigned_admin_id uuid references profiles(id),
-  assigned_planner_id uuid references profiles(id),
+  assigned_admin_id uuid references bpd_profiles(id),
+  assigned_planner_id uuid references bpd_profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table if not exists consultations (
+create table if not exists bpd_consultations (
   id uuid primary key default gen_random_uuid(),
-  lead_id uuid references leads(id),
-  project_id uuid references projects(id),
+  lead_id uuid references bpd_leads(id),
+  project_id uuid references bpd_projects(id),
   scheduled_at timestamptz,
   timezone text not null default 'America/Chicago',
   meeting_type text check (meeting_type in ('phone','video','in_person')),
@@ -89,14 +89,14 @@ create table if not exists consultations (
   location text,
   status text not null default 'requested' check (status in ('requested','scheduled','completed','cancelled','no_show')),
   notes text,
-  created_by uuid references profiles(id),
+  created_by uuid references bpd_profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table if not exists proposals (
+create table if not exists bpd_proposals (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
+  project_id uuid not null references bpd_projects(id),
   proposal_number text unique default ('PROP-' || upper(substr(gen_random_uuid()::text, 1, 8))),
   title text,
   introduction text,
@@ -109,14 +109,14 @@ create table if not exists proposals (
   status text not null default 'draft' check (status in ('draft','sent','viewed','approved','rejected','expired')),
   approved_at timestamptz,
   public_token text unique,
-  created_by uuid references profiles(id),
+  created_by uuid references bpd_profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table if not exists proposal_items (
+create table if not exists bpd_proposal_items (
   id uuid primary key default gen_random_uuid(),
-  proposal_id uuid not null references proposals(id) on delete cascade,
+  proposal_id uuid not null references bpd_proposals(id) on delete cascade,
   title text not null,
   description text,
   category text,
@@ -127,10 +127,10 @@ create table if not exists proposal_items (
   created_at timestamptz not null default now()
 );
 
-create table if not exists contracts (
+create table if not exists bpd_contracts (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
-  proposal_id uuid references proposals(id),
+  project_id uuid not null references bpd_projects(id),
+  proposal_id uuid references bpd_proposals(id),
   contract_number text unique default ('CTR-' || upper(substr(gen_random_uuid()::text, 1, 8))),
   content text,
   status text not null default 'draft' check (status in ('draft','sent','viewed','signed','voided')),
@@ -143,11 +143,11 @@ create table if not exists contracts (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists invoices (
+create table if not exists bpd_invoices (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
-  client_id uuid not null references clients(id),
-  proposal_id uuid references proposals(id),
+  project_id uuid not null references bpd_projects(id),
+  client_id uuid not null references bpd_clients(id),
+  proposal_id uuid references bpd_proposals(id),
   invoice_number text unique not null,
   invoice_type text not null check (invoice_type in ('deposit','installment','final','custom')),
   description text,
@@ -166,9 +166,9 @@ create table if not exists invoices (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists invoice_items (
+create table if not exists bpd_invoice_items (
   id uuid primary key default gen_random_uuid(),
-  invoice_id uuid not null references invoices(id) on delete cascade,
+  invoice_id uuid not null references bpd_invoices(id) on delete cascade,
   title text not null,
   description text,
   quantity numeric(10,2) not null default 1,
@@ -177,11 +177,11 @@ create table if not exists invoice_items (
   created_at timestamptz not null default now()
 );
 
-create table if not exists payments (
+create table if not exists bpd_payments (
   id uuid primary key default gen_random_uuid(),
-  invoice_id uuid references invoices(id),
-  project_id uuid not null references projects(id),
-  client_id uuid references clients(id),
+  invoice_id uuid references bpd_invoices(id),
+  project_id uuid not null references bpd_projects(id),
+  client_id uuid references bpd_clients(id),
   stripe_customer_id text,
   stripe_event_id text,
   stripe_checkout_session_id text,
@@ -197,7 +197,7 @@ create table if not exists payments (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists stripe_events (
+create table if not exists bpd_stripe_events (
   id uuid primary key default gen_random_uuid(),
   stripe_event_id text not null unique,
   event_type text not null,
@@ -206,21 +206,21 @@ create table if not exists stripe_events (
   created_at timestamptz not null default now()
 );
 
-create table if not exists design_updates (
+create table if not exists bpd_design_updates (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
+  project_id uuid not null references bpd_projects(id),
   title text not null,
   description text,
   status text not null default 'draft' check (status in ('draft','shared','awaiting_feedback','approved','revision_requested')),
   client_visible boolean not null default false,
-  created_by uuid references profiles(id),
+  created_by uuid references bpd_profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table if not exists milestones (
+create table if not exists bpd_milestones (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
+  project_id uuid not null references bpd_projects(id),
   title text not null,
   description text,
   milestone_type text,
@@ -233,10 +233,10 @@ create table if not exists milestones (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists tasks (
+create table if not exists bpd_tasks (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid references projects(id),
-  assigned_to uuid references profiles(id),
+  project_id uuid references bpd_projects(id),
+  assigned_to uuid references bpd_profiles(id),
   title text not null,
   description text,
   due_date date,
@@ -247,20 +247,20 @@ create table if not exists tasks (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists conversations (
+create table if not exists bpd_conversations (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
-  client_id uuid not null references clients(id),
+  project_id uuid not null references bpd_projects(id),
+  client_id uuid not null references bpd_clients(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(project_id)
 );
 
-create table if not exists files (
+create table if not exists bpd_files (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid references projects(id),
-  lead_id uuid references leads(id),
-  uploaded_by uuid references profiles(id),
+  project_id uuid references bpd_projects(id),
+  lead_id uuid references bpd_leads(id),
+  uploaded_by uuid references bpd_profiles(id),
   category text,
   file_name text not null,
   storage_path text not null,
@@ -270,23 +270,23 @@ create table if not exists files (
   created_at timestamptz not null default now()
 );
 
-alter table leads add constraint leads_pdf_file_fk foreign key (pdf_file_id) references files(id) deferrable initially deferred;
+alter table bpd_leads add constraint bpd_leads_pdf_file_fk foreign key (pdf_file_id) references bpd_files(id) deferrable initially deferred;
 
-create table if not exists messages (
+create table if not exists bpd_messages (
   id uuid primary key default gen_random_uuid(),
-  conversation_id uuid not null references conversations(id),
-  sender_id uuid references profiles(id),
+  conversation_id uuid not null references bpd_conversations(id),
+  sender_id uuid references bpd_profiles(id),
   body text not null,
-  attachment_file_id uuid references files(id),
+  attachment_file_id uuid references bpd_files(id),
   read_at timestamptz,
   created_at timestamptz not null default now()
 );
 
-create table if not exists notifications (
+create table if not exists bpd_notifications (
   id uuid primary key default gen_random_uuid(),
-  recipient_id uuid not null references profiles(id),
-  project_id uuid references projects(id),
-  lead_id uuid references leads(id),
+  recipient_id uuid not null references bpd_profiles(id),
+  project_id uuid references bpd_projects(id),
+  lead_id uuid references bpd_leads(id),
   type text not null,
   title text not null,
   message text not null,
@@ -295,9 +295,9 @@ create table if not exists notifications (
   created_at timestamptz not null default now()
 );
 
-create table if not exists event_reminders (
+create table if not exists bpd_event_reminders (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references projects(id),
+  project_id uuid not null references bpd_projects(id),
   days_before_event integer not null,
   admin_notification_sent_at timestamptz,
   client_notification_sent_at timestamptz,
@@ -307,11 +307,11 @@ create table if not exists event_reminders (
   unique(project_id, days_before_event)
 );
 
-create table if not exists activity_logs (
+create table if not exists bpd_activity_logs (
   id uuid primary key default gen_random_uuid(),
-  actor_id uuid references profiles(id),
-  project_id uuid references projects(id),
-  lead_id uuid references leads(id),
+  actor_id uuid references bpd_profiles(id),
+  project_id uuid references bpd_projects(id),
+  lead_id uuid references bpd_leads(id),
   action text not null,
   entity_type text,
   entity_id uuid,
@@ -320,11 +320,11 @@ create table if not exists activity_logs (
   created_at timestamptz not null default now()
 );
 
-create table if not exists automation_logs (
+create table if not exists bpd_automation_logs (
   id uuid primary key default gen_random_uuid(),
   automation_type text not null,
-  project_id uuid references projects(id),
-  lead_id uuid references leads(id),
+  project_id uuid references bpd_projects(id),
+  lead_id uuid references bpd_leads(id),
   recipient text,
   status text not null,
   error_message text,
@@ -332,7 +332,7 @@ create table if not exists automation_logs (
   created_at timestamptz not null default now()
 );
 
-create table if not exists business_settings (
+create table if not exists bpd_business_settings (
   id uuid primary key default gen_random_uuid(),
   business_name text not null default 'Bridget Pope Designs',
   business_phone text not null default '(629) 295-4210',
@@ -347,12 +347,12 @@ create table if not exists business_settings (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists idx_profiles_auth_user_id on profiles(auth_user_id);
-create index if not exists idx_profiles_role on profiles(role);
-create index if not exists idx_leads_status on leads(status);
-create index if not exists idx_projects_client_id on projects(client_id);
-create index if not exists idx_projects_assigned_admin_id on projects(assigned_admin_id);
-create index if not exists idx_invoices_project_id on invoices(project_id);
-create index if not exists idx_notifications_recipient_unread on notifications(recipient_id, read_at);
-create index if not exists idx_messages_conversation_id on messages(conversation_id);
-create index if not exists idx_files_project_id on files(project_id);
+create index if not exists bpd_idx_profiles_auth_user_id on bpd_profiles(auth_user_id);
+create index if not exists bpd_idx_profiles_role on bpd_profiles(role);
+create index if not exists bpd_idx_leads_status on bpd_leads(status);
+create index if not exists bpd_idx_projects_client_id on bpd_projects(client_id);
+create index if not exists bpd_idx_projects_assigned_admin_id on bpd_projects(assigned_admin_id);
+create index if not exists bpd_idx_invoices_project_id on bpd_invoices(project_id);
+create index if not exists bpd_idx_notifications_recipient_unread on bpd_notifications(recipient_id, read_at);
+create index if not exists bpd_idx_messages_conversation_id on bpd_messages(conversation_id);
+create index if not exists bpd_idx_files_project_id on bpd_files(project_id);
