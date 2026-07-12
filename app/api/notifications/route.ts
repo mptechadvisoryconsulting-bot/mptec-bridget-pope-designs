@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
-  const recipientId = new URL(request.url).searchParams.get("recipientId");
-  if (!recipientId) return NextResponse.json({ success: false, message: "recipientId is required" }, { status: 400 });
+  const { profile } = await getCurrentProfile();
+  if (!profile?.active) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+  }
+
+  const requestedRecipientId = new URL(request.url).searchParams.get("recipientId");
+  const recipientId = adminRoles.has(profile.role) && requestedRecipientId ? requestedRecipientId : profile.id;
   const { data, error } = await createAdminClient()
     .from("notifications")
     .select("*")

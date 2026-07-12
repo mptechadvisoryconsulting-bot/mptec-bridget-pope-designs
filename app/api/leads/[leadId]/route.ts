@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const leadUpdateSchema = z.object({
@@ -22,6 +23,9 @@ const leadUpdateSchema = z.object({
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ leadId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const { leadId } = await params;
   const supabase = createAdminClient();
   const { data, error } = await supabase.from("leads").select("*, bpd_files(*)").eq("id", leadId).single();
@@ -30,6 +34,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ lea
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ leadId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const { leadId } = await params;
   const input = leadUpdateSchema.parse(await request.json());
   const supabase = createAdminClient();

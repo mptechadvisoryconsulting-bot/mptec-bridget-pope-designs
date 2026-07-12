@@ -79,15 +79,15 @@ export function InquiryForm() {
           <input aria-hidden="true" suppressHydrationWarning tabIndex={-1} style={{ display: "none" }} {...register("company")} />
           <div className="form-grid">
             <Field label="First Name">
-              <Input placeholder="Ashley" {...register("firstName")} />
+              <Input placeholder="First name" {...register("firstName")} />
               {errors.firstName && <small>{errors.firstName.message}</small>}
             </Field>
             <Field label="Last Name">
-              <Input placeholder="Johnson" {...register("lastName")} />
+              <Input placeholder="Last name" {...register("lastName")} />
               {errors.lastName && <small>{errors.lastName.message}</small>}
             </Field>
             <Field label="Email">
-              <Input placeholder="ashley@example.com" type="email" {...register("email")} />
+              <Input placeholder="client@example.com" type="email" {...register("email")} />
               {errors.email && <small>{errors.email.message}</small>}
             </Field>
             <Field label="Phone">

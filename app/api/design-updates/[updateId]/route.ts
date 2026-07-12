@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const designUpdatePatchSchema = z.object({
@@ -10,6 +11,9 @@ const designUpdatePatchSchema = z.object({
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ updateId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const { updateId } = await params;
   const input = designUpdatePatchSchema.parse(await request.json());
   const { data, error } = await createAdminClient().from("design_updates").update(input).eq("id", updateId).select().single();

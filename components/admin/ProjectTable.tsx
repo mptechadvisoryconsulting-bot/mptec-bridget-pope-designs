@@ -1,4 +1,3 @@
-import { bookings } from "@/lib/data";
 import { shortDate } from "@/lib/dates";
 
 type ProjectRow = {
@@ -10,7 +9,7 @@ type ProjectRow = {
   total: string;
 };
 
-export function ProjectTable({ rows = bookings }: { rows?: ProjectRow[] }) {
+export function ProjectTable({ rows = [] }: { rows?: ProjectRow[] }) {
   return (
     <section className="panel span-2">
       <h2>Recent Projects</h2>

@@ -49,7 +49,7 @@ export async function getPublicGalleryItems(limit = 24): Promise<PublicGalleryIt
     .limit(limit);
 
   if (error || !data?.length) {
-    return fallbackGalleryItems();
+    return [];
   }
 
   return data.map((file) => ({

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { appUrl, hasEmailEnv } from "@/lib/env";
 import { emailFrom, resend } from "@/lib/email/resend";
 import { getRequestIp, jsonError, rateLimit } from "@/lib/http";
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
 
 function leadNumber() {
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  return `BPD-${stamp}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  return `BPD-${stamp}-${randomBytes(3).toString("hex").toUpperCase()}`;
 }
 
 async function sendOptionalEmail(input: Parameters<typeof resend.emails.send>[0]) {

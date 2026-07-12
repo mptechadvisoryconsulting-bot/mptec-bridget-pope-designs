@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const designUpdateSchema = z.object({
@@ -8,10 +9,12 @@ const designUpdateSchema = z.object({
   description: z.string().max(5000),
   status: z.enum(["draft", "shared", "awaiting_feedback", "approved", "revision_requested"]).default("draft"),
   clientVisible: z.boolean().default(false),
-  createdBy: z.string().uuid(),
 });
 
 export async function POST(request: Request) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const input = designUpdateSchema.parse(await request.json());
   const { data, error } = await createAdminClient()
     .from("design_updates")
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
       description: input.description,
       status: input.status,
       client_visible: input.clientVisible,
-      created_by: input.createdBy,
+      created_by: admin.profile.id,
     })
     .select()
     .single();

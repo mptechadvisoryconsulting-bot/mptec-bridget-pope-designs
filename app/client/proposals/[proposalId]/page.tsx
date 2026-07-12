@@ -1,36 +1,52 @@
 import { FileSignature } from "lucide-react";
+import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/ui/button";
-import { proposalItems } from "@/lib/data";
 import { currency } from "@/lib/currency";
+import { requireClientPortalContext } from "@/lib/client-portal";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export const dynamic = "force-dynamic";
 
 export default async function ClientProposalDetailPage({ params }: { params: Promise<{ proposalId: string }> }) {
   const { proposalId } = await params;
-  const total = proposalItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const { project } = await requireClientPortalContext(`/client/proposals/${proposalId}`);
+  const { data: proposal } = await createAdminClient()
+    .from("proposals")
+    .select("*, bpd_proposal_items(*)")
+    .eq("id", proposalId)
+    .maybeSingle();
+
+  if (!proposal || proposal.project_id !== project?.id) {
+    notFound();
+  }
+
+  const items = proposal.bpd_proposal_items ?? [];
 
   return (
     <div>
       <div className="client-hero">
         <div>
-          <span className="eyebrow">Proposal {proposalId}</span>
-          <h1>Luxury Wedding Design Proposal</h1>
-          <p className="mini-meta">Review the service list, rental list, labor, delivery, deposit, total, and expiration date.</p>
+          <span className="eyebrow">{proposal.proposal_number ?? "Proposal"}</span>
+          <h1>{proposal.title ?? "Event Design Proposal"}</h1>
+          <p className="mini-meta">{proposal.introduction ?? "Review the proposal shared by Bridget Pope Designs."}</p>
         </div>
       </div>
       <section className="panel">
         <h2>Proposal Items</h2>
         <table className="table">
           <thead>
-            <tr><th>Item</th><th>Qty</th><th>Price</th></tr>
+            <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
           </thead>
           <tbody>
-            {proposalItems.map((item) => (
-              <tr key={item.name}><td>{item.name}</td><td>{item.qty}</td><td>{currency(item.price)}</td></tr>
+            {items.map((item: any) => (
+              <tr key={item.id}><td>{item.title}</td><td>{item.quantity}</td><td>{currency(Number(item.unit_price ?? 0))}</td><td>{currency(Number(item.total ?? 0))}</td></tr>
             ))}
-            <tr><td><strong>Total</strong></td><td /><td><strong>{currency(total)}</strong></td></tr>
+            {!items.length ? <tr><td colSpan={4}>No proposal items have been added yet.</td></tr> : null}
+            <tr><td><strong>Total</strong></td><td /><td /><td><strong>{currency(Number(proposal.total ?? 0))}</strong></td></tr>
           </tbody>
         </table>
         <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-          <ButtonLink href="/client/contracts/contract-1001"><FileSignature size={16} /> Approve Proposal</ButtonLink>
+          <ButtonLink href="/client/contracts"><FileSignature size={16} /> View Contracts</ButtonLink>
           <ButtonLink href="/client/messages" variant="light">Ask a Question</ButtonLink>
         </div>
       </section>

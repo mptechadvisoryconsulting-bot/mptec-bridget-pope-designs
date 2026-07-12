@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { currency } from "@/lib/currency";
+import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
+import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminInvoiceDetailPage({ params }: { params: Promise<{ invoiceId: string }> }) {
@@ -25,48 +26,17 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           <span className="eyebrow">Invoice Preview</span>
           <h1>{invoice.invoice_number}</h1>
         </div>
+        <PrintInvoiceButton />
       </div>
-      <section className="panel">
-        <div className="invoice-preview-grid">
-          <div>
-            <h2>{clientName}</h2>
-            <p className="mini-meta">{project?.event_name ?? "Project"} - {invoice.invoice_type}</p>
-            <p>{invoice.description}</p>
-          </div>
-          <div>
-            <p><strong>Status:</strong> {invoice.status}</p>
-            <p><strong>Due:</strong> {invoice.due_date ?? "Not set"}</p>
-            <p><strong>Balance:</strong> {currency(Number(invoice.balance_due ?? 0))}</p>
-          </div>
-        </div>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Description</th>
-              <th>Qty</th>
-              <th>Unit</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item: any) => (
-              <tr key={item.id}>
-                <td>{item.title}</td>
-                <td>{item.description ?? ""}</td>
-                <td>{item.quantity}</td>
-                <td>{currency(Number(item.unit_price ?? 0))}</td>
-                <td>{currency(Number(item.total ?? 0))}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="invoice-total">
-          <span>Subtotal {currency(Number(invoice.subtotal ?? 0))}</span>
-          <span>Tax {currency(Number(invoice.tax_amount ?? 0))}</span>
-          <span>Discount {currency(Number(invoice.discount_amount ?? 0))}</span>
-          <strong>Total {currency(Number(invoice.total ?? 0))}</strong>
-        </div>
+      <section className="panel invoice-shell">
+        <InvoiceDocument
+          clientEmail={profile?.email}
+          clientName={clientName}
+          invoice={invoice}
+          items={items}
+          projectName={project?.event_name}
+          venue={project?.venue_name}
+        />
       </section>
     </div>
   );

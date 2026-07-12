@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ leadId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const { leadId } = await params;
   const supabase = createAdminClient();
   const { data: lead, error: leadError } = await supabase.from("leads").select("*").eq("id", leadId).single();
@@ -48,7 +52,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ le
       color_palette: lead.event_colors,
       theme: lead.event_theme,
       status: "planning",
-      assigned_admin_id: lead.assigned_admin_id,
+      assigned_admin_id: lead.assigned_admin_id ?? admin.profile.id,
     })
     .select()
     .single();

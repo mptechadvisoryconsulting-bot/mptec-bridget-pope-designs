@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CheckSquare,
@@ -29,6 +32,8 @@ const clientLinks = [
 ];
 
 export function ClientSidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="sidebar">
       <Link className="brand" href="/client/dashboard">
@@ -36,10 +41,11 @@ export function ClientSidebar() {
         <span>Designs</span>
       </Link>
       <nav className="side-nav" aria-label="Client navigation">
-        {clientLinks.map((item, index) => {
+        {clientLinks.map((item) => {
           const Icon = item.icon;
+          const isActive = item.href === "/client/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
           return (
-            <Link className={index === 0 ? "side-link active" : "side-link"} href={item.href} key={item.label}>
+            <Link className={isActive ? "side-link active" : "side-link"} href={item.href} key={item.label}>
               <Icon size={16} />
               {item.label}
             </Link>

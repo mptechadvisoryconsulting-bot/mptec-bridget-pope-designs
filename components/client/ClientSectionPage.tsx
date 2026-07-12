@@ -1,74 +1,57 @@
-import { Download, FileSignature, Upload } from "lucide-react";
+import { Download, FileSignature, FolderOpen, Upload } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { checklistItems, proposalItems, timelineItems } from "@/lib/data";
-import { currency } from "@/lib/currency";
 
 export function ClientSectionPage({
   title,
   eyebrow,
+  description = "This workspace shows records shared to your Bridget Pope Designs client portal.",
 }: {
   title: string;
   eyebrow: string;
+  description?: string;
 }) {
-  const proposalTotal = proposalItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-
   return (
     <div>
       <div className="client-hero">
         <div>
           <span className="eyebrow">{eyebrow}</span>
           <h1>{title}</h1>
-          <p className="mini-meta">Everything here is scoped for the current Elegant Garden Wedding project.</p>
+          <p className="mini-meta">{description}</p>
         </div>
       </div>
       <div className="placeholder-grid">
         <section className="panel">
-          <h2>Current Proposal</h2>
-          {proposalItems.map((item) => (
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }} key={item.name}>
-              <span>{item.name}</span>
-              <strong>{currency(item.price)}</strong>
-            </div>
-          ))}
-          <div style={{ borderTop: "1px solid #eee2e5", display: "flex", justifyContent: "space-between", paddingTop: 12 }}>
-            <strong>Total</strong>
-            <strong>{currency(proposalTotal)}</strong>
-          </div>
+          <h2>Shared Records</h2>
+          <p className="mini-meta">No records have been shared here yet.</p>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <ButtonLink href="/client/proposals/proposal-1001">
-              <FileSignature size={16} /> Review
+            <ButtonLink href="/client/messages">
+              <FileSignature size={16} /> Ask Planner
             </ButtonLink>
             <ButtonLink href="/client/documents" variant="light">
-              <Download size={16} /> Download
+              <Download size={16} /> Documents
             </ButtonLink>
           </div>
         </section>
         <section className="panel">
-          <h2>Upcoming Milestones</h2>
+          <h2>Project Activity</h2>
           <ul className="list">
-            {timelineItems.map((item) => (
-              <li key={item.title}>
-                <span>{item.title}</span>
-                <span className="mini-meta">{item.date}</span>
-              </li>
-            ))}
+            <li><span>Updates from the admin dashboard will appear here.</span><span className="status">Synced</span></li>
+            <li><span>Client-visible files and design notes stay attached to your project.</span><span className="status">Private</span></li>
           </ul>
         </section>
         <section className="panel">
-          <h2>Checklist</h2>
+          <h2>Related Areas</h2>
           <ul className="list">
-            {checklistItems.slice(0, 5).map((item) => (
-              <li key={item.label}>
-                <span>{item.label}</span>
-                <span className="status">{item.done ? "Done" : "Open"}</span>
-              </li>
-            ))}
+            <li><a href="/client/invoices">Invoices</a><span className="mini-meta">Billing</span></li>
+            <li><a href="/client/timeline">Timeline</a><span className="mini-meta">Milestones</span></li>
+            <li><a href="/client/files">Files</a><span className="mini-meta">Documents</span></li>
           </ul>
         </section>
         <section className="placeholder-hero">
-          <Upload color="var(--blush)" size={34} />
-          <h1>Uploads and Design Files</h1>
-          <p className="mini-meta">Mood boards, venue notes, signed PDFs, receipts, inspiration uploads, and planner attachments appear here.</p>
+          <FolderOpen color="var(--blush)" size={34} />
+          <h1>Project Files</h1>
+          <p className="mini-meta">Admin uploads and client submissions appear here after they are attached to your project.</p>
+          <Upload color="var(--gold)" size={24} />
         </section>
       </div>
     </div>

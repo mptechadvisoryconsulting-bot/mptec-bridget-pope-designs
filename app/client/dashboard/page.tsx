@@ -10,9 +10,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const quickActions = [
-  { label: "View Proposal", href: "/client/proposals/proposal-1001", icon: FileSignature },
-  { label: "Contract Signed", href: "/client/contracts/contract-1001", icon: FileSignature },
-  { label: "Invoices & Receipts", href: "/client/payments", icon: ReceiptText },
+  { label: "View Proposals", href: "/client/proposals", icon: FileSignature },
+  { label: "Contracts", href: "/client/contracts", icon: FileSignature },
+  { label: "Invoices & Receipts", href: "/client/invoices", icon: ReceiptText },
   { label: "Share Inspiration", href: "/client/inspiration", icon: Share2 },
   { label: "Event Timeline", href: "/client/timeline", icon: CalendarDays },
   { label: "Message Planner", href: "/client/messages", icon: MessageSquare },
@@ -161,6 +161,7 @@ export default async function ClientDashboardPage() {
           }))}
         />
         <MessagePanel
+          conversationId={conversation?.id}
           messages={(messages ?? []).map((message) => ({
             id: message.id,
             body: message.body,

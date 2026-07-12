@@ -1,12 +1,10 @@
-import { pipeline } from "@/lib/data";
-
 type PipelineStage = {
   label: string;
   value: number;
   color: string;
 };
 
-export function LeadPipeline({ stages = pipeline, total = 18 }: { stages?: PipelineStage[]; total?: number }) {
+export function LeadPipeline({ stages = [], total = 0 }: { stages?: PipelineStage[]; total?: number }) {
   return (
     <section className="panel">
       <h2>Leads by Status</h2>
@@ -24,6 +22,7 @@ export function LeadPipeline({ stages = pipeline, total = 18 }: { stages?: Pipel
               <strong>{stage.value}</strong>
             </li>
           ))}
+          {!stages.length ? <li>No leads yet.<span className="mini-meta">0</span></li> : null}
         </ul>
       </div>
     </section>

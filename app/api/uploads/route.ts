@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { hasSupabaseAdminEnv, safeErrorMessage } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,6 +19,9 @@ function cleanFilePart(value: string) {
 
 export async function POST(request: Request) {
   try {
+    const admin = await requireAdminProfile();
+    if (admin.error) return admin.error;
+
     if (!hasSupabaseAdminEnv()) {
       return NextResponse.json(
         { success: false, message: "Supabase environment variables are required for uploads." },
@@ -44,7 +48,6 @@ export async function POST(request: Request) {
     const bucket = process.env.NEXT_PUBLIC_GALLERY_BUCKET ?? "event-gallery";
     const category = String(form.get("category") ?? "Event Design").trim() || "Event Design";
     const title = String(form.get("title") ?? file.name).trim() || file.name;
-    const uploadedBy = String(form.get("uploadedBy") ?? "").trim() || null;
     const extension = file.name.split(".").pop()?.toLowerCase() ?? file.type.split("/")[1] ?? "jpg";
     const storagePath = `gallery/${cleanFilePart(title) || "event-photo"}-${randomUUID()}.${extension}`;
 
@@ -62,7 +65,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("files")
       .insert({
-        uploaded_by: uploadedBy,
+        uploaded_by: admin.profile.id,
         category,
         file_name: title,
         storage_path: storagePath,

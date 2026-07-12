@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ proposalId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const { proposalId } = await params;
   const supabase = createAdminClient();
   const { data, error } = await supabase

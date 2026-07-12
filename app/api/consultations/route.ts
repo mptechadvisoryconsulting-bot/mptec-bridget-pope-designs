@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { consultationSchema } from "@/lib/validation/consultation-schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
   const input = consultationSchema.parse(await request.json());
   const supabase = createAdminClient();
   const { data, error } = await supabase

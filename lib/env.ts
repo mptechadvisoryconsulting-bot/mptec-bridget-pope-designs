@@ -5,8 +5,20 @@ export class ConfigurationError extends Error {
   }
 }
 
+const productionOrigin = "https://bridget-pope-designs.us";
+
 export function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  const fallback = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production"
+    ? productionOrigin
+    : "http://localhost:3000";
+
+  try {
+    const url = new URL(configured ?? fallback);
+    return url.origin;
+  } catch {
+    return fallback;
+  }
 }
 
 export function requireEnv(name: string) {

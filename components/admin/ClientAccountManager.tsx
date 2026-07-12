@@ -71,13 +71,13 @@ export function ClientAccountManager({ projects }: { projects: ClientProject[] }
     <div className="dashboard-grid">
       <form action={createClient} className="panel form-grid span-2">
         <h2 className="wide">Create Client Portal</h2>
-        <Field label="Username"><Input name="username" placeholder="Ashley20" required /></Field>
+        <Field label="Username"><Input name="username" placeholder="Client20" required /></Field>
         <Field label="Temporary Password"><Input name="password" placeholder="Give this to the client" required type="password" /></Field>
-        <Field label="First Name"><Input name="firstName" placeholder="Ashley" required /></Field>
+        <Field label="First Name"><Input name="firstName" placeholder="First name" required /></Field>
         <Field label="Last Name"><Input name="lastName" placeholder="Johnson" required /></Field>
         <Field label="Client Email"><Input name="email" placeholder="ashley@example.com" type="email" /></Field>
         <Field label="Phone"><Input name="phone" placeholder="(629) 555-0100" /></Field>
-        <Field label="Event Name"><Input name="eventName" placeholder="Elegant Garden Wedding" required /></Field>
+        <Field label="Event Name"><Input name="eventName" placeholder="Client Event" required /></Field>
         <Field label="Event Type"><Input name="eventType" placeholder="Wedding" required /></Field>
         <Field label="Event Date"><Input name="eventDate" type="date" /></Field>
         <Field label="Venue"><Input name="venue" placeholder="Murfreesboro, TN" /></Field>

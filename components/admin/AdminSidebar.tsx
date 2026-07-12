@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CreditCard,
@@ -37,6 +40,8 @@ const adminLinks = [
 ];
 
 export function AdminSidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="sidebar">
       <Link className="brand" href="/admin">
@@ -44,10 +49,11 @@ export function AdminSidebar() {
         <span>Designs</span>
       </Link>
       <nav className="side-nav" aria-label="Admin navigation">
-        {adminLinks.map((item, index) => {
+        {adminLinks.map((item) => {
           const Icon = item.icon;
+          const isActive = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
           return (
-            <Link className={index === 0 ? "side-link active" : "side-link"} href={item.href} key={item.href}>
+            <Link className={isActive ? "side-link active" : "side-link"} href={item.href} key={item.href}>
               <Icon size={16} />
               {item.label}
             </Link>

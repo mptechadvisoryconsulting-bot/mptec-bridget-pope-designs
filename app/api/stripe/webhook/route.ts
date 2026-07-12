@@ -3,6 +3,14 @@ import { getStripe } from "@/lib/stripe/client";
 
 export const runtime = "nodejs";
 
+const handledNoopEvents = new Set([
+  "account.updated",
+  "payout.failed",
+  "account.external_account.updated",
+  "charge.dispute.created",
+  "refund.created",
+]);
+
 export async function POST(request: Request) {
   const stripe = getStripe();
   const body = await request.text();
@@ -33,9 +41,16 @@ export async function POST(request: Request) {
     const invoiceId = session.metadata?.invoice_id;
     const projectId = session.metadata?.project_id;
     const clientId = session.metadata?.client_id;
-    const amount = session.amount_total ?? 0;
+    const amountCents = session.amount_total ?? 0;
+    const amount = amountCents / 100;
 
     if (invoiceId && projectId) {
+      const { data: invoice } = await supabase
+        .from("invoices")
+        .select("id,total,amount_paid,balance_due")
+        .eq("id", invoiceId)
+        .maybeSingle();
+
       await supabase.from("payments").insert({
         invoice_id: invoiceId,
         project_id: projectId,
@@ -50,13 +65,39 @@ export async function POST(request: Request) {
         paid_at: new Date().toISOString(),
       });
 
-      await supabase
-        .from("invoices")
-        .update({ status: "paid", amount_paid: amount / 100, balance_due: 0 })
-        .eq("id", invoiceId);
+      if (invoice) {
+        const total = Number(invoice.total ?? 0);
+        const paid = Math.min(total, Number(invoice.amount_paid ?? 0) + amount);
+        const balance = Math.max(0, total - paid);
+
+        await supabase
+          .from("invoices")
+          .update({
+            status: balance === 0 ? "paid" : "partially_paid",
+            amount_paid: paid,
+            balance_due: balance,
+          })
+          .eq("id", invoiceId);
+      }
 
       await supabase.from("projects").update({ status: "booked" }).eq("id", projectId).eq("status", "pending");
     }
+  } else if (event.type === "checkout.session.async_payment_failed") {
+    const session = event.data.object;
+    const invoiceId = session.metadata?.invoice_id;
+
+    if (invoiceId) {
+      await supabase.from("invoices").update({ status: "failed" }).eq("id", invoiceId).neq("status", "paid");
+    }
+  } else if (event.type === "payment_intent.payment_failed") {
+    const paymentIntent = event.data.object;
+    const invoiceId = paymentIntent.metadata?.invoice_id;
+
+    if (invoiceId) {
+      await supabase.from("invoices").update({ status: "failed" }).eq("id", invoiceId).neq("status", "paid");
+    }
+  } else if (!handledNoopEvents.has(event.type)) {
+    console.warn(`Unhandled Stripe webhook event: ${event.type}`);
   }
 
   await supabase.from("stripe_events").insert({
