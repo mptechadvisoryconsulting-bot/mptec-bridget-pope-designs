@@ -22,7 +22,20 @@ export type InvoiceDocumentData = {
   due_date?: string | null;
   created_at?: string | null;
   status?: string | null;
+  template_snapshot?: unknown;
 };
+
+type TemplateSnapshot = {
+  businessName?: string;
+  accentColor?: string;
+  paymentTerms?: string;
+  footerNote?: string;
+  logoUrl?: string | null;
+};
+
+function invoiceTemplate(snapshot: unknown): TemplateSnapshot {
+  return snapshot && typeof snapshot === "object" ? (snapshot as TemplateSnapshot) : {};
+}
 
 export function InvoiceDocument({
   invoice,
@@ -46,13 +59,15 @@ export function InvoiceDocument({
   const paid = Number(invoice.amount_paid ?? 0);
   const balance = Number(invoice.balance_due ?? 0);
   const total = Number(invoice.total ?? 0);
+  const template = invoiceTemplate(invoice.template_snapshot);
+  const accentColor = template.accentColor ?? "#c96f82";
 
   return (
-    <article className="invoice-document" aria-label={`Invoice ${invoice.invoice_number}`}>
+    <article className="invoice-document" aria-label={`Invoice ${invoice.invoice_number}`} style={{ ["--invoice-accent" as string]: accentColor }}>
       <header className="invoice-doc-header">
         <div>
           <h1>Invoice</h1>
-          <strong>Bridget Pope Designs</strong>
+          <strong>{template.businessName ?? "Bridget Pope Designs"}</strong>
         </div>
         <span className="invoice-status">{invoice.status ?? "pending"}</span>
       </header>
@@ -110,10 +125,10 @@ export function InvoiceDocument({
       </section>
 
       <footer className="invoice-doc-footer">
-        <div className="invoice-thanks">Thank you</div>
+        <div className="invoice-thanks">{template.footerNote ?? "Thank you"}</div>
         <div className="invoice-terms">
           <h2>Terms & Conditions</h2>
-          <p>Payment is due within 15 days.</p>
+          <p>{template.paymentTerms ?? "Payment is due within 15 days."}</p>
         </div>
       </footer>
     </article>

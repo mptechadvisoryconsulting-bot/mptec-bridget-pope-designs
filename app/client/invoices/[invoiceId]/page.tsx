@@ -1,8 +1,7 @@
-import { CreditCard } from "lucide-react";
 import { notFound } from "next/navigation";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
+import { PayInvoiceButton } from "@/components/invoices/PayInvoiceButton";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
-import { ButtonLink } from "@/components/ui/button";
 import { displayName } from "@/lib/auth/current-profile";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,7 +13,7 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
   const { profile, client } = await requireClientPortalContext(`/client/invoices/${invoiceId}`);
   const { data: invoice } = await createAdminClient()
     .from("invoices")
-    .select("*, bpd_invoice_items(*), bpd_projects(event_name,event_date,venue_name,bpd_clients(profile_id))")
+    .select("*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_projects(event_name,event_date,venue_name,bpd_clients(profile_id))")
     .eq("id", invoiceId)
     .maybeSingle();
 
@@ -40,11 +39,7 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
           <h1>{invoice.invoice_number}</h1>
         </div>
         <div className="topbar-actions invoice-actions-print">
-          {isPayable && invoice.stripe_payment_link_url ? (
-            <ButtonLink href={invoice.stripe_payment_link_url}>
-              <CreditCard size={16} /> Pay Invoice
-            </ButtonLink>
-          ) : null}
+          {isPayable ? <PayInvoiceButton invoiceId={invoice.id} /> : null}
           <PrintInvoiceButton />
         </div>
       </div>

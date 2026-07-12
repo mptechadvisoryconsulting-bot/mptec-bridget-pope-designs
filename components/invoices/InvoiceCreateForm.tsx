@@ -25,6 +25,12 @@ type ProposalOption = {
   label: string;
 };
 
+type TemplateOption = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+};
+
 type LineItem = {
   title: string;
   description: string;
@@ -48,18 +54,24 @@ export function InvoiceCreateForm({
   clients,
   projects,
   proposals,
+  templates,
 }: {
   clients: ClientOption[];
   projects: ProjectOption[];
   proposals: ProposalOption[];
+  templates: TemplateOption[];
 }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const filteredProjects = useMemo(() => projects.filter((project) => project.clientId === clientId), [clientId, projects]);
   const [projectId, setProjectId] = useState(filteredProjects[0]?.id ?? "");
   const [proposalId, setProposalId] = useState("");
   const [invoiceType, setInvoiceType] = useState("deposit");
+  const [templateId, setTemplateId] = useState(templates.find((template) => template.isDefault)?.id ?? templates[0]?.id ?? "");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
+  const [footerNote, setFooterNote] = useState("");
+  const [accentColor, setAccentColor] = useState("#c96f82");
   const [items, setItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [taxAmount, setTaxAmount] = useState("0.00");
   const [discountAmount, setDiscountAmount] = useState("0.00");
@@ -94,6 +106,12 @@ export function InvoiceCreateForm({
         clientId,
         projectId: effectiveProjectId,
         proposalId,
+        templateId,
+        templateOverrides: {
+          accentColor,
+          paymentTerms,
+          footerNote,
+        },
         invoiceType,
         description,
         dueDate,
@@ -166,6 +184,14 @@ export function InvoiceCreateForm({
           </select>
         </label>
         <label className="field">
+          <span>Invoice Template</span>
+          <select className="input" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>{template.name}{template.isDefault ? " (default)" : ""}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
           <span>Due Date</span>
           <input className="input" required type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
         </label>
@@ -180,6 +206,18 @@ export function InvoiceCreateForm({
         <label className="field wide">
           <span>Invoice Notes</span>
           <textarea className="textarea" required value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Deposit for event design services." />
+        </label>
+        <label className="field wide">
+          <span>Payment Terms Override</span>
+          <textarea className="textarea" value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} placeholder="Leave blank to use the reusable template terms." />
+        </label>
+        <label className="field">
+          <span>Accent Color</span>
+          <input className="input" type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} />
+        </label>
+        <label className="field">
+          <span>Footer Note Override</span>
+          <input className="input" value={footerNote} onChange={(event) => setFooterNote(event.target.value)} placeholder="Optional invoice note" />
         </label>
       </div>
 

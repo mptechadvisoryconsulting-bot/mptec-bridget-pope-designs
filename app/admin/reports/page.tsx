@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function ReportsPage() {
-  return <AdminSectionPage eyebrow="Analytics" title="Reports" icon="calendar" />;
+  return <AdminResourcePage eyebrow="Analytics" title="Reports" table="invoices" columns={["invoice_number", "invoice_type", "total", "amount_paid", "balance_due", "status"]} />;
 }

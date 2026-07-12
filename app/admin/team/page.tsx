@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function TeamPage() {
-  return <AdminSectionPage eyebrow="Users" title="Team" icon="people" />;
+  return <AdminResourcePage eyebrow="Users" title="Team" table="profiles" columns={["first_name", "last_name", "email", "username", "role", "active"]} />;
 }

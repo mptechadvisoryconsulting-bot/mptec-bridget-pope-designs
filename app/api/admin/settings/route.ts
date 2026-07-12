@@ -20,6 +20,7 @@ export async function PUT(request: Request) {
     business_phone: process.env.NEXT_PUBLIC_BUSINESS_PHONE ?? "(629) 295-4210",
     business_email: input.businessEmail,
     timezone: "America/Chicago",
+    stripe_payment_model: "destination_charges",
   };
 
   const { error } = existing?.id

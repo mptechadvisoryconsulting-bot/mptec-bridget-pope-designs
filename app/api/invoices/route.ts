@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { calculateInvoiceTotals } from "@/lib/billing/invoice-calculations";
+import { resolveInvoiceTemplate } from "@/lib/invoices/templates";
 import { invoiceSchema } from "@/lib/validation/invoice-schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
   }
 
   const totals = calculateInvoiceTotals(input.items, input.taxAmount, input.discountAmount);
+  const { template, snapshot } = await resolveInvoiceTemplate(supabase, input.templateId, input.templateOverrides);
   const { data: invoice, error } = await supabase
     .from("invoices")
     .insert({
@@ -58,6 +60,10 @@ export async function POST(request: Request) {
       balance_due: totals.total,
       due_date: input.dueDate,
       status: "pending",
+      template_id: template.id,
+      template_snapshot: snapshot,
+      template_overrides: input.templateOverrides,
+      active_version: 1,
     })
     .select()
     .single();
@@ -77,6 +83,30 @@ export async function POST(request: Request) {
   if (itemError) {
     await supabase.from("invoices").delete().eq("id", invoice.id);
     return NextResponse.json({ success: false, message: "Unable to create invoice line items." }, { status: 400 });
+  }
+
+  const { error: versionError } = await supabase.from("invoice_versions").insert({
+    invoice_id: invoice.id,
+    version_number: 1,
+    template_id: template.id,
+    template_snapshot: snapshot,
+    invoice_snapshot: {
+      invoice,
+      items: totals.items,
+      totals: {
+        subtotal: totals.subtotal,
+        taxAmount: totals.taxAmount,
+        discountAmount: totals.discountAmount,
+        total: totals.total,
+      },
+    },
+    status: "active",
+    created_by: admin.profile.id,
+  });
+
+  if (versionError) {
+    await supabase.from("invoices").delete().eq("id", invoice.id);
+    return NextResponse.json({ success: false, message: "Unable to create invoice version." }, { status: 400 });
   }
 
   return NextResponse.json({ success: true, invoice }, { status: 201 });

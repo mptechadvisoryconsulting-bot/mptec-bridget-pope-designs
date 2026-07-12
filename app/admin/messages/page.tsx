@@ -1,5 +1,102 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminMessageCenter } from "@/components/admin/AdminMessageCenter";
+import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export default function AdminMessagesPage() {
-  return <AdminSectionPage eyebrow="Communication" title="Messages" icon="people" />;
+export const dynamic = "force-dynamic";
+
+type ConversationRow = {
+  id: string;
+  project_id: string;
+  client_id: string;
+  bpd_projects?: { event_name?: string | null; status?: string | null } | Array<{ event_name?: string | null; status?: string | null }> | null;
+  bpd_clients?: {
+    bpd_profiles?: {
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+      username?: string | null;
+    } | Array<{
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+      username?: string | null;
+    }> | null;
+  } | Array<{
+    bpd_profiles?: {
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+      username?: string | null;
+    } | Array<{
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+      username?: string | null;
+    }> | null;
+  }> | null;
+};
+
+type MessageRow = {
+  id: string;
+  conversation_id: string;
+  body: string;
+  sender_id?: string | null;
+  created_at: string;
+};
+
+function first<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+export default async function AdminMessagesPage() {
+  const { profile } = await getCurrentProfile();
+  const supabase = createAdminClient();
+  const { data: conversations } = await supabase
+    .from("conversations")
+    .select("id,project_id,client_id,bpd_projects(event_name,status),bpd_clients(bpd_profiles(first_name,last_name,email,username))")
+    .order("updated_at", { ascending: false });
+  const ids = (conversations ?? []).map((conversation) => conversation.id);
+  const { data: messages } = ids.length
+    ? await supabase
+        .from("messages")
+        .select("id,conversation_id,body,sender_id,created_at")
+        .in("conversation_id", ids)
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
+  const messageRows = (messages ?? []) as MessageRow[];
+  const rows = ((conversations ?? []) as ConversationRow[]).map((conversation) => {
+    const client = first(conversation.bpd_clients);
+    const profileRow = first(client?.bpd_profiles);
+    const project = first(conversation.bpd_projects);
+    const clientName = [profileRow?.first_name, profileRow?.last_name].filter(Boolean).join(" ") || profileRow?.email || profileRow?.username || "Client";
+
+    return {
+      id: conversation.id,
+      clientName,
+      projectName: project?.event_name ?? "Project",
+      status: project?.status ?? "active",
+      messages: messageRows
+        .filter((message) => message.conversation_id === conversation.id)
+        .map((message) => ({
+          id: message.id,
+          conversationId: message.conversation_id,
+          body: message.body,
+          senderId: message.sender_id,
+          createdAt: message.created_at,
+        })),
+    };
+  });
+
+  return (
+    <div>
+      <div className="dashboard-topbar">
+        <div>
+          <span className="eyebrow">Communication</span>
+          <h1>Messages</h1>
+        </div>
+      </div>
+      <AdminMessageCenter adminId={profile?.id ?? ""} conversations={rows} />
+    </div>
+  );
 }

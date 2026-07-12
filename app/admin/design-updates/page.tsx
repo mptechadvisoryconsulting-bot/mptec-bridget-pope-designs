@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function AdminDesignUpdatesPage() {
-  return <AdminSectionPage eyebrow="Creative" title="Design Updates" icon="proposal" />;
+  return <AdminResourcePage eyebrow="Creative" title="Design Updates" table="design_updates" columns={["title", "description", "status", "client_visible", "created_at"]} />;
 }

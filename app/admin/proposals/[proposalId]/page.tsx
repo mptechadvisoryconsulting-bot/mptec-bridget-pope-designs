@@ -1,6 +1,6 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default async function ProposalDetailPage({ params }: { params: Promise<{ proposalId: string }> }) {
   const { proposalId } = await params;
-  return <AdminSectionPage eyebrow={`Proposal ${proposalId}`} title="Proposal Detail" icon="proposal" />;
+  return <AdminResourcePage eyebrow={`Proposal ${proposalId}`} title="Proposal Detail" table="proposals" detailId={proposalId} actionHref="/admin/invoices" actionLabel="Create Invoice" />;
 }

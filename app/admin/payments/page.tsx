@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function AdminPaymentsPage() {
-  return <AdminSectionPage eyebrow="Stripe" title="Payments" icon="proposal" />;
+  return <AdminResourcePage eyebrow="Stripe" title="Payments" table="payments" columns={["amount", "currency", "payment_type", "status", "paid_at", "created_at"]} />;
 }

@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function ProjectsPage() {
-  return <AdminSectionPage eyebrow="Production" title="Projects" icon="calendar" />;
+  return <AdminResourcePage eyebrow="Production" title="Projects" table="projects" detailBaseHref="/admin/projects" columns={["event_name", "event_type", "event_date", "venue_name", "status", "created_at"]} />;
 }

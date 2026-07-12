@@ -1,6 +1,6 @@
 # Bridget Pope Designs
 
-Luxury event design website, client portal, and admin CRM prototype built with Next.js 15, React, TypeScript, Tailwind CSS, and shadcn-style component primitives.
+Luxury event design website, client portal, and admin CRM built with Next.js 15, React, TypeScript, Tailwind CSS, Supabase, Resend, and Stripe.
 
 ## Local Development
 
@@ -15,4 +15,11 @@ Primary routes:
 - `/admin` admin CRM dashboard
 - `/client/dashboard` client portal
 
-The Supabase, Stripe, Resend, and Twilio layers are structured as integration stubs so the app compiles locally without production credentials.
+## Production Integrations
+
+- Supabase stores the shared business records once, using `bpd_*` tables and row-level-security policies.
+- The landing page writes inquiries to leads and creates admin notifications.
+- The admin and client dashboards read the same project, invoice, message, file, and notification records.
+- Stripe Checkout is created fresh per invoice payment. Stored Payment Link URLs are disabled.
+- Stripe Connect uses destination charges for this single-owner deployment: the platform creates Checkout Sessions and transfers charge proceeds to the Bridget Pope Designs connected Stripe account. Checkout is blocked until both `charges_enabled` and `payouts_enabled` are true.
+- Stripe webhooks claim events by inserting the event ID first, then reconcile paid, failed, refunded, disputed, payout, and account-status events.

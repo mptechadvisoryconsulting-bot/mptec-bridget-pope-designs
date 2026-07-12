@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function InventoryPage() {
-  return <AdminSectionPage eyebrow="Rentals" title="Inventory" icon="inventory" />;
+  return <AdminResourcePage eyebrow="Rentals" title="Inventory" table="inventory_items" columns={["name", "category", "quantity_total", "quantity_available", "replacement_value", "active"]} />;
 }

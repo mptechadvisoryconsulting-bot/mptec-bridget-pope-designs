@@ -10,7 +10,7 @@ export default async function PaymentsPage() {
   const { data: invoices } = client?.id
     ? await createAdminClient()
         .from("invoices")
-        .select("id,invoice_number,balance_due,total,amount_paid,due_date,status,stripe_payment_link_url")
+        .select("id,invoice_number,balance_due,total,amount_paid,due_date,status")
         .eq("client_id", client.id)
         .order("created_at", { ascending: false })
     : { data: [] };
@@ -19,7 +19,7 @@ export default async function PaymentsPage() {
   return (
     <div>
       <div className="client-hero"><div><span className="eyebrow">Payments</span><h1>Payments and Receipts</h1></div></div>
-      <PaymentCard balanceDue={Number(nextInvoice?.balance_due ?? 0)} dueDate={nextInvoice?.due_date} paymentUrl={nextInvoice?.stripe_payment_link_url ?? "/client/invoices"} />
+      <PaymentCard balanceDue={Number(nextInvoice?.balance_due ?? 0)} dueDate={nextInvoice?.due_date} paymentUrl={nextInvoice?.id ? `/client/invoices/${nextInvoice.id}` : "/client/invoices"} />
       <section className="panel" style={{ marginTop: 16 }}>
         <h2>Payment Schedule</h2>
         <table className="table">

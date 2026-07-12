@@ -36,5 +36,22 @@ export async function POST(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+
+  const recipientId = adminRoles.has(profile.role) ? client?.profile_id : project?.assigned_admin_id;
+  if (recipientId && recipientId !== profile.id) {
+    await supabase.from("notifications").insert({
+      recipient_id: recipientId,
+      project_id: conversation.project_id,
+      type: "message_received",
+      title: adminRoles.has(profile.role) ? "Planner message received" : "Client message received",
+      message: adminRoles.has(profile.role)
+        ? "Bridget Pope Designs sent a project message."
+        : `${profile.first_name ?? "Client"} sent a project message.`,
+      action_url: adminRoles.has(profile.role) ? "/client/messages" : "/admin/messages",
+    });
+  }
+
+  await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", input.conversationId);
+
   return NextResponse.json({ success: true, message: data }, { status: 201 });
 }

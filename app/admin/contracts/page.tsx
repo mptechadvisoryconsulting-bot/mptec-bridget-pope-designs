@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function ContractsPage() {
-  return <AdminSectionPage eyebrow="Documents" title="Contracts" icon="proposal" />;
+  return <AdminResourcePage eyebrow="Documents" title="Contracts" table="contracts" columns={["contract_number", "status", "client_signed_at", "owner_signed_at", "created_at"]} />;
 }

@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function LeadsPage() {
-  return <AdminSectionPage eyebrow="CRM" title="Leads" icon="people" />;
+  return <AdminResourcePage eyebrow="CRM" title="Leads" table="leads" detailBaseHref="/admin/leads" columns={["first_name", "last_name", "email", "event_type", "status", "created_at"]} />;
 }

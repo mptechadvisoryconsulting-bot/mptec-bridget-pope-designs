@@ -111,5 +111,15 @@ export async function POST(request: Request) {
     action_url: "/client/dashboard",
   });
 
-  return NextResponse.json({ success: true, username, projectId: project.id }, { status: 201 });
+  return NextResponse.json(
+    {
+      success: true,
+      username,
+      authUserId: userResult.user.id,
+      profileId: profile.id,
+      clientId: client.id,
+      projectId: project.id,
+    },
+    { status: 201 },
+  );
 }

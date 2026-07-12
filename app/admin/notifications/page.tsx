@@ -1,5 +1,5 @@
-import { AdminSectionPage } from "@/components/admin/AdminSectionPage";
+import { AdminResourcePage } from "@/components/admin/AdminResourcePage";
 
 export default function AdminNotificationsPage() {
-  return <AdminSectionPage eyebrow="Realtime" title="Notifications" icon="tasks" />;
+  return <AdminResourcePage eyebrow="Realtime" title="Notifications" table="notifications" columns={["type", "title", "message", "action_url", "read_at", "created_at"]} />;
 }

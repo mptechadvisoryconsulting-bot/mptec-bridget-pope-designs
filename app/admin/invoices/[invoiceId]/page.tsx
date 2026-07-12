@@ -7,7 +7,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
   const { invoiceId } = await params;
   const { data: invoice } = await createAdminClient()
     .from("invoices")
-    .select("*, bpd_invoice_items(*), bpd_clients(bpd_profiles(first_name,last_name,email,username)), bpd_projects(event_name,event_date,venue_name)")
+    .select("*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_clients(bpd_profiles(first_name,last_name,email,username)), bpd_projects(event_name,event_date,venue_name)")
     .eq("id", invoiceId)
     .maybeSingle();
 

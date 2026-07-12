@@ -54,7 +54,7 @@ export default async function ClientDashboardPage() {
   const { data: invoice } = project?.id
     ? await admin
         .from("invoices")
-        .select("id,balance_due,due_date,status,stripe_payment_link_url")
+        .select("id,balance_due,due_date,status")
         .eq("project_id", project.id)
         .neq("status", "paid")
         .order("due_date", { ascending: true })
@@ -114,7 +114,7 @@ export default async function ClientDashboardPage() {
             {invoice ? currency(Number(invoice.balance_due ?? 0)) : "$0"}
           </strong>
           <p className="mini-meta">Due by {invoice?.due_date ?? "No open invoice"}</p>
-          <ButtonLink href={invoice?.stripe_payment_link_url ?? "/client/payments"}>Make Payment</ButtonLink>
+          <ButtonLink href={invoice?.id ? `/client/invoices/${invoice.id}` : "/client/payments"}>Make Payment</ButtonLink>
           <p className="mini-meta" style={{ marginBottom: 0, marginTop: 10 }}>Secured by Stripe</p>
         </section>
         <section className="panel">

@@ -46,6 +46,12 @@ type InvoiceRow = {
   bpd_projects?: { event_name?: string | null } | Array<{ event_name?: string | null }> | null;
 };
 
+type TemplateRow = {
+  id: string;
+  name: string;
+  is_default: boolean;
+};
+
 function first<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
@@ -57,10 +63,11 @@ function clientName(client: ClientRow | null) {
 
 export default async function InvoicesPage() {
   const supabase = createAdminClient();
-  const [{ data: clients }, { data: projects }, { data: proposals }, { data: invoices }] = await Promise.all([
+  const [{ data: clients }, { data: projects }, { data: proposals }, { data: templates }, { data: invoices }] = await Promise.all([
     supabase.from("clients").select("id,bpd_profiles(first_name,last_name,username,email)").order("created_at", { ascending: false }),
     supabase.from("projects").select("id,client_id,event_name,status").order("created_at", { ascending: false }),
     supabase.from("proposals").select("id,project_id,proposal_number,title,total").order("created_at", { ascending: false }),
+    supabase.from("invoice_templates").select("id,name,is_default").order("is_default", { ascending: false }),
     supabase
       .from("invoices")
       .select("id,invoice_number,invoice_type,total,balance_due,status,due_date,bpd_clients(bpd_profiles(first_name,last_name,username,email)),bpd_projects(event_name)")
@@ -87,6 +94,11 @@ export default async function InvoicesPage() {
     projectId: proposal.project_id,
     label: proposal.title || proposal.proposal_number || `Proposal ${proposal.id.slice(0, 8)}`,
   }));
+  const templateOptions = ((templates ?? []) as TemplateRow[]).map((template) => ({
+    id: template.id,
+    name: template.name,
+    isDefault: template.is_default,
+  }));
 
   return (
     <div>
@@ -98,7 +110,7 @@ export default async function InvoicesPage() {
       </div>
 
       <div className="dashboard-grid">
-        <InvoiceCreateForm clients={clientOptions} projects={projectOptions} proposals={proposalOptions} />
+        <InvoiceCreateForm clients={clientOptions} projects={projectOptions} proposals={proposalOptions} templates={templateOptions} />
 
         <section className="panel span-2">
           <h2>Recent Invoices</h2>
