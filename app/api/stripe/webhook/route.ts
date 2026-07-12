@@ -12,7 +12,6 @@ const handledNoopEvents = new Set([
 ]);
 
 export async function POST(request: Request) {
-  const stripe = getStripe();
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
 
@@ -20,10 +19,19 @@ export async function POST(request: Request) {
     return new Response("Missing signature", { status: 400 });
   }
 
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    return new Response("Stripe webhook is not configured", { status: 503 });
+  }
+
   let event;
   try {
+    const stripe = getStripe();
     event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!);
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "ConfigurationError") {
+      return new Response("Stripe is not configured", { status: 503 });
+    }
+
     return new Response("Invalid signature", { status: 400 });
   }
 
