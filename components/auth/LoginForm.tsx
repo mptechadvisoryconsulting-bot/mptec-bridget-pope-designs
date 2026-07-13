@@ -35,6 +35,7 @@ export function LoginForm() {
     }
 
     const next = searchParams.get("next");
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
     window.location.href = next ?? payload.redirectTo;
   }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
+import { toCents } from "@/lib/billing/invoice-calculations";
+import { calculatePlatformFeeCents, resolvePlatformFeeBasisPoints } from "@/lib/billing/platform-fee";
 import { appUrl } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
@@ -53,6 +55,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, message: "This invoice is not payable." }, { status: 400 });
   }
 
+  const balanceDueCents = toCents(balanceDue);
+  let platformFeeBasisPoints: number;
+  let platformFeeAmountCents: number;
+
+  try {
+    platformFeeBasisPoints = resolvePlatformFeeBasisPoints(readiness.settings);
+    platformFeeAmountCents = calculatePlatformFeeCents(balanceDueCents, platformFeeBasisPoints);
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : "Invalid payment fee configuration." },
+      { status: 500 },
+    );
+  }
+
   const accountId = readiness.settings.stripe_connected_account_id;
   const metadata = {
     invoice_id: invoice.id,
@@ -63,8 +79,19 @@ export async function POST(request: Request) {
     invoice_number: invoice.invoice_number,
     stripe_account_id: accountId,
     payment_model: STRIPE_PAYMENT_MODEL,
+    gross_amount_cents: String(balanceDueCents),
+    platform_fee_basis_points: String(platformFeeBasisPoints),
+    platform_fee_amount_cents: String(platformFeeAmountCents),
   };
   const clientProfile = Array.isArray(client?.bpd_profiles) ? client?.bpd_profiles[0] : client?.bpd_profiles;
+  const paymentIntentData = {
+    metadata,
+    on_behalf_of: accountId,
+    transfer_data: {
+      destination: accountId,
+    },
+    ...(platformFeeAmountCents > 0 ? { application_fee_amount: platformFeeAmountCents } : {}),
+  };
 
   // Bridget Pope Designs is a single-owner deployment: Checkout is created by the platform,
   // and Stripe transfers the charge to the owner's connected account as a destination charge.
@@ -79,21 +106,15 @@ export async function POST(request: Request) {
         price_data: {
           currency: "usd",
           product_data: { name: invoice.description ?? `Invoice ${invoice.invoice_number}` },
-          unit_amount: Math.round(balanceDue * 100),
+          unit_amount: balanceDueCents,
         },
         quantity: 1,
       },
     ],
     metadata,
-    payment_intent_data: {
-      metadata,
-      on_behalf_of: accountId,
-      transfer_data: {
-        destination: accountId,
-      },
-    },
+    payment_intent_data: paymentIntentData,
   }, {
-    idempotencyKey: `checkout:${invoice.id}:${Math.round(balanceDue * 100)}:${profile.id}`,
+    idempotencyKey: `checkout:${invoice.id}:${balanceDueCents}:${profile.id}`,
   });
 
   await supabase

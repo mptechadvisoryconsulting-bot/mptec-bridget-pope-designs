@@ -1,13 +1,29 @@
 export type InvoiceTemplateConfig = {
   businessName: string;
+  invoiceTitle: string;
   accentColor: string;
+  secondaryColor: string;
   paymentTerms: string;
   footerNote: string;
   logoUrl?: string | null;
+  backgroundArtworkUrl?: string | null;
+  backgroundOpacity?: number;
+  billToLabel?: string;
+  invoiceNumberLabel?: string;
+  invoiceDateLabel?: string;
+  dueDateLabel?: string;
+  subtotalLabel?: string;
+  discountLabel?: string;
+  taxLabel?: string;
+  amountPaidLabel?: string;
+  balanceDueLabel?: string;
+  totalLabel?: string;
   paymentModel?: string;
 };
 
-export type InvoiceTemplateOverrides = Partial<Pick<InvoiceTemplateConfig, "accentColor" | "paymentTerms" | "footerNote" | "logoUrl">>;
+export type InvoiceTemplateOverrides = Partial<
+  Pick<InvoiceTemplateConfig, "accentColor" | "secondaryColor" | "paymentTerms" | "footerNote" | "logoUrl" | "backgroundArtworkUrl" | "backgroundOpacity">
+>;
 
 export type InvoiceTemplateRow = {
   id: string;
@@ -21,9 +37,22 @@ type SupabaseAdmin = {
 
 export const defaultInvoiceTemplateConfig: InvoiceTemplateConfig = {
   businessName: "Bridget Pope Designs",
+  invoiceTitle: "Invoice",
   accentColor: "#c96f82",
+  secondaryColor: "#d9af6f",
   paymentTerms: "Payment is due within 15 days unless another schedule is listed on the invoice.",
   footerNote: "Thank you for trusting Bridget Pope Designs with your celebration.",
+  backgroundOpacity: 0.06,
+  billToLabel: "Bill To",
+  invoiceNumberLabel: "Invoice #",
+  invoiceDateLabel: "Invoice Date",
+  dueDateLabel: "Due Date",
+  subtotalLabel: "Subtotal",
+  discountLabel: "Discount",
+  taxLabel: "Tax",
+  amountPaidLabel: "Amount Paid",
+  balanceDueLabel: "Balance Due",
+  totalLabel: "Total",
   paymentModel: "destination_charges",
 };
 

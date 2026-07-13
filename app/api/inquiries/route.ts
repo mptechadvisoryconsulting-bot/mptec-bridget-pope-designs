@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { appUrl, hasEmailEnv } from "@/lib/env";
-import { emailFrom, resend } from "@/lib/email/resend";
+import { appUrl } from "@/lib/env";
+import { sendTrackedEmail } from "@/lib/email/delivery";
+import { emailFrom } from "@/lib/email/resend";
 import { getRequestIp, jsonError, rateLimit } from "@/lib/http";
 import { generateInquiryPdf } from "@/lib/pdf/generate-inquiry-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,20 +13,6 @@ export const runtime = "nodejs";
 function leadNumber() {
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   return `BPD-${stamp}-${randomBytes(3).toString("hex").toUpperCase()}`;
-}
-
-async function sendOptionalEmail(input: Parameters<typeof resend.emails.send>[0]) {
-  if (!hasEmailEnv()) {
-    return { skipped: true };
-  }
-
-  try {
-    await resend.emails.send(input);
-    return { skipped: false };
-  } catch (error) {
-    console.error("Optional email failed", error);
-    return { skipped: false, error };
-  }
 }
 
 export async function POST(request: Request) {
@@ -137,14 +124,16 @@ export async function POST(request: Request) {
 
     const { data: settings } = await supabase
       .from("business_settings")
-      .select("business_email")
+      .select("id,business_email,inquiry_recipient_email,inquiry_notifications_enabled,client_email_notifications_enabled")
       .limit(1)
       .maybeSingle();
-    const ownerEmail = settings?.business_email ?? process.env.OWNER_EMAIL ?? process.env.ADMIN_EMAIL;
+    const ownerEmail = settings?.inquiry_recipient_email ?? settings?.business_email ?? process.env.OWNER_EMAIL ?? process.env.ADMIN_EMAIL;
     const adminUrl = `${appUrl()}/admin/leads/${lead.id}`;
 
-    if (ownerEmail) {
-      await sendOptionalEmail({
+    if (ownerEmail && settings?.inquiry_notifications_enabled !== false) {
+      const ownerEmailResult = await sendTrackedEmail({
+        supabase,
+        settingsId: settings?.id,
         from: emailFrom(),
         to: ownerEmail,
         replyTo: input.email,
@@ -167,18 +156,40 @@ export async function POST(request: Request) {
         `,
         attachments: [{ filename: `consultation-${lead.lead_number}.pdf`, content: pdf.toString("base64") }],
       });
+
+      await supabase.from("automation_logs").insert({
+        automation_type: "inquiry_owner_email",
+        lead_id: lead.id,
+        recipient: ownerEmail,
+        status: ownerEmailResult.status,
+        error_message: ownerEmailResult.error ?? null,
+        executed_at: new Date().toISOString(),
+      });
     }
 
-    await sendOptionalEmail({
-      from: emailFrom(),
-      to: input.email,
-      subject: "We received your consultation request",
-      html: `
-        <p>Hello ${input.firstName},</p>
-        <p>Bridget Pope Designs received your event request for ${input.eventType}.</p>
-        <p>We will review the details and contact you to schedule a consultation.</p>
-      `,
-    });
+    if (settings?.client_email_notifications_enabled !== false) {
+      const clientEmailResult = await sendTrackedEmail({
+        supabase,
+        settingsId: settings?.id,
+        from: emailFrom(),
+        to: input.email,
+        subject: "We received your consultation request",
+        html: `
+          <p>Hello ${input.firstName},</p>
+          <p>Bridget Pope Designs received your event request for ${input.eventType}.</p>
+          <p>We will review the details and contact you to schedule a consultation.</p>
+        `,
+      });
+
+      await supabase.from("automation_logs").insert({
+        automation_type: "inquiry_client_confirmation_email",
+        lead_id: lead.id,
+        recipient: input.email,
+        status: clientEmailResult.status,
+        error_message: clientEmailResult.error ?? null,
+        executed_at: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({ success: true, leadId: lead.id, leadNumber: lead.lead_number });
   } catch (error) {

@@ -15,6 +15,8 @@ export type StripeConnectSettings = {
   stripe_requirements_currently_due?: string[] | null;
   stripe_requirements_disabled_reason?: string | null;
   stripe_account_last_synced_at?: string | null;
+  payment_readiness_status?: string | null;
+  platform_fee_basis_points?: number | string | null;
 };
 
 type SupabaseAdmin = {
@@ -28,6 +30,14 @@ export function isStripeReady(settings?: StripeConnectSettings | null) {
       settings.stripe_charges_enabled &&
       settings.stripe_payouts_enabled,
   );
+}
+
+export function stripeReadinessStatus(settings?: Partial<StripeConnectSettings> | null) {
+  if (!settings?.stripe_connected_account_id) return "not_connected";
+  if (settings.stripe_requirements_disabled_reason) return "restricted";
+  if (settings.stripe_charges_enabled && settings.stripe_payouts_enabled) return "ready";
+  if (settings.stripe_charges_enabled && !settings.stripe_payouts_enabled) return "payout_issue";
+  return "onboarding_required";
 }
 
 export async function getOrCreateBusinessSettings(supabase: SupabaseAdmin): Promise<StripeConnectSettings> {
@@ -57,7 +67,7 @@ export async function getOrCreateBusinessSettings(supabase: SupabaseAdmin): Prom
 }
 
 function accountPayload(account: Stripe.Account) {
-  return {
+  const payload = {
     stripe_connected_account_id: account.id,
     stripe_payment_model: STRIPE_PAYMENT_MODEL,
     stripe_charges_enabled: Boolean(account.charges_enabled),
@@ -66,6 +76,11 @@ function accountPayload(account: Stripe.Account) {
     stripe_requirements_currently_due: account.requirements?.currently_due ?? [],
     stripe_requirements_disabled_reason: account.requirements?.disabled_reason ?? null,
     stripe_account_last_synced_at: new Date().toISOString(),
+  };
+
+  return {
+    ...payload,
+    payment_readiness_status: stripeReadinessStatus(payload),
   };
 }
 
@@ -119,8 +134,8 @@ export async function createStripeConnectOnboardingLink(accountId: string) {
     account: accountId,
     type: "account_onboarding",
     collect: "eventually_due",
-    refresh_url: `${appUrl()}/admin/settings?stripe=refresh`,
-    return_url: `${appUrl()}/admin/settings?stripe=return`,
+    refresh_url: `${appUrl()}/admin/settings/payments?stripe=refresh`,
+    return_url: `${appUrl()}/admin/settings/payments?stripe=return`,
   });
 }
 

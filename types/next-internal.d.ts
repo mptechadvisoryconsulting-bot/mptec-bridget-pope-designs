@@ -58,6 +58,7 @@ declare module "next/link" {
   export default function Link(
     props: AnchorHTMLAttributes<HTMLAnchorElement> & {
       href: string;
+      prefetch?: boolean;
       children?: ReactNode;
     }
   ): ReactNode;

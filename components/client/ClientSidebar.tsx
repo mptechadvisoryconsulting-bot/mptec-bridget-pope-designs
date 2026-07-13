@@ -36,7 +36,7 @@ export function ClientSidebar() {
 
   return (
     <aside className="sidebar">
-      <Link className="brand" href="/client/dashboard">
+      <Link className="brand" href="/client/dashboard" prefetch={false}>
         Bridget Pope
         <span>Designs</span>
       </Link>
@@ -45,13 +45,13 @@ export function ClientSidebar() {
           const Icon = item.icon;
           const isActive = item.href === "/client/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
           return (
-            <Link className={isActive ? "side-link active" : "side-link"} href={item.href} key={item.label}>
+            <Link className={isActive ? "side-link active" : "side-link"} href={item.href} key={item.label} prefetch={false}>
               <Icon size={16} />
               {item.label}
             </Link>
           );
         })}
-        <Link className="side-link" href="/auth/logout">
+        <Link className="side-link" href="/auth/logout" prefetch={false}>
           <LogOut size={16} />
           Log Out
         </Link>

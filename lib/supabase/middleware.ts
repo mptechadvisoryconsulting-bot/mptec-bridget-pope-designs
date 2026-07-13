@@ -7,6 +7,13 @@ import { mapSupabaseTable } from "@/lib/supabase/namespace";
 const adminRoles = new Set(["owner", "admin"]);
 const portalRoles = new Set(["owner", "admin", "planner", "team_member", "client"]);
 
+function redirectPath(request: NextRequest, pathname: string) {
+  const url = (request.nextUrl as URL & { clone: () => URL }).clone();
+  url.pathname = pathname;
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 export async function updateSession(request: NextRequest) {
   if (!hasSupabasePublicEnv()) {
     return NextResponse.next();
@@ -34,7 +41,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const loginUrl = new URL("/auth/login", request.url);
+  const loginUrl = (request.nextUrl as URL & { clone: () => URL }).clone();
+  loginUrl.pathname = "/auth/login";
+  loginUrl.search = "";
   loginUrl.searchParams.set("next", request.nextUrl.pathname);
 
   if (!user) {
@@ -53,7 +62,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (request.nextUrl.pathname.startsWith("/admin") && !adminRoles.has(profile.role)) {
-    return NextResponse.redirect(new URL("/client/dashboard", request.url));
+    return redirectPath(request, "/client/dashboard");
+  }
+
+  if (request.nextUrl.pathname === "/client" || request.nextUrl.pathname === "/client/") {
+    return redirectPath(request, adminRoles.has(profile.role) ? "/admin" : "/client/dashboard");
   }
 
   return response;

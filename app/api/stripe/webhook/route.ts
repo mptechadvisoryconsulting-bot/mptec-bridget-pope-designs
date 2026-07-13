@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { fromCents } from "@/lib/billing/invoice-calculations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { syncStripeConnectAccount } from "@/lib/stripe/connect";
@@ -8,7 +9,7 @@ export const runtime = "nodejs";
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
 function dollars(cents?: number | null) {
-  return Number(((cents ?? 0) / 100).toFixed(2));
+  return fromCents(cents ?? 0);
 }
 
 function duplicateError(error: { code?: string; message?: string } | null) {
@@ -16,10 +17,13 @@ function duplicateError(error: { code?: string; message?: string } | null) {
 }
 
 async function claimStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
+  const now = new Date().toISOString();
   const { error } = await supabase.from("stripe_events").insert({
     stripe_event_id: event.id,
     event_type: event.type,
-    processing_started_at: new Date().toISOString(),
+    processing_status: "processing",
+    claimed_at: now,
+    processing_started_at: now,
     payload: event,
   });
 
@@ -29,20 +33,38 @@ async function claimStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
 
   const { data: existing } = await supabase
     .from("stripe_events")
-    .select("processed_at,processing_error")
+    .select("id,processed_at,processing_error,processing_status,retry_count")
     .eq("stripe_event_id", event.id)
     .maybeSingle();
+
+  if (existing?.processing_status === "failed") {
+    const { error: retryError } = await supabase
+      .from("stripe_events")
+      .update({
+        processing_status: "processing",
+        processing_started_at: now,
+        processing_error: null,
+        retry_count: Number(existing.retry_count ?? 0) + 1,
+        payload: event,
+      })
+      .eq("id", existing.id)
+      .eq("processing_status", "failed");
+
+    if (retryError) throw new Error(retryError.message);
+    return { claimed: true as const };
+  }
 
   return {
     claimed: false as const,
     processed: Boolean(existing?.processed_at),
+    status: existing?.processing_status ?? "unknown",
   };
 }
 
 async function completeStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
   await supabase
     .from("stripe_events")
-    .update({ processed_at: new Date().toISOString(), processing_error: null, payload: event })
+    .update({ processed_at: new Date().toISOString(), processing_status: "processed", processing_error: null, payload: event })
     .eq("stripe_event_id", event.id);
 }
 
@@ -50,7 +72,7 @@ async function failStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event, err
   const message = error instanceof Error ? error.message : "Unknown webhook processing error";
   await supabase
     .from("stripe_events")
-    .update({ processing_error: message, payload: event })
+    .update({ processing_error: message, processing_status: "failed", failed_at: new Date().toISOString(), payload: event })
     .eq("stripe_event_id", event.id);
 }
 
@@ -91,8 +113,37 @@ async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, 
   const projectId = session.metadata?.project_id ?? invoice?.project_id;
   const clientId = session.metadata?.client_id ?? invoice?.client_id;
   const amount = dollars(session.amount_total);
+  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
 
   if (!invoiceId || !projectId) return;
+
+  const { data: existingPayment } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("stripe_checkout_session_id", session.id)
+    .maybeSingle();
+
+  if (existingPayment) return;
+
+  let charge: Stripe.Charge | null = null;
+  let balanceTransaction: Stripe.BalanceTransaction | null = null;
+  if (paymentIntentId) {
+    const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge", "latest_charge.balance_transaction"],
+    });
+
+    charge = typeof paymentIntent.latest_charge === "object" && paymentIntent.latest_charge ? paymentIntent.latest_charge : null;
+    balanceTransaction =
+      typeof charge?.balance_transaction === "object" && charge.balance_transaction ? charge.balance_transaction : null;
+  }
+
+  const applicationFee =
+    typeof charge?.application_fee === "string"
+      ? charge.application_fee
+      : typeof charge?.application_fee === "object" && charge.application_fee
+        ? charge.application_fee.id
+        : null;
+  const platformFeeCents = Number(session.metadata?.platform_fee_amount_cents ?? 0);
 
   await supabase.from("payments").insert({
     invoice_id: invoiceId,
@@ -100,12 +151,31 @@ async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, 
     client_id: clientId ?? null,
     stripe_event_id: event.id,
     stripe_checkout_session_id: session.id,
-    stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
+    stripe_payment_intent_id: paymentIntentId,
+    stripe_connected_account_id: session.metadata?.stripe_account_id ?? null,
+    stripe_charge_id: charge?.id ?? null,
+    stripe_application_fee_id: applicationFee,
+    stripe_balance_transaction_id:
+      typeof charge?.balance_transaction === "string" ? charge.balance_transaction : balanceTransaction?.id ?? null,
     amount,
+    gross_amount: amount,
+    platform_fee_amount: dollars(platformFeeCents),
+    stripe_processing_fee: balanceTransaction ? dollars(balanceTransaction.fee) : null,
+    net_amount: balanceTransaction ? dollars(balanceTransaction.net) : null,
     currency: session.currency ?? "usd",
     payment_type: session.metadata?.payment_type ?? "invoice",
     status: "paid",
     paid_at: new Date().toISOString(),
+    metadata: {
+      payment_model: session.metadata?.payment_model,
+      platform_fee_basis_points: session.metadata?.platform_fee_basis_points,
+      gross_amount_cents: session.metadata?.gross_amount_cents,
+      platform_fee_amount_cents: session.metadata?.platform_fee_amount_cents,
+      checkout_session_id: session.id,
+      payment_intent_id: paymentIntentId,
+      charge_id: charge?.id ?? null,
+      balance_transaction_id: balanceTransaction?.id ?? null,
+    },
   });
 
   if (invoice) {
@@ -154,7 +224,7 @@ async function recordFailedPaymentAttempt(
     return;
   }
 
-  await supabase.from("payments").insert({
+  await supabase.from("payment_attempts").insert({
     invoice_id: input.invoiceId ?? null,
     project_id: projectId,
     client_id: clientId ?? null,
@@ -163,12 +233,23 @@ async function recordFailedPaymentAttempt(
     stripe_payment_intent_id: input.paymentIntentId ?? null,
     amount: dollars(input.amountCents),
     currency: input.currency ?? "usd",
-    payment_type: "invoice",
     status: "failed",
+    failure_message: input.failureMessage ?? null,
+    metadata: {
+      event_type: event.type,
+      payment_type: "invoice",
+    },
   });
 
   if (input.invoiceId) {
-    await supabase.from("invoices").update({ checkout_status: "payment_failed" }).eq("id", input.invoiceId);
+    await supabase
+      .from("invoices")
+      .update({
+        checkout_status: "payment_failed",
+        last_payment_attempt_at: new Date().toISOString(),
+        last_payment_failure_message: input.failureMessage ?? "Stripe payment attempt failed.",
+      })
+      .eq("id", input.invoiceId);
   }
 
   await notifyAdmins(supabase, {
@@ -180,13 +261,21 @@ async function recordFailedPaymentAttempt(
   });
 }
 
-async function handleRefundCreated(supabase: SupabaseAdmin, refund: Stripe.Refund) {
+async function handleRefundCreated(supabase: SupabaseAdmin, event: Stripe.Event, refund: Stripe.Refund) {
+  const { data: existingAdjustment } = await supabase
+    .from("payment_adjustments")
+    .select("id")
+    .eq("stripe_refund_id", refund.id)
+    .maybeSingle();
+
+  if (existingAdjustment) return;
+
   const paymentIntentId = typeof refund.payment_intent === "string" ? refund.payment_intent : refund.payment_intent?.id;
   if (!paymentIntentId) return;
 
   const { data: payment } = await supabase
     .from("payments")
-    .select("id,invoice_id,project_id,refunded_amount")
+    .select("id,invoice_id,project_id,client_id,refunded_amount")
     .eq("stripe_payment_intent_id", paymentIntentId)
     .eq("status", "paid")
     .order("created_at", { ascending: false })
@@ -196,6 +285,23 @@ async function handleRefundCreated(supabase: SupabaseAdmin, refund: Stripe.Refun
   if (!payment) return;
 
   const refundAmount = dollars(refund.amount);
+  await supabase.from("payment_adjustments").insert({
+    payment_id: payment.id,
+    invoice_id: payment.invoice_id,
+    project_id: payment.project_id,
+    client_id: payment.client_id ?? null,
+    stripe_event_id: event.id,
+    stripe_refund_id: refund.id,
+    adjustment_type: "refund",
+    amount: refundAmount,
+    currency: refund.currency ?? "usd",
+    status: refund.status ?? "created",
+    metadata: {
+      payment_intent_id: paymentIntentId,
+      reason: refund.reason,
+    },
+  });
+
   await supabase
     .from("payments")
     .update({
@@ -227,21 +333,52 @@ async function handleRefundCreated(supabase: SupabaseAdmin, refund: Stripe.Refun
   });
 }
 
-async function handleDisputeCreated(supabase: SupabaseAdmin, dispute: Stripe.Dispute) {
+async function handleDisputeCreated(supabase: SupabaseAdmin, event: Stripe.Event, dispute: Stripe.Dispute) {
+  const { data: existingAdjustment } = await supabase
+    .from("payment_adjustments")
+    .select("id")
+    .eq("stripe_dispute_id", dispute.id)
+    .maybeSingle();
+
+  if (existingAdjustment) return;
+
   const paymentIntentId = typeof dispute.payment_intent === "string" ? dispute.payment_intent : dispute.payment_intent?.id;
   let projectId = dispute.metadata?.project_id ?? null;
+  let paymentId: string | null = null;
+  let invoiceId: string | null = null;
+  let clientId: string | null = null;
 
   if (paymentIntentId) {
     const { data: payment } = await supabase
       .from("payments")
-      .select("id,project_id")
+      .select("id,invoice_id,project_id,client_id")
       .eq("stripe_payment_intent_id", paymentIntentId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     projectId = projectId ?? payment?.project_id ?? null;
+    paymentId = payment?.id ?? null;
+    invoiceId = payment?.invoice_id ?? null;
+    clientId = payment?.client_id ?? null;
     if (payment?.id) await supabase.from("payments").update({ status: "disputed" }).eq("id", payment.id);
   }
+
+  await supabase.from("payment_adjustments").insert({
+    payment_id: paymentId,
+    invoice_id: invoiceId,
+    project_id: projectId,
+    client_id: clientId,
+    stripe_event_id: event.id,
+    stripe_dispute_id: dispute.id,
+    adjustment_type: "dispute",
+    amount: dollars(dispute.amount),
+    currency: dispute.currency ?? "usd",
+    status: dispute.status,
+    metadata: {
+      payment_intent_id: paymentIntentId,
+      reason: dispute.reason,
+    },
+  });
 
   await notifyAdmins(supabase, {
     type: "stripe_dispute_created",
@@ -252,7 +389,30 @@ async function handleDisputeCreated(supabase: SupabaseAdmin, dispute: Stripe.Dis
   });
 }
 
-async function handlePayoutFailed(supabase: SupabaseAdmin, payout: Stripe.Payout) {
+async function handlePayoutFailed(supabase: SupabaseAdmin, event: Stripe.Event, payout: Stripe.Payout) {
+  const { data: existingAdjustment } = await supabase
+    .from("payment_adjustments")
+    .select("id")
+    .eq("stripe_payout_id", payout.id)
+    .eq("adjustment_type", "payout_failure")
+    .maybeSingle();
+
+  if (!existingAdjustment) {
+    await supabase.from("payment_adjustments").insert({
+      stripe_event_id: event.id,
+      stripe_payout_id: payout.id,
+      adjustment_type: "payout_failure",
+      amount: dollars(payout.amount),
+      currency: payout.currency ?? "usd",
+      status: payout.status,
+      metadata: {
+        failure_code: payout.failure_code,
+        failure_message: payout.failure_message,
+        arrival_date: payout.arrival_date,
+      },
+    });
+  }
+
   await notifyAdmins(supabase, {
     type: "stripe_payout_failed",
     title: "Stripe payout failed",
@@ -308,13 +468,13 @@ async function handleStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
       await syncAccountFromEvent(supabase, event);
       return;
     case "payout.failed":
-      await handlePayoutFailed(supabase, event.data.object as Stripe.Payout);
+      await handlePayoutFailed(supabase, event, event.data.object as Stripe.Payout);
       return;
     case "charge.dispute.created":
-      await handleDisputeCreated(supabase, event.data.object as Stripe.Dispute);
+      await handleDisputeCreated(supabase, event, event.data.object as Stripe.Dispute);
       return;
     case "refund.created":
-      await handleRefundCreated(supabase, event.data.object as Stripe.Refund);
+      await handleRefundCreated(supabase, event, event.data.object as Stripe.Refund);
       return;
     default:
       await notifyAdmins(supabase, {

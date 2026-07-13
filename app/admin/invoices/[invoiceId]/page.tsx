@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
+import { SendInvoiceButton } from "@/components/invoices/SendInvoiceButton";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminInvoiceDetailPage({ params }: { params: Promise<{ invoiceId: string }> }) {
@@ -26,7 +27,10 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           <span className="eyebrow">Invoice Preview</span>
           <h1>{invoice.invoice_number}</h1>
         </div>
-        <PrintInvoiceButton />
+        <div className="topbar-actions">
+          <SendInvoiceButton invoiceId={invoice.id} />
+          <PrintInvoiceButton />
+        </div>
       </div>
       <section className="panel invoice-shell">
         <InvoiceDocument

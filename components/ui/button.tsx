@@ -21,8 +21,10 @@ export function ButtonLink({
   variant?: "primary" | "secondary" | "light";
   className?: string;
 }) {
+  const isProtectedPortalLink = href.startsWith("/admin") || href.startsWith("/client");
+
   return (
-    <Link className={cn("btn", `btn-${variant}`, className)} href={href}>
+    <Link className={cn("btn", `btn-${variant}`, className)} href={href} prefetch={isProtectedPortalLink ? false : undefined}>
       {children}
     </Link>
   );

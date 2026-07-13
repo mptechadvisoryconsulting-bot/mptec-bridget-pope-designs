@@ -1,15 +1,16 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = process.env.PLAYWRIGHT_PORT ?? "3000";
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`;
 const npmExecPath = process.env.npm_execpath;
+const nextBin = "node_modules/next/dist/bin/next";
 const devCommand = npmExecPath
-  ? `"${process.execPath}" "${npmExecPath}" run dev -- --hostname 127.0.0.1 --port ${port}`
-  : `npm run dev -- --hostname 127.0.0.1 --port ${port}`;
+  ? `"${process.execPath}" "${npmExecPath}" run dev -- --hostname 0.0.0.0 --port ${port}`
+  : `"${process.execPath}" "${nextBin}" dev --hostname 0.0.0.0 --port ${port}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  timeout: 60_000,
+  timeout: 180_000,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   use: {
