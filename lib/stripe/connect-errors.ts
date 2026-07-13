@@ -66,7 +66,8 @@ const ACCOUNT_DEPENDENT_STAGES: ConnectStage[] = [
 function isConnectConfigurationError(type: string | undefined, code: string | undefined, message: string) {
   if (type === "StripePermissionError") return true;
   if (code === "platform_account_required") return true;
-  if (message.includes("connect") && (message.includes("not enabled") || message.includes("capabilit") || message.includes("platform"))) {
+  if (message.includes("signed up for connect")) return true;
+  if (message.includes("connect") && (message.includes("not enabled") || message.includes("capabilit") || message.includes("platform") || message.includes("dashboard.stripe.com/connect"))) {
     return true;
   }
   return false;
@@ -205,7 +206,7 @@ export function mapStripeConnectError(stage: ConnectStage, error: unknown): Safe
   if (stage === "connect_account_create" && isConnectConfigurationError(type, code, message)) {
     return {
       code: "STRIPE_CONNECT_CONFIGURATION_ERROR",
-      message: "The Stripe platform is not fully configured for Connect onboarding. Please contact support.",
+      message: "Stripe Connect is not enabled for this platform yet. Complete Connect signup in the Stripe Dashboard, then try Set Up Payments again.",
       status: 503,
     };
   }

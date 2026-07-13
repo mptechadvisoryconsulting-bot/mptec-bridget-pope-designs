@@ -17,6 +17,17 @@ describe("mapStripeConnectError", () => {
     );
   });
 
+  it("maps connect_account_create + Connect signup-required invalid request to STRIPE_CONNECT_CONFIGURATION_ERROR", () => {
+    const error = stripeError({
+      type: "StripeInvalidRequestError",
+      message: "You can only create new accounts if you've signed up for Connect, which you can do at https://dashboard.stripe.com/connect.",
+      requestId: "req_test_connect",
+    });
+    expect(mapStripeConnectError("connect_account_create", error)).toEqual(
+      expect.objectContaining({ code: "STRIPE_CONNECT_CONFIGURATION_ERROR", status: 503 }),
+    );
+  });
+
   it("maps connect_account_create + Connect/platform configuration error to STRIPE_CONNECT_CONFIGURATION_ERROR", () => {
     const error = stripeError({ type: "StripePermissionError", code: "account_invalid", message: "This platform is not enabled for Connect." });
     expect(mapStripeConnectError("connect_account_create", error)).toEqual(
