@@ -11,10 +11,29 @@ const loginSchema = z.object({
 
 const adminRoles = new Set(["owner", "admin"]);
 
+async function resolveLoginEmail(credential: string) {
+  const value = credential.trim();
+  if (value.includes("@")) return value.toLowerCase();
+
+  const username = value.toLowerCase();
+  const { data: profile } = await createAdminClient()
+    .from("profiles")
+    .select("email")
+    .eq("username", username)
+    .maybeSingle();
+
+  // Prefer the real client email stored on the profile (invite-based accounts).
+  if (profile?.email && String(profile.email).includes("@")) {
+    return String(profile.email).toLowerCase();
+  }
+
+  return credentialToEmail(value);
+}
+
 export async function POST(request: Request) {
   const input = loginSchema.parse(await request.json());
   const supabase = await getSupabaseServerClient();
-  const email = credentialToEmail(input.credential);
+  const email = await resolveLoginEmail(input.credential);
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password });
 
   if (error || !data.user) {
