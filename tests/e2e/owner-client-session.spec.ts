@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { requireE2eEnv } from "./e2e-env";
 
 const adminUsername = process.env.E2E_ADMIN_USERNAME;
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
@@ -8,7 +9,10 @@ const ownerPassword = process.env.E2E_OWNER_PASSWORD;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-test.skip(!adminUsername || !adminPassword || !supabaseUrl || !serviceRoleKey, "Admin credentials and Supabase service role env are required for full session tests.");
+requireE2eEnv(
+  !adminUsername || !adminPassword || !supabaseUrl || !serviceRoleKey,
+  "Admin credentials (E2E_ADMIN_USERNAME/E2E_ADMIN_PASSWORD) and Supabase service role env (NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY) are required for full session tests.",
+);
 test.setTimeout(900_000);
 
 type CreatedRecord = {

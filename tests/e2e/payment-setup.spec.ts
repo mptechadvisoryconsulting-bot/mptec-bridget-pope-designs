@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { requireE2eEnv } from "./e2e-env";
 
 const ownerUsername = process.env.E2E_OWNER_USERNAME;
 const ownerPassword = process.env.E2E_OWNER_PASSWORD;
 
-test.skip(!ownerUsername || !ownerPassword, "Owner credentials are required for payment setup browser tests.");
+requireE2eEnv(!ownerUsername || !ownerPassword, "Owner credentials (E2E_OWNER_USERNAME/E2E_OWNER_PASSWORD) are required for payment setup browser tests.");
 test.setTimeout(180_000);
 
 async function login(page: Page, username: string, password: string, next: string) {

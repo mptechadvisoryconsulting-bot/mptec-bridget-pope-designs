@@ -1,13 +1,7 @@
 import { currency } from "@/lib/currency";
+import { buildInvoiceRenderModel, type InvoiceRenderItemInput, type InvoiceRenderModel } from "@/lib/invoices/render-model";
 
-export type InvoiceDocumentItem = {
-  id: string;
-  title: string;
-  description?: string | null;
-  quantity?: number | string | null;
-  unit_price?: number | string | null;
-  total?: number | string | null;
-};
+export type InvoiceDocumentItem = InvoiceRenderItemInput & { id: string };
 
 export type InvoiceDocumentData = {
   invoice_number: string;
@@ -22,35 +16,14 @@ export type InvoiceDocumentData = {
   due_date?: string | null;
   created_at?: string | null;
   status?: string | null;
+  active_version?: number | string | null;
   template_snapshot?: unknown;
 };
 
-type TemplateSnapshot = {
-  businessName?: string;
-  invoiceTitle?: string;
-  accentColor?: string;
-  secondaryColor?: string;
-  paymentTerms?: string;
-  footerNote?: string;
-  logoUrl?: string | null;
-  backgroundArtworkUrl?: string | null;
-  backgroundOpacity?: number;
-  billToLabel?: string;
-  invoiceNumberLabel?: string;
-  invoiceDateLabel?: string;
-  dueDateLabel?: string;
-  subtotalLabel?: string;
-  discountLabel?: string;
-  taxLabel?: string;
-  amountPaidLabel?: string;
-  balanceDueLabel?: string;
-  totalLabel?: string;
-};
-
-function invoiceTemplate(snapshot: unknown): TemplateSnapshot {
-  return snapshot && typeof snapshot === "object" ? (snapshot as TemplateSnapshot) : {};
-}
-
+/**
+ * Renders an invoice using the shared InvoiceRenderModel so that browser preview,
+ * print, PDF download, and email attachment can never diverge on financial values.
+ */
 export function InvoiceDocument({
   invoice,
   items,
@@ -58,6 +31,7 @@ export function InvoiceDocument({
   clientEmail,
   projectName,
   venue,
+  previewBadge,
 }: {
   invoice: InvoiceDocumentData;
   items: InvoiceDocumentItem[];
@@ -65,75 +39,124 @@ export function InvoiceDocument({
   clientEmail?: string | null;
   projectName?: string | null;
   venue?: string | null;
+  previewBadge?: string;
 }) {
-  const issueDate = invoice.created_at ? new Date(invoice.created_at).toLocaleDateString("en-US") : new Date().toLocaleDateString("en-US");
-  const subtotal = Number(invoice.subtotal ?? 0);
-  const discount = Number(invoice.discount_amount ?? 0);
-  const tax = Number(invoice.tax_amount ?? 0);
-  const paid = Number(invoice.amount_paid ?? 0);
-  const balance = Number(invoice.balance_due ?? 0);
-  const total = Number(invoice.total ?? 0);
-  const template = invoiceTemplate(invoice.template_snapshot);
-  const accentColor = template.accentColor ?? "#c96f82";
-  const secondaryColor = template.secondaryColor ?? "#d9af6f";
+  const model = buildInvoiceRenderModel({
+    invoice,
+    items,
+    clientName,
+    clientEmail,
+    projectName,
+    venue,
+  });
+
+  return <InvoiceDocumentFromModel model={model} previewBadge={previewBadge} />;
+}
+
+export function InvoiceDocumentFromModel({ model, previewBadge }: { model: InvoiceRenderModel; previewBadge?: string }) {
+  const { template, totals, flags } = model;
+  const separatorStyle = template.separatorStyle ?? "solid";
+  const separatorThickness = template.separatorThickness ?? 2;
+  const lineItemSpacing = template.lineItemSpacing ?? 16;
 
   return (
     <article
+      aria-label={`Invoice ${model.invoiceNumber}`}
       className="invoice-document"
-      aria-label={`Invoice ${invoice.invoice_number}`}
       style={{
-        ["--invoice-accent" as string]: accentColor,
-        ["--invoice-secondary" as string]: secondaryColor,
+        ["--invoice-accent" as string]: template.accentColor,
+        ["--invoice-secondary" as string]: template.secondaryColor,
+        ["--invoice-paper" as string]: template.paperColor ?? "#ffffff",
+        ["--invoice-body-color" as string]: template.bodyTextColor ?? "#111111",
+        ["--invoice-body-font" as string]: template.bodyFontFamily ?? "Georgia, 'Times New Roman', serif",
+        ["--invoice-heading-font" as string]: template.headingFontFamily ?? "Arial, Helvetica, sans-serif",
+        ["--invoice-title-font" as string]: template.titleFontFamily ?? "Arial, Helvetica, sans-serif",
+        ["--invoice-title-size" as string]: `${template.titleFontSize ?? 76}px`,
         ["--invoice-art-opacity" as string]: String(template.backgroundOpacity ?? 0.06),
+        ["--invoice-separator-thickness" as string]: `${separatorThickness}px`,
+        ["--invoice-separator-style" as string]: separatorStyle,
+        ["--invoice-line-spacing" as string]: `${lineItemSpacing}px`,
+        background: template.paperColor ?? "#ffffff",
       }}
     >
-      {template.backgroundArtworkUrl ? <div className="invoice-artwork" style={{ backgroundImage: `url(${template.backgroundArtworkUrl})` }} /> : null}
+      {previewBadge ? <div className="invoice-preview-badge">{previewBadge}</div> : null}
+      {template.backgroundArtworkUrl ? (
+        <div
+          className="invoice-artwork"
+          style={{
+            backgroundImage: `url(${template.backgroundArtworkUrl})`,
+            backgroundPosition: template.artworkPosition ?? "center",
+            backgroundSize: template.artworkFit ?? "cover",
+          }}
+        />
+      ) : null}
       <div className="invoice-doc-content">
         <header className="invoice-doc-header">
           <div>
             {template.logoUrl ? <img alt="" className="invoice-logo" src={template.logoUrl} /> : null}
-            <h1>{template.invoiceTitle ?? "Invoice"}</h1>
-            <strong>{template.businessName ?? "Bridget Pope Designs"}</strong>
+            <h1 style={{ textAlign: template.titleAlignment ?? "left" }}>{template.invoiceTitle}</h1>
+            <strong>{template.businessName}</strong>
+            {template.businessContactBlock ? (
+              <address className="invoice-business-contact">
+                {template.businessContactBlock.split("\n").map((line, index) => (
+                  <span key={index}>{line}</span>
+                ))}
+              </address>
+            ) : null}
           </div>
-          <span className="invoice-status">{invoice.status ?? "pending"}</span>
+          <span className="invoice-status">
+            {model.status}
+            {model.isUpdatedVersion ? <em> &middot; v{model.versionNumber}</em> : null}
+          </span>
         </header>
 
         <section className="invoice-doc-meta">
           <div>
-            <h2>{template.billToLabel ?? "Bill To"}</h2>
-            <p>{clientName}</p>
-            {clientEmail ? <p>{clientEmail}</p> : null}
-            {projectName ? <p>{projectName}</p> : null}
-            {venue ? <p>{venue}</p> : null}
+            <h2>{template.billToLabel}</h2>
+            <p>{model.client.name}</p>
+            {model.client.email ? <p>{model.client.email}</p> : null}
+            {flags.showProject ? <p>{model.project.name}</p> : null}
+            {flags.showVenue ? <p>{model.project.venue}</p> : null}
           </div>
           <dl>
-            <div><dt>{template.invoiceNumberLabel ?? "Invoice #"}</dt><dd>{invoice.invoice_number}</dd></div>
-            <div><dt>{template.invoiceDateLabel ?? "Invoice Date"}</dt><dd>{issueDate}</dd></div>
-            {invoice.due_date ? <div><dt>{template.dueDateLabel ?? "Due Date"}</dt><dd>{invoice.due_date}</dd></div> : null}
+            <div>
+              <dt>{template.invoiceNumberLabel}</dt>
+              <dd>{model.invoiceNumber}</dd>
+            </div>
+            <div>
+              <dt>{template.invoiceDateLabel}</dt>
+              <dd>{model.issueDateLabel}</dd>
+            </div>
+            {flags.showDueDate ? (
+              <div>
+                <dt>{template.dueDateLabel}</dt>
+                <dd>{model.dueDateLabel}</dd>
+              </div>
+            ) : null}
           </dl>
         </section>
 
         <table className="invoice-doc-table">
           <thead>
             <tr>
-              <th>Description</th>
-              <th>Amount</th>
+              <th>{template.itemsColumnLabel ?? "Description"}</th>
+              <th>{template.amountColumnLabel ?? "Amount"}</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {model.items.map((item) => (
               <tr key={item.id}>
                 <td>
                   <strong>{item.title}</strong>
                   {item.description ? <span>{item.description}</span> : null}
                   <small>
-                    {Number(item.quantity ?? 1)} x {currency(Number(item.unit_price ?? 0))}
+                    {item.quantity} x {currency(item.unitPrice)}
                   </small>
                 </td>
-                <td>{currency(Number(item.total ?? 0))}</td>
+                <td>{currency(item.total)}</td>
               </tr>
             ))}
-            {!items.length ? (
+            {!model.items.length ? (
               <tr>
                 <td colSpan={2}>No line items were added to this invoice.</td>
               </tr>
@@ -141,20 +164,45 @@ export function InvoiceDocument({
           </tbody>
         </table>
 
-        <section className="invoice-doc-summary" aria-label="Invoice totals">
-          <div><span>{template.subtotalLabel ?? "Subtotal"}</span><strong>{currency(subtotal)}</strong></div>
-          {discount > 0 ? <div><span>{template.discountLabel ?? "Discount"}</span><strong>{currency(discount)}</strong></div> : null}
-          {tax > 0 ? <div><span>{template.taxLabel ?? "Tax"}</span><strong>{currency(tax)}</strong></div> : null}
-          {paid > 0 ? <div><span>{template.amountPaidLabel ?? "Amount Paid"}</span><strong>{currency(paid)}</strong></div> : null}
-          <div><span>{template.balanceDueLabel ?? "Balance Due"}</span><strong>{currency(balance)}</strong></div>
-          <div className="invoice-doc-total"><span>{template.totalLabel ?? "Total"}</span><strong>{currency(total)}</strong></div>
+        <section aria-label="Invoice totals" className="invoice-doc-summary">
+          <div>
+            <span>{template.subtotalLabel}</span>
+            <strong>{currency(totals.subtotal)}</strong>
+          </div>
+          {flags.showDiscount ? (
+            <div>
+              <span>{template.discountLabel}</span>
+              <strong>{currency(totals.discount)}</strong>
+            </div>
+          ) : null}
+          {flags.showTax ? (
+            <div>
+              <span>{template.taxLabel}</span>
+              <strong>{currency(totals.tax)}</strong>
+            </div>
+          ) : null}
+          {flags.showAmountPaid ? (
+            <div>
+              <span>{template.amountPaidLabel}</span>
+              <strong>{currency(totals.amountPaid)}</strong>
+            </div>
+          ) : null}
+          <div>
+            <span>{template.balanceDueLabel}</span>
+            <strong>{currency(totals.balanceDue)}</strong>
+          </div>
+          <div className="invoice-doc-total">
+            <span>{template.totalLabel}</span>
+            <strong>{currency(totals.total)}</strong>
+          </div>
         </section>
 
-        <footer className="invoice-doc-footer">
-          <div className="invoice-thanks">{template.footerNote ?? "Thank you"}</div>
+        <footer className={`invoice-doc-footer invoice-footer-align-${template.footerAlignment ?? "right"}${template.footerSeparator === false ? " invoice-footer-no-separator" : ""}`}>
+          <div className="invoice-thanks">{template.thankYouText}</div>
           <div className="invoice-terms">
-            <h2>Terms & Conditions</h2>
-            <p>{template.paymentTerms ?? "Payment is due within 15 days."}</p>
+            <h2>{template.termsHeading ?? "Terms & Conditions"}</h2>
+            <p>{template.paymentTerms}</p>
+            {template.footerText ? <p className="invoice-footer-text">{template.footerText}</p> : null}
           </div>
         </footer>
       </div>

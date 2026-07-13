@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
+import { DownloadInvoicePdfButton } from "@/components/invoices/DownloadInvoicePdfButton";
 import { PayInvoiceButton } from "@/components/invoices/PayInvoiceButton";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
 import { displayName } from "@/lib/auth/current-profile";
@@ -40,6 +41,7 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
         </div>
         <div className="topbar-actions invoice-actions-print">
           {isPayable ? <PayInvoiceButton invoiceId={invoice.id} /> : null}
+          <DownloadInvoicePdfButton invoiceId={invoice.id} />
           <PrintInvoiceButton />
         </div>
       </div>

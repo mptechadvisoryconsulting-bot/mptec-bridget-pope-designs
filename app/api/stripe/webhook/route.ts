@@ -5,6 +5,7 @@ import { refundPlatformFeePolicy } from "@/lib/payments/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { DESTINATION_CHARGE_V1, DIRECT_CHARGE_V2, normalizePaymentModel, syncStripeConnectAccount } from "@/lib/stripe/connect";
+import { claimStripeEvent, completeStripeEvent, duplicateError, failStripeEvent, notifyAdmins } from "@/lib/stripe/webhook-events";
 
 export const runtime = "nodejs";
 
@@ -12,102 +13,6 @@ type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
 function dollars(cents?: number | null) {
   return fromCents(cents ?? 0);
-}
-
-function duplicateError(error: { code?: string; message?: string } | null) {
-  return error?.code === "23505" || Boolean(error?.message?.toLowerCase().includes("duplicate"));
-}
-
-async function claimStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
-  const now = new Date().toISOString();
-  const { error } = await supabase.from("stripe_events").insert({
-    stripe_event_id: event.id,
-    event_type: event.type,
-    processing_status: "processing",
-    claimed_at: now,
-    processing_started_at: now,
-    payload: event,
-  });
-
-  if (!error) return { claimed: true as const };
-
-  if (!duplicateError(error)) throw new Error(error.message);
-
-  const { data: existing } = await supabase
-    .from("stripe_events")
-    .select("id,processed_at,processing_error,processing_status,retry_count")
-    .eq("stripe_event_id", event.id)
-    .maybeSingle();
-
-  if (existing?.processing_status === "failed") {
-    const { data: retryClaim, error: retryError } = await supabase
-      .from("stripe_events")
-      .update({
-        processing_status: "processing",
-        processing_started_at: now,
-        processing_error: null,
-        retry_count: Number(existing.retry_count ?? 0) + 1,
-        payload: event,
-      })
-      .eq("id", existing.id)
-      .eq("processing_status", "failed")
-      .select("id")
-      .maybeSingle();
-
-    if (retryError) throw new Error(retryError.message);
-    if (!retryClaim) {
-      return {
-        claimed: false as const,
-        processed: false,
-        status: "already_retrying",
-      };
-    }
-    return { claimed: true as const };
-  }
-
-  return {
-    claimed: false as const,
-    processed: Boolean(existing?.processed_at),
-    status: existing?.processing_status ?? "unknown",
-  };
-}
-
-async function completeStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
-  const { error } = await supabase
-    .from("stripe_events")
-    .update({ processed_at: new Date().toISOString(), processing_status: "processed", processing_error: null, payload: event })
-    .eq("stripe_event_id", event.id);
-  if (error) throw new Error(error.message);
-}
-
-async function failStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event, error: unknown) {
-  const message = error instanceof Error ? error.message : "Unknown webhook processing error";
-  const { error: updateError } = await supabase
-    .from("stripe_events")
-    .update({ processing_error: message, processing_status: "failed", failed_at: new Date().toISOString(), payload: event })
-    .eq("stripe_event_id", event.id);
-  if (updateError) console.error("Stripe event failure persistence failed", { eventId: event.id, code: updateError.code });
-}
-
-async function adminProfileIds(supabase: SupabaseAdmin) {
-  const { data } = await supabase.from("profiles").select("id").in("role", ["owner", "admin"]).eq("active", true);
-  return (data ?? []).map((profile) => profile.id);
-}
-
-async function notifyAdmins(supabase: SupabaseAdmin, input: { type: string; title: string; message: string; projectId?: string | null; actionUrl?: string }) {
-  const recipients = await adminProfileIds(supabase);
-  if (!recipients.length) return;
-
-  await supabase.from("notifications").insert(
-    recipients.map((recipientId) => ({
-      recipient_id: recipientId,
-      project_id: input.projectId ?? null,
-      type: input.type,
-      title: input.title,
-      message: input.message,
-      action_url: input.actionUrl ?? "/admin/payments",
-    })),
-  );
 }
 
 async function invoiceById(supabase: SupabaseAdmin, invoiceId?: string | null) {

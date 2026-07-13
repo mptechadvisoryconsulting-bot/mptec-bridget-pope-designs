@@ -610,7 +610,9 @@ textarea {
   overflow-y: auto;
   padding: 28px 14px;
   position: sticky;
+  scrollbar-color: rgba(214, 117, 142, 0.45) transparent;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
   top: 0;
 }
 
@@ -699,10 +701,11 @@ textarea {
 }
 
 .invoice-document {
-  background: #fff;
-  color: #0b2440;
+  background: var(--invoice-paper, #fff);
+  color: var(--invoice-body-color, #0b2440);
   display: flex;
   flex-direction: column;
+  font-family: var(--invoice-body-font, Georgia, "Times New Roman", serif);
   gap: 42px;
   margin: 0 auto;
   max-width: 840px;
@@ -710,6 +713,21 @@ textarea {
   overflow: hidden;
   padding: 78px 82px 56px;
   position: relative;
+}
+
+.invoice-preview-badge {
+  background: #141312;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 6px 14px;
+  position: absolute;
+  right: 24px;
+  text-transform: uppercase;
+  top: 24px;
+  z-index: 2;
 }
 
 .invoice-artwork {
@@ -739,8 +757,8 @@ textarea {
 
 .invoice-doc-header h1 {
   color: var(--invoice-accent, #073763);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 76px;
+  font-family: var(--invoice-title-font, Arial, Helvetica, sans-serif);
+  font-size: var(--invoice-title-size, 76px);
   font-weight: 900;
   letter-spacing: 0;
   line-height: 0.9;
@@ -751,6 +769,18 @@ textarea {
 .invoice-doc-header strong {
   color: #141414;
   font-size: 18px;
+}
+
+.invoice-business-contact {
+  color: #5f6268;
+  display: block;
+  font-size: 12px;
+  font-style: normal;
+  margin-top: 6px;
+}
+
+.invoice-business-contact span {
+  display: block;
 }
 
 .invoice-logo {
@@ -781,6 +811,7 @@ textarea {
 .invoice-doc-table th,
 .invoice-terms h2 {
   color: var(--invoice-accent, #073763);
+  font-family: var(--invoice-heading-font, Arial, Helvetica, sans-serif);
   font-size: 22px;
   font-weight: 900;
   letter-spacing: 0;
@@ -824,13 +855,13 @@ textarea {
 }
 
 .invoice-doc-table thead {
-  border-bottom: 2px solid var(--invoice-secondary, #cf4b4f);
-  border-top: 2px solid var(--invoice-secondary, #cf4b4f);
+  border-bottom: var(--invoice-separator-thickness, 2px) var(--invoice-separator-style, solid) var(--invoice-secondary, #cf4b4f);
+  border-top: var(--invoice-separator-thickness, 2px) var(--invoice-separator-style, solid) var(--invoice-secondary, #cf4b4f);
 }
 
 .invoice-doc-table th,
 .invoice-doc-table td {
-  padding: 16px 10px;
+  padding: var(--invoice-line-spacing, 16px) 10px;
   text-align: left;
   vertical-align: top;
 }
@@ -879,7 +910,7 @@ textarea {
 }
 
 .invoice-doc-total {
-  border-top: 1px solid var(--invoice-secondary, #cf4b4f);
+  border-top: var(--invoice-separator-thickness, 1px) var(--invoice-separator-style, solid) var(--invoice-secondary, #cf4b4f);
   padding-top: 10px;
 }
 
@@ -891,6 +922,22 @@ textarea {
   margin-top: auto;
 }
 
+.invoice-footer-align-left .invoice-thanks {
+  text-align: left;
+}
+
+.invoice-footer-align-center .invoice-thanks {
+  text-align: center;
+}
+
+.invoice-footer-align-right .invoice-thanks {
+  text-align: right;
+}
+
+.invoice-footer-no-separator .invoice-terms {
+  border-left: none;
+}
+
 .invoice-thanks {
   color: var(--invoice-accent, #073763);
   font-family: "Brush Script MT", "Segoe Script", cursive;
@@ -900,8 +947,14 @@ textarea {
 }
 
 .invoice-terms {
-  border-left: 2px solid var(--invoice-secondary, #d9af6f);
+  border-left: var(--invoice-separator-thickness, 2px) var(--invoice-separator-style, solid) var(--invoice-secondary, #d9af6f);
   padding-left: 22px;
+}
+
+.invoice-footer-text {
+  color: #5f6268;
+  font-size: 12px;
+  margin-top: 10px;
 }
 
 .invoice-terms h2 {
@@ -910,7 +963,7 @@ textarea {
 }
 
 .invoice-terms p {
-  color: #111;
+  color: var(--invoice-body-color, #111);
   margin: 0;
 }
 
@@ -1281,6 +1334,65 @@ textarea {
 .form-error {
   background: #fae9ed;
   color: #7e2638;
+}
+
+.form-warning {
+  color: #9c6b12;
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.upload-dropzone {
+  align-items: center;
+  background: #f7f2ef;
+  border: 1px dashed var(--blush, #d6758e);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px;
+}
+
+.upload-dropzone:hover {
+  background: #f1e6e2;
+}
+
+.upload-preview {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.upload-preview img {
+  background: #fff;
+  border: 1px solid #e6dcd8;
+  border-radius: 6px;
+  height: 44px;
+  object-fit: contain;
+  width: 88px;
+}
+
+.upload-preview button {
+  background: transparent;
+  border: 0;
+  color: var(--rosewood);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.invoice-version-banner {
+  background: #fff4e5;
+  border-radius: 8px;
+  color: #7a5109;
+  margin-bottom: 20px;
+  padding: 12px 16px;
 }
 
 .message-panel {

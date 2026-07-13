@@ -5,3 +5,7 @@ export const messageSchema = z.object({
   body: z.string().trim().min(1).max(5000),
   attachmentFileId: z.string().uuid().optional(),
 });
+
+export const markThreadReadSchema = z.object({
+  conversationId: z.string().uuid(),
+});

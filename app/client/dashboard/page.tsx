@@ -75,7 +75,7 @@ export default async function ClientDashboardPage() {
   const { data: messages } = conversation?.id
     ? await admin
         .from("messages")
-        .select("id,body,sender_id,created_at")
+        .select("id,body,sender_id,created_at,read_at")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true })
         .limit(10)
@@ -166,6 +166,7 @@ export default async function ClientDashboardPage() {
             id: message.id,
             body: message.body,
             fromAdmin: message.sender_id !== profile?.id,
+            readAt: message.read_at,
           }))}
         />
       </div>

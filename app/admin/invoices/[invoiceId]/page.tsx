@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
+import { DownloadInvoicePdfButton } from "@/components/invoices/DownloadInvoicePdfButton";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
 import { SendInvoiceButton } from "@/components/invoices/SendInvoiceButton";
+import { ButtonLink } from "@/components/ui/button";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminInvoiceDetailPage({ params }: { params: Promise<{ invoiceId: string }> }) {
@@ -28,10 +31,22 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           <h1>{invoice.invoice_number}</h1>
         </div>
         <div className="topbar-actions">
+          {!["paid", "cancelled", "refunded", "partially_refunded"].includes(invoice.status) ? (
+            <ButtonLink href={`/admin/invoices/${invoice.id}/edit`} variant="light">
+              <Pencil size={16} /> Edit Invoice
+            </ButtonLink>
+          ) : null}
           <SendInvoiceButton invoiceId={invoice.id} />
+          <DownloadInvoicePdfButton invoiceId={invoice.id} />
           <PrintInvoiceButton />
         </div>
       </div>
+      {Number(invoice.active_version ?? 1) > 1 ? (
+        <p className="mini-meta invoice-version-banner">
+          This invoice is on version {invoice.active_version}. A new version is created automatically whenever a sent invoice
+          is revised, preserving the original as an immutable record.
+        </p>
+      ) : null}
       <section className="panel invoice-shell">
         <InvoiceDocument
           clientEmail={profile?.email}

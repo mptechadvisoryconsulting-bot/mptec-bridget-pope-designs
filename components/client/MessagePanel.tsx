@@ -1,14 +1,16 @@
 "use client";
 
 import { Send } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { safeFetch } from "@/lib/safe-fetch";
 
 type Message = {
   id: string;
   body: string;
   fromAdmin?: boolean;
+  readAt?: string | null;
 };
 
 export function MessagePanel({ conversationId, messages = [] }: { conversationId?: string; messages?: Message[] }) {
@@ -16,6 +18,27 @@ export function MessagePanel({ conversationId, messages = [] }: { conversationId
   const [body, setBody] = useState("");
   const [status, setStatus] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const threadRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [items.length]);
+
+  useEffect(() => {
+    if (!conversationId || !items.some((message) => message.fromAdmin && !message.readAt)) return;
+
+    let cancelled = false;
+    void safeFetch("/api/messages/read", { method: "PATCH", body: { conversationId } }).then((result) => {
+      if (cancelled || !result.ok) return;
+      setItems((current) => current.map((message) => (message.fromAdmin ? { ...message, readAt: message.readAt ?? new Date().toISOString() } : message)));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, items]);
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,20 +46,20 @@ export function MessagePanel({ conversationId, messages = [] }: { conversationId
 
     setIsSending(true);
     setStatus("");
-    const response = await fetch("/api/messages", {
+    const result = await safeFetch<{ success: boolean; message?: { id: string; body: string } | string }>("/api/messages", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ conversationId, body }),
+      body: { conversationId, body },
     });
-    const payload = await response.json();
     setIsSending(false);
 
-    if (!response.ok) {
-      setStatus(payload.message ?? "Message could not be sent.");
+    const sentMessage = result.ok ? result.data?.message : undefined;
+    if (!sentMessage || typeof sentMessage === "string") {
+      const fallback = !result.ok ? result.message : "Message could not be sent.";
+      setStatus(typeof sentMessage === "string" ? sentMessage : fallback);
       return;
     }
 
-    setItems((current) => [...current, { id: payload.message.id, body: payload.message.body }]);
+    setItems((current) => [...current, { id: sentMessage.id, body: sentMessage.body }]);
     setBody("");
   }
 
@@ -44,17 +67,25 @@ export function MessagePanel({ conversationId, messages = [] }: { conversationId
     <section className="panel">
       <h2>Planner Messages</h2>
       <div className="message-panel">
-        {items.map((message) => (
-          <div className={message.fromAdmin ? "bubble admin" : "bubble"} key={message.id}>{message.body}</div>
-        ))}
-        {!items.length ? <p className="mini-meta">No messages yet.</p> : null}
+        <div aria-live="polite" ref={threadRef}>
+          {items.map((message) => (
+            <div className={message.fromAdmin ? "bubble admin" : "bubble"} key={message.id}>{message.body}</div>
+          ))}
+          {!items.length ? <p className="mini-meta">No messages yet.</p> : null}
+        </div>
         <form onSubmit={sendMessage} style={{ display: "flex", gap: 8 }}>
-          <Input disabled={!conversationId || isSending} onChange={(event) => setBody(event.target.value)} placeholder="Write a message" value={body} />
-          <Button disabled={!conversationId || isSending} type="submit" aria-label="Send message">
+          <Input
+            aria-label="Write a message to your planner"
+            disabled={!conversationId || isSending}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Write a message"
+            value={body}
+          />
+          <Button disabled={!conversationId || isSending || !body.trim()} type="submit" aria-label="Send message">
             <Send size={16} />
           </Button>
         </form>
-        {status ? <p className="form-error">{status}</p> : null}
+        {status ? <p className="form-error" role="alert">{status}</p> : null}
       </div>
     </section>
   );

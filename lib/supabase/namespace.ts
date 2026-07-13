@@ -36,6 +36,7 @@ const tableAliases = {
 const bucketAliases = {
   "event-gallery": "bpd-event-gallery",
   "inquiry-pdfs": "bpd-inquiry-pdfs",
+  "invoice-template-assets": "bpd-invoice-template-assets",
 } as const;
 
 export function mapSupabaseTable(table: string) {
