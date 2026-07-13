@@ -8,12 +8,21 @@ import { Button } from "@/components/ui/button";
 
 type PaymentSetupState = "not_connected" | "onboarding_required" | "restricted" | "ready" | "payout_issue";
 
+export type PaymentSetupNotice = {
+  kind: "error" | "success";
+  message: string;
+  stage?: string;
+  correlationId?: string;
+  code?: string;
+};
+
 type PaymentSetupCardProps = {
   accountLastSyncedAt?: string | null;
   canManage: boolean;
   chargesEnabled: boolean;
   connectedAccountId?: string | null;
   detailsSubmitted: boolean;
+  initialNotice?: PaymentSetupNotice | null;
   paymentReadinessStatus: PaymentSetupState;
   payoutsEnabled: boolean;
   platformFeeBasisPoints: number;
@@ -43,6 +52,7 @@ export function PaymentSetupCard({
   chargesEnabled,
   connectedAccountId,
   detailsSubmitted,
+  initialNotice,
   paymentReadinessStatus,
   payoutsEnabled,
   platformFeeBasisPoints,
@@ -50,8 +60,11 @@ export function PaymentSetupCard({
   requirementsDisabledReason,
 }: PaymentSetupCardProps) {
   const router = useRouter();
-  const [message, setMessage] = useState("");
-  const [messageKind, setMessageKind] = useState<"error" | "success">("error");
+  const [message, setMessage] = useState(initialNotice?.message ?? "");
+  const [messageKind, setMessageKind] = useState<"error" | "success">(initialNotice?.kind ?? "error");
+  const [errorDetail, setErrorDetail] = useState<{ stage?: string; correlationId?: string } | null>(
+    initialNotice?.kind === "error" ? { stage: initialNotice.stage, correlationId: initialNotice.correlationId } : null,
+  );
   const [workingAction, setWorkingAction] = useState<"primary" | "refresh" | null>(null);
 
   async function runPrimaryAction() {
@@ -59,6 +72,7 @@ export function PaymentSetupCard({
     let isRedirecting = false;
     setWorkingAction("primary");
     setMessage("");
+    setErrorDetail(null);
 
     try {
       const result = await requestPaymentSetupApi(endpoint, { method: "POST" });
@@ -78,6 +92,7 @@ export function PaymentSetupCard({
 
       setMessageKind("error");
       setMessage(result.message);
+      setErrorDetail({ stage: result.stage, correlationId: result.correlationId });
     } finally {
       if (!isRedirecting) {
         setWorkingAction(null);
@@ -88,6 +103,7 @@ export function PaymentSetupCard({
   async function refreshStatus() {
     setWorkingAction("refresh");
     setMessage("");
+    setErrorDetail(null);
 
     try {
       const result = await requestPaymentSetupApi("/api/admin/stripe/status", { method: "GET" });
@@ -100,6 +116,7 @@ export function PaymentSetupCard({
 
       setMessageKind("error");
       setMessage(result.message);
+      setErrorDetail({ stage: result.stage, correlationId: result.correlationId });
     } finally {
       setWorkingAction(null);
     }
@@ -134,6 +151,12 @@ export function PaymentSetupCard({
       {accountLastSyncedAt ? <p className="mini-meta">Last synced {new Date(accountLastSyncedAt).toLocaleString("en-US")}</p> : null}
       {!canManage ? <p className="form-error">Only the owner account can start or modify payout onboarding.</p> : null}
       {message ? <p className={messageKind === "success" ? "form-success" : "form-error"}>{message}</p> : null}
+      {messageKind === "error" && (errorDetail?.stage || errorDetail?.correlationId) ? (
+        <p className="mini-meta">
+          {errorDetail.stage ? `Stage: ${errorDetail.stage}. ` : ""}
+          {errorDetail.correlationId ? `Reference ID: ${errorDetail.correlationId}` : ""}
+        </p>
+      ) : null}
       <div className="topbar-actions">
         <Button disabled={!canManage || isWorking} onClick={runPrimaryAction} type="button">
           {paymentReadinessStatus === "ready" ? <ExternalLink size={16} /> : <CreditCard size={16} />}

@@ -1,41 +1,58 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { requireOwnerProfile } from "@/lib/auth/require-owner";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createStripeConnectOnboardingLink, ensureStripeConnectAccount, stripeReadinessStatus } from "@/lib/stripe/connect";
-import { stripeConnectErrorResponse } from "@/lib/stripe/connect-errors";
+import { logSafeStripeConnectError, runStage, stripeConnectErrorResponse, toConnectStageError } from "@/lib/stripe/connect-errors";
 
 export async function POST() {
+  const correlationId = randomUUID();
+
   try {
     const owner = await requireOwnerProfile();
     if (owner.error) return owner.error;
 
     const supabase = createAdminClient();
-    const settings = await ensureStripeConnectAccount(supabase);
+    const settings = await ensureStripeConnectAccount(supabase, correlationId);
 
     if (!settings.stripe_connected_account_id) {
       return NextResponse.json(
-        { success: false, code: "STRIPE_CONNECTED_ACCOUNT_ERROR", message: "Stripe account was not created." },
+        {
+          success: false,
+          code: "STRIPE_CONNECTED_ACCOUNT_ERROR",
+          message: "Stripe account was not created.",
+          stage: "connect_account_persist",
+          correlationId,
+        },
         { status: 409 },
       );
     }
 
     if (stripeReadinessStatus(settings) === "ready") {
       return NextResponse.json(
-        { success: false, code: "ACCOUNT_READY_USE_MANAGE", message: "Payments are ready. Use Manage Payment Account." },
+        { success: false, code: "ACCOUNT_READY_USE_MANAGE", message: "Payments are ready. Use Manage Payment Account.", correlationId },
         { status: 409 },
       );
     }
 
-    const link = await createStripeConnectOnboardingLink(settings.stripe_connected_account_id);
-    const { error: provisioningUpdateError } = await supabase
-      .from("business_settings")
-      .update({
-        stripe_connect_provisioning_status: "onboarding_required",
-        stripe_connect_provisioning_error: null,
-      })
-      .eq("id", settings.id);
+    const link = await runStage("connect_account_link_create", correlationId, () =>
+      createStripeConnectOnboardingLink(settings.stripe_connected_account_id as string),
+    );
 
-    if (provisioningUpdateError) throw new Error(provisioningUpdateError.message);
+    const updatedSettings = await runStage("connect_provisioning_status_update", correlationId, async () => {
+      const { data, error } = await supabase
+        .from("business_settings")
+        .update({
+          stripe_connect_provisioning_status: "onboarding_required",
+          stripe_connect_provisioning_error: null,
+        })
+        .eq("id", settings.id)
+        .select("*")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data ?? settings;
+    });
 
     const { error: activityError } = await supabase.from("activity_logs").insert({
       actor_id: owner.profile.id,
@@ -49,18 +66,19 @@ export async function POST() {
     });
 
     if (activityError) {
-      console.error("Stripe onboarding activity log failed", { operation: "stripe_onboarding_activity_log", code: activityError.code });
+      logSafeStripeConnectError(toConnectStageError("connect_activity_log", activityError, correlationId));
     }
 
     return NextResponse.json({
       success: true,
       url: link.url,
+      correlationId,
       settings: {
-        ...settings,
+        ...updatedSettings,
         stripe_connected_account_id: `acct_...${settings.stripe_connected_account_id.slice(-4)}`,
       },
     });
   } catch (error) {
-    return stripeConnectErrorResponse(error, "stripe_account_link_create");
+    return stripeConnectErrorResponse(error, "connect_account_link_create", correlationId);
   }
 }

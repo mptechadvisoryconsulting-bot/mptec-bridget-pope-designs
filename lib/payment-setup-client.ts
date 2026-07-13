@@ -1,8 +1,8 @@
 "use client";
 
 export type PaymentSetupApiResult =
-  | { ok: true; url?: string; message?: string; code?: string; payload?: unknown }
-  | { ok: false; message: string; code: string; status?: number; payload?: unknown };
+  | { ok: true; url?: string; message?: string; code?: string; correlationId?: string; payload?: unknown }
+  | { ok: false; message: string; code: string; status?: number; stage?: string; correlationId?: string; payload?: unknown };
 
 type RequestOptions = {
   fetchImpl?: typeof fetch;
@@ -70,6 +70,22 @@ function payloadCode(payload: unknown) {
   return null;
 }
 
+function payloadStage(payload: unknown) {
+  if (payload && typeof payload === "object" && "stage" in payload && typeof payload.stage === "string") {
+    return payload.stage;
+  }
+
+  return null;
+}
+
+function payloadCorrelationId(payload: unknown) {
+  if (payload && typeof payload === "object" && "correlationId" in payload && typeof payload.correlationId === "string") {
+    return payload.correlationId;
+  }
+
+  return null;
+}
+
 function payloadUrl(payload: unknown) {
   if (payload && typeof payload === "object" && "url" in payload) {
     return payload.url;
@@ -107,6 +123,8 @@ export async function requestPaymentSetupApi(path: string, options: RequestOptio
         code: payloadCode(parsed) ?? `HTTP_${response.status}`,
         message: payloadMessage(parsed) ?? statusMessages[response.status] ?? "Payment setup could not complete. Please try again.",
         status: response.status,
+        stage: payloadStage(parsed) ?? undefined,
+        correlationId: payloadCorrelationId(parsed) ?? undefined,
         payload: parsed,
       };
     }
@@ -127,6 +145,7 @@ export async function requestPaymentSetupApi(path: string, options: RequestOptio
       url: typeof url === "string" ? url : undefined,
       message: payloadMessage(parsed) ?? undefined,
       code: payloadCode(parsed) ?? undefined,
+      correlationId: payloadCorrelationId(parsed) ?? undefined,
       payload: parsed,
     };
   } catch (error) {

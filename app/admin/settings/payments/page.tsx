@@ -5,7 +5,12 @@ import { stripeReadinessStatus } from "@/lib/stripe/connect";
 
 export const dynamic = "force-dynamic";
 
-export default async function PaymentSettingsPage() {
+type PaymentSettingsPageProps = {
+  searchParams: Promise<{ stripe?: string; code?: string; stage?: string; correlationId?: string }>;
+};
+
+export default async function PaymentSettingsPage({ searchParams }: PaymentSettingsPageProps) {
+  const { stripe: stripeRedirectStatus, code: redirectCode, stage: redirectStage, correlationId: redirectCorrelationId } = await searchParams;
   const { profile } = await getCurrentProfile();
   const { data: settings, error: settingsError } = await createAdminClient()
     .from("business_settings")
@@ -23,6 +28,19 @@ export default async function PaymentSettingsPage() {
 
   const status = stripeReadinessStatus(settings);
   const accountId = settings?.stripe_connected_account_id ? `****${settings.stripe_connected_account_id.slice(-4)}` : null;
+
+  const initialNotice =
+    stripeRedirectStatus === "returned"
+      ? { kind: "success" as const, message: "You're back from Stripe. Payment status was refreshed from the latest Stripe account state." }
+      : stripeRedirectStatus === "error"
+        ? {
+            kind: "error" as const,
+            message: "Stripe onboarding could not continue. Please try again.",
+            stage: redirectStage,
+            correlationId: redirectCorrelationId,
+            code: redirectCode,
+          }
+        : null;
 
   return (
     <div>
@@ -52,6 +70,7 @@ export default async function PaymentSettingsPage() {
             chargesEnabled={Boolean(settings?.stripe_charges_enabled)}
             connectedAccountId={accountId}
             detailsSubmitted={Boolean(settings?.stripe_details_submitted)}
+            initialNotice={initialNotice}
             paymentReadinessStatus={status}
             payoutsEnabled={Boolean(settings?.stripe_payouts_enabled)}
             platformFeeBasisPoints={Number(settings?.platform_fee_basis_points ?? 100)}
