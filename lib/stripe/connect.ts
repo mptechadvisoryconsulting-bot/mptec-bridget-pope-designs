@@ -208,11 +208,13 @@ async function tryRecoverProvisioningAccount(
     );
   } catch (error) {
     // accounts.list is best-effort recovery. A Stripe transport failure must not permanently
-    // deadlock a stale provisioning lease — the caller may reclaim and create once.
-    if (isStripeConnectionFailure(error) && isLeaseStale(settings.stripe_connect_provisioning_started_at)) {
-      console.error("Stripe Connect recovery skipped after provider connection failure on stale lease", {
+    // deadlock provisioning — the caller decides whether to reclaim based on lease/status.
+    if (isStripeConnectionFailure(error)) {
+      console.error("Stripe Connect recovery skipped after provider connection failure", {
         stage: "connect_account_recover",
         correlationId,
+        provisioningStatus: settings.stripe_connect_provisioning_status,
+        leaseStale: isLeaseStale(settings.stripe_connect_provisioning_started_at),
         stripeErrorType: error instanceof ConnectStageError ? error.stripeErrorType : "StripeConnectionError",
         stripeRequestId: error instanceof ConnectStageError ? error.stripeRequestId : undefined,
       });
