@@ -22,22 +22,22 @@ export const services = [
   {
     title: "Birthdays",
     description: "Stylish celebrations for kids and adults.",
-    detail: "Statement backdrops, curated rentals, themed tables, cake displays, and celebration-ready room styling.",
+    detail: "Statement backdrops, themed tables, and celebration-ready room styling.",
   },
   {
     title: "Corporate Events",
     description: "Professional, polished, perfectly executed.",
-    detail: "Brand-forward event styling, lounge vignettes, stage decor, florals, and onsite coordination.",
+    detail: "Brand-forward event styling, stage decor, florals, and onsite coordination.",
   },
   {
     title: "Luxury Balloons",
     description: "Organic installations with premium finishes.",
-    detail: "Balloon garlands, arches, ceiling moments, photo walls, entry statements, and branded installs.",
+    detail: "Balloon garlands, arches, photo walls, entry statements, and branded installs.",
   },
   {
     title: "Full Planning",
     description: "One coordinated experience from idea to event day.",
-    detail: "Budget, schedule, vendors, creative direction, production, payment milestones, and event-day management.",
+    detail: "Budget, schedule, vendors, direction, production, and event-day management.",
   },
 ];
 
