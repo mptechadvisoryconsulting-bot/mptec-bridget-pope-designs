@@ -247,10 +247,21 @@ export async function runStage<T>(stage: ConnectStage, correlationId: string, fn
 
 /** Logs safe diagnostic metadata only: stage, safe code, correlation id, Stripe type/code/request id. Never secrets. */
 export function logSafeStripeConnectError(error: ConnectStageError) {
+  const cause = error.cause;
   const causeMessage =
-    error.cause && typeof error.cause === "object" && "message" in error.cause && typeof (error.cause as { message?: unknown }).message === "string"
-      ? String((error.cause as { message: string }).message).slice(0, 240)
+    cause && typeof cause === "object" && "message" in cause && typeof (cause as { message?: unknown }).message === "string"
+      ? String((cause as { message: string }).message).slice(0, 240)
       : undefined;
+  const nested =
+    cause && typeof cause === "object" && "cause" in cause && (cause as { cause?: unknown }).cause && typeof (cause as { cause?: unknown }).cause === "object"
+      ? ((cause as { cause: Record<string, unknown> }).cause as Record<string, unknown>)
+      : null;
+  const networkCode =
+    nested && typeof nested.code === "string"
+      ? nested.code
+      : cause && typeof cause === "object" && "code" in cause && typeof (cause as { code?: unknown }).code === "string"
+        ? String((cause as { code: string }).code)
+        : undefined;
 
   console.error("Stripe Connect operation failed", {
     stage: error.stage,
@@ -261,6 +272,17 @@ export function logSafeStripeConnectError(error: ConnectStageError) {
     stripeRequestId: error.stripeRequestId,
     httpStatus: error.httpStatus,
     causeMessage,
+    networkCode,
+    stripeKeyConfigured: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
+    stripeKeyMode: process.env.STRIPE_SECRET_KEY?.trim().startsWith("sk_live")
+      ? "live"
+      : process.env.STRIPE_SECRET_KEY?.trim().startsWith("sk_test")
+        ? "test"
+        : process.env.STRIPE_SECRET_KEY?.trim().startsWith("rk_")
+          ? "restricted"
+          : process.env.STRIPE_SECRET_KEY
+            ? "unexpected_prefix"
+            : "missing",
   });
 }
 
