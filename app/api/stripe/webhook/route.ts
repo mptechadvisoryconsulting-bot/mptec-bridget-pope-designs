@@ -1,8 +1,10 @@
 import type Stripe from "stripe";
-import { fromCents } from "@/lib/billing/invoice-calculations";
+import { fromCents, toCents } from "@/lib/billing/invoice-calculations";
+import { recalculateInvoiceFinancials, recalculatePaymentRefundState } from "@/lib/billing/invoice-reconciliation";
+import { refundPlatformFeePolicy } from "@/lib/payments/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
-import { syncStripeConnectAccount } from "@/lib/stripe/connect";
+import { DESTINATION_CHARGE_V1, DIRECT_CHARGE_V2, normalizePaymentModel, syncStripeConnectAccount } from "@/lib/stripe/connect";
 
 export const runtime = "nodejs";
 
@@ -38,7 +40,7 @@ async function claimStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
     .maybeSingle();
 
   if (existing?.processing_status === "failed") {
-    const { error: retryError } = await supabase
+    const { data: retryClaim, error: retryError } = await supabase
       .from("stripe_events")
       .update({
         processing_status: "processing",
@@ -48,9 +50,18 @@ async function claimStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
         payload: event,
       })
       .eq("id", existing.id)
-      .eq("processing_status", "failed");
+      .eq("processing_status", "failed")
+      .select("id")
+      .maybeSingle();
 
     if (retryError) throw new Error(retryError.message);
+    if (!retryClaim) {
+      return {
+        claimed: false as const,
+        processed: false,
+        status: "already_retrying",
+      };
+    }
     return { claimed: true as const };
   }
 
@@ -62,18 +73,20 @@ async function claimStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
 }
 
 async function completeStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
-  await supabase
+  const { error } = await supabase
     .from("stripe_events")
     .update({ processed_at: new Date().toISOString(), processing_status: "processed", processing_error: null, payload: event })
     .eq("stripe_event_id", event.id);
+  if (error) throw new Error(error.message);
 }
 
 async function failStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event, error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown webhook processing error";
-  await supabase
+  const { error: updateError } = await supabase
     .from("stripe_events")
     .update({ processing_error: message, processing_status: "failed", failed_at: new Date().toISOString(), payload: event })
     .eq("stripe_event_id", event.id);
+  if (updateError) console.error("Stripe event failure persistence failed", { eventId: event.id, code: updateError.code });
 }
 
 async function adminProfileIds(supabase: SupabaseAdmin) {
@@ -107,15 +120,80 @@ async function invoiceById(supabase: SupabaseAdmin, invoiceId?: string | null) {
   return data;
 }
 
+async function trustedPaymentSettings(supabase: SupabaseAdmin) {
+  const { data, error } = await supabase
+    .from("business_settings")
+    .select("stripe_connected_account_id,stripe_payment_model")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function retrievePaymentIntentWithCharge(paymentIntentId: string, paymentModel: string, connectedAccountId?: string | null) {
+  if (paymentModel === DIRECT_CHARGE_V2) {
+    if (!connectedAccountId) throw new Error("Direct-charge payment is missing connected account context.");
+    return getStripe().paymentIntents.retrieve(
+      paymentIntentId,
+      { expand: ["latest_charge", "latest_charge.balance_transaction"] },
+      { stripeAccount: connectedAccountId },
+    );
+  }
+
+  try {
+    return await getStripe().paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge", "latest_charge.balance_transaction"],
+    });
+  } catch (error) {
+    if (!connectedAccountId) throw error;
+    return getStripe().paymentIntents.retrieve(
+      paymentIntentId,
+      { expand: ["latest_charge", "latest_charge.balance_transaction"] },
+      { stripeAccount: connectedAccountId },
+    );
+  }
+}
+
 async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, session: Stripe.Checkout.Session) {
   const invoiceId = session.metadata?.invoice_id;
   const invoice = await invoiceById(supabase, invoiceId);
-  const projectId = session.metadata?.project_id ?? invoice?.project_id;
-  const clientId = session.metadata?.client_id ?? invoice?.client_id;
-  const amount = dollars(session.amount_total);
+  const projectId = session.metadata?.project_id;
+  const clientId = session.metadata?.client_id;
+  const paymentAttemptId = session.metadata?.payment_attempt_id;
+  const paymentModel = normalizePaymentModel(session.metadata?.payment_model);
+  const stripeAccountContext = session.metadata?.stripe_account_context ?? session.metadata?.stripe_account_id ?? event.account ?? null;
+  const amountCents = session.amount_total ?? 0;
+  const amount = dollars(amountCents);
   const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
 
-  if (!invoiceId || !projectId) return;
+  if (session.payment_status !== "paid") {
+    throw new Error(`Checkout session ${session.id} is not paid.`);
+  }
+
+  if (!invoiceId || !invoice) {
+    throw new Error(`Checkout session ${session.id} is missing a matching invoice.`);
+  }
+
+  if (!projectId || projectId !== invoice.project_id) {
+    throw new Error(`Checkout session ${session.id} project metadata does not match invoice.`);
+  }
+
+  if (!clientId || clientId !== invoice.client_id) {
+    throw new Error(`Checkout session ${session.id} client metadata does not match invoice.`);
+  }
+
+  if (!paymentIntentId) {
+    throw new Error(`Checkout session ${session.id} is missing a PaymentIntent.`);
+  }
+
+  if (amountCents <= 0) {
+    throw new Error(`Checkout session ${session.id} has invalid amount.`);
+  }
+
+  if ((session.currency ?? "usd").toLowerCase() !== "usd") {
+    throw new Error(`Checkout session ${session.id} has unsupported currency.`);
+  }
 
   const { data: existingPayment } = await supabase
     .from("payments")
@@ -125,12 +203,27 @@ async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, 
 
   if (existingPayment) return;
 
+  if (amountCents > toCents(Number(invoice.balance_due ?? invoice.total ?? 0))) {
+    throw new Error(`Checkout session ${session.id} exceeds trusted invoice balance.`);
+  }
+
+  const settings = await trustedPaymentSettings(supabase);
+  if (!settings?.stripe_connected_account_id || stripeAccountContext !== settings.stripe_connected_account_id) {
+    throw new Error(`Checkout session ${session.id} connected account metadata does not match trusted settings.`);
+  }
+
+  if (![DESTINATION_CHARGE_V1, DIRECT_CHARGE_V2].includes(paymentModel)) {
+    throw new Error(`Checkout session ${session.id} has unsupported payment model.`);
+  }
+
+  if (paymentModel === DIRECT_CHARGE_V2 && event.account !== stripeAccountContext) {
+    throw new Error(`Checkout session ${session.id} direct-charge event account does not match the stored connected account context.`);
+  }
+
   let charge: Stripe.Charge | null = null;
   let balanceTransaction: Stripe.BalanceTransaction | null = null;
   if (paymentIntentId) {
-    const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId, {
-      expand: ["latest_charge", "latest_charge.balance_transaction"],
-    });
+    const paymentIntent = await retrievePaymentIntentWithCharge(paymentIntentId, paymentModel, stripeAccountContext);
 
     charge = typeof paymentIntent.latest_charge === "object" && paymentIntent.latest_charge ? paymentIntent.latest_charge : null;
     balanceTransaction =
@@ -145,14 +238,16 @@ async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, 
         : null;
   const platformFeeCents = Number(session.metadata?.platform_fee_amount_cents ?? 0);
 
-  await supabase.from("payments").insert({
+  const { error: paymentInsertError } = await supabase.from("payments").insert({
     invoice_id: invoiceId,
     project_id: projectId,
-    client_id: clientId ?? null,
+    client_id: clientId,
     stripe_event_id: event.id,
     stripe_checkout_session_id: session.id,
     stripe_payment_intent_id: paymentIntentId,
-    stripe_connected_account_id: session.metadata?.stripe_account_id ?? null,
+    stripe_connected_account_id: stripeAccountContext,
+    payment_model: paymentModel,
+    stripe_account_context: stripeAccountContext,
     stripe_charge_id: charge?.id ?? null,
     stripe_application_fee_id: applicationFee,
     stripe_balance_transaction_id:
@@ -167,7 +262,7 @@ async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, 
     status: "paid",
     paid_at: new Date().toISOString(),
     metadata: {
-      payment_model: session.metadata?.payment_model,
+      payment_model: paymentModel,
       platform_fee_basis_points: session.metadata?.platform_fee_basis_points,
       gross_amount_cents: session.metadata?.gross_amount_cents,
       platform_fee_amount_cents: session.metadata?.platform_fee_amount_cents,
@@ -178,23 +273,27 @@ async function recordPaidCheckout(supabase: SupabaseAdmin, event: Stripe.Event, 
     },
   });
 
-  if (invoice) {
-    const total = Number(invoice.total ?? 0);
-    const paid = Math.min(total, Number(invoice.amount_paid ?? 0) + amount);
-    const balance = Math.max(0, Number((total - paid).toFixed(2)));
+  if (paymentInsertError) throw new Error(paymentInsertError.message);
 
-    await supabase
-      .from("invoices")
+  if (paymentAttemptId) {
+    const { error: attemptUpdateError } = await supabase
+      .from("payment_attempts")
       .update({
-        status: balance === 0 ? "paid" : "partially_paid",
-        amount_paid: paid,
-        balance_due: balance,
-        checkout_status: "paid",
+        status: "paid",
+        stripe_checkout_session_id: session.id,
+        stripe_payment_intent_id: paymentIntentId,
+        payment_model: paymentModel,
+        stripe_account_context: stripeAccountContext,
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", invoiceId);
+      .eq("id", paymentAttemptId);
+
+    if (attemptUpdateError) throw new Error(attemptUpdateError.message);
   }
 
-  await supabase.from("projects").update({ status: "booked" }).eq("id", projectId).eq("status", "pending");
+  await recalculateInvoiceFinancials(supabase, invoiceId);
+  const { error: projectUpdateError } = await supabase.from("projects").update({ status: "booked" }).eq("id", projectId).eq("status", "pending");
+  if (projectUpdateError) throw new Error(projectUpdateError.message);
 }
 
 async function recordFailedPaymentAttempt(
@@ -209,6 +308,8 @@ async function recordFailedPaymentAttempt(
     amountCents?: number | null;
     currency?: string | null;
     failureMessage?: string | null;
+    paymentModel?: string | null;
+    stripeAccountContext?: string | null;
   },
 ) {
   const invoice = await invoiceById(supabase, input.invoiceId);
@@ -224,10 +325,12 @@ async function recordFailedPaymentAttempt(
     return;
   }
 
-  await supabase.from("payment_attempts").insert({
+  const { error: attemptInsertError } = await supabase.from("payment_attempts").insert({
     invoice_id: input.invoiceId ?? null,
     project_id: projectId,
     client_id: clientId ?? null,
+    payment_model: normalizePaymentModel(input.paymentModel),
+    stripe_account_context: input.stripeAccountContext ?? null,
     stripe_event_id: event.id,
     stripe_checkout_session_id: input.checkoutSessionId ?? null,
     stripe_payment_intent_id: input.paymentIntentId ?? null,
@@ -238,11 +341,14 @@ async function recordFailedPaymentAttempt(
     metadata: {
       event_type: event.type,
       payment_type: "invoice",
+      payment_model: normalizePaymentModel(input.paymentModel),
+      stripe_account_context: input.stripeAccountContext ?? null,
     },
   });
+  if (attemptInsertError && !duplicateError(attemptInsertError)) throw new Error(attemptInsertError.message);
 
   if (input.invoiceId) {
-    await supabase
+    const { error: invoiceUpdateError } = await supabase
       .from("invoices")
       .update({
         checkout_status: "payment_failed",
@@ -250,6 +356,7 @@ async function recordFailedPaymentAttempt(
         last_payment_failure_message: input.failureMessage ?? "Stripe payment attempt failed.",
       })
       .eq("id", input.invoiceId);
+    if (invoiceUpdateError) throw new Error(invoiceUpdateError.message);
   }
 
   await notifyAdmins(supabase, {
@@ -275,9 +382,9 @@ async function handleRefundCreated(supabase: SupabaseAdmin, event: Stripe.Event,
 
   const { data: payment } = await supabase
     .from("payments")
-    .select("id,invoice_id,project_id,client_id,refunded_amount")
+    .select("id,invoice_id,project_id,client_id,refunded_amount,status,payment_model,stripe_account_context")
     .eq("stripe_payment_intent_id", paymentIntentId)
-    .eq("status", "paid")
+    .in("status", ["paid", "partially_refunded", "refunded", "refund_pending"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -285,7 +392,7 @@ async function handleRefundCreated(supabase: SupabaseAdmin, event: Stripe.Event,
   if (!payment) return;
 
   const refundAmount = dollars(refund.amount);
-  await supabase.from("payment_adjustments").insert({
+  const { error: adjustmentInsertError } = await supabase.from("payment_adjustments").insert({
     payment_id: payment.id,
     invoice_id: payment.invoice_id,
     project_id: payment.project_id,
@@ -299,30 +406,15 @@ async function handleRefundCreated(supabase: SupabaseAdmin, event: Stripe.Event,
     metadata: {
       payment_intent_id: paymentIntentId,
       reason: refund.reason,
+      payment_model: payment.payment_model,
+      stripe_account_context: payment.stripe_account_context,
+      refund_platform_fee_policy: refundPlatformFeePolicy(),
     },
   });
+  if (adjustmentInsertError) throw new Error(adjustmentInsertError.message);
 
-  await supabase
-    .from("payments")
-    .update({
-      refunded_amount: Number(payment.refunded_amount ?? 0) + refundAmount,
-      status: refund.status === "succeeded" ? "refunded" : "refund_pending",
-    })
-    .eq("id", payment.id);
-
-  const invoice = await invoiceById(supabase, payment.invoice_id);
-  if (invoice) {
-    const newPaid = Math.max(0, Number(invoice.amount_paid ?? 0) - refundAmount);
-    const total = Number(invoice.total ?? 0);
-    await supabase
-      .from("invoices")
-      .update({
-        amount_paid: newPaid,
-        balance_due: Math.max(0, Number((total - newPaid).toFixed(2))),
-        status: newPaid <= 0 ? "refunded" : "partially_refunded",
-      })
-      .eq("id", invoice.id);
-  }
+  await recalculatePaymentRefundState(supabase, payment.id);
+  if (payment.invoice_id) await recalculateInvoiceFinancials(supabase, payment.invoice_id);
 
   await notifyAdmins(supabase, {
     type: "refund_created",
@@ -360,10 +452,13 @@ async function handleDisputeCreated(supabase: SupabaseAdmin, event: Stripe.Event
     paymentId = payment?.id ?? null;
     invoiceId = payment?.invoice_id ?? null;
     clientId = payment?.client_id ?? null;
-    if (payment?.id) await supabase.from("payments").update({ status: "disputed" }).eq("id", payment.id);
+    if (payment?.id) {
+      const { error: paymentUpdateError } = await supabase.from("payments").update({ status: "disputed" }).eq("id", payment.id);
+      if (paymentUpdateError) throw new Error(paymentUpdateError.message);
+    }
   }
 
-  await supabase.from("payment_adjustments").insert({
+  const { error: disputeInsertError } = await supabase.from("payment_adjustments").insert({
     payment_id: paymentId,
     invoice_id: invoiceId,
     project_id: projectId,
@@ -379,6 +474,7 @@ async function handleDisputeCreated(supabase: SupabaseAdmin, event: Stripe.Event
       reason: dispute.reason,
     },
   });
+  if (disputeInsertError) throw new Error(disputeInsertError.message);
 
   await notifyAdmins(supabase, {
     type: "stripe_dispute_created",
@@ -398,7 +494,7 @@ async function handlePayoutFailed(supabase: SupabaseAdmin, event: Stripe.Event, 
     .maybeSingle();
 
   if (!existingAdjustment) {
-    await supabase.from("payment_adjustments").insert({
+    const { error: payoutInsertError } = await supabase.from("payment_adjustments").insert({
       stripe_event_id: event.id,
       stripe_payout_id: payout.id,
       adjustment_type: "payout_failure",
@@ -411,13 +507,26 @@ async function handlePayoutFailed(supabase: SupabaseAdmin, event: Stripe.Event, 
         arrival_date: payout.arrival_date,
       },
     });
+    if (payoutInsertError) throw new Error(payoutInsertError.message);
+  }
+
+  if (event.account) {
+    const { error: settingsUpdateError } = await supabase
+      .from("business_settings")
+      .update({
+        payment_readiness_status: "payout_issue",
+        stripe_payouts_enabled: false,
+        stripe_account_last_synced_at: new Date().toISOString(),
+      })
+      .eq("stripe_connected_account_id", event.account);
+    if (settingsUpdateError) throw new Error(settingsUpdateError.message);
   }
 
   await notifyAdmins(supabase, {
     type: "stripe_payout_failed",
     title: "Stripe payout failed",
     message: `Stripe payout ${payout.id} failed for ${dollars(payout.amount).toLocaleString("en-US", { style: "currency", currency: payout.currency?.toUpperCase() ?? "USD" })}.`,
-    actionUrl: "/admin/settings",
+    actionUrl: "/admin/settings/payments",
   });
 }
 
@@ -447,6 +556,8 @@ async function handleStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
         amountCents: session.amount_total,
         currency: session.currency,
         failureMessage: "A delayed Stripe payment failed.",
+        paymentModel: session.metadata?.payment_model,
+        stripeAccountContext: session.metadata?.stripe_account_context ?? session.metadata?.stripe_account_id ?? event.account,
       });
       return;
     }
@@ -460,6 +571,8 @@ async function handleStripeEvent(supabase: SupabaseAdmin, event: Stripe.Event) {
         amountCents: paymentIntent.amount,
         currency: paymentIntent.currency,
         failureMessage: paymentIntent.last_payment_error?.message ?? "A Stripe payment failed.",
+        paymentModel: paymentIntent.metadata?.payment_model,
+        stripeAccountContext: paymentIntent.metadata?.stripe_account_context ?? paymentIntent.metadata?.stripe_account_id ?? event.account,
       });
       return;
     }

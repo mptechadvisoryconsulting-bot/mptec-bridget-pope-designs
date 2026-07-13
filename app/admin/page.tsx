@@ -29,7 +29,7 @@ export default async function AdminDashboardPage() {
     { data: payments },
     { data: tasks },
     { count: unreadNotifications },
-    { data: settings },
+    settingsResult,
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -68,6 +68,7 @@ export default async function AdminDashboardPage() {
       .limit(1)
       .maybeSingle(),
   ]);
+  const { data: settings, error: settingsError } = settingsResult;
 
   const requestRows = newRequests ?? [];
   const messageRows = messages ?? [];
@@ -75,7 +76,7 @@ export default async function AdminDashboardPage() {
   const invoiceRows = invoices ?? [];
   const paymentRows = payments ?? [];
   const taskRows = tasks ?? [];
-  const paymentStatus = stripeReadinessStatus(settings);
+  const paymentStatus = settingsError ? "restricted" : stripeReadinessStatus(settings);
   const accountId = settings?.stripe_connected_account_id ? `****${settings.stripe_connected_account_id.slice(-4)}` : null;
   const emailRecipient = settings?.inquiry_recipient_email ?? settings?.business_email;
   const emailReady = Boolean(emailRecipient && settings?.email_readiness_status !== "failed" && !settings?.email_provider_last_error);
@@ -83,7 +84,7 @@ export default async function AdminDashboardPage() {
     requestRows.length +
     invoiceRows.length +
     Number(unreadNotifications ?? 0) +
-    (paymentStatus === "ready" ? 0 : 1) +
+    (paymentStatus === "ready" && !settingsError ? 0 : 1) +
     (emailReady ? 0 : 1);
 
   return (
@@ -204,18 +205,33 @@ export default async function AdminDashboardPage() {
           </ul>
         </section>
 
-        <PaymentSetupCard
-          accountLastSyncedAt={settings?.stripe_account_last_synced_at}
-          canManage={profile?.role === "owner"}
-          chargesEnabled={Boolean(settings?.stripe_charges_enabled)}
-          connectedAccountId={accountId}
-          detailsSubmitted={Boolean(settings?.stripe_details_submitted)}
-          paymentReadinessStatus={paymentStatus}
-          payoutsEnabled={Boolean(settings?.stripe_payouts_enabled)}
-          platformFeeBasisPoints={Number(settings?.platform_fee_basis_points ?? 100)}
-          requirementsCurrentlyDue={settings?.stripe_requirements_currently_due ?? []}
-          requirementsDisabledReason={settings?.stripe_requirements_disabled_reason}
-        />
+        {settingsError ? (
+          <section className="panel span-2">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Payment Setup / Payout Status</span>
+                <h2>Payment Configuration Needs Attention</h2>
+              </div>
+              <span className="status">CONFIGURATION_ERROR</span>
+            </div>
+            <p className="form-error">Payment setup could not load. The production payment configuration needs attention.</p>
+            <p className="mini-meta">Online payment creation remains disabled until the payment ledger migrations are applied and verified.</p>
+            <ButtonLink href="/admin/settings/payments" variant="light">Open Payment Settings</ButtonLink>
+          </section>
+        ) : (
+          <PaymentSetupCard
+            accountLastSyncedAt={settings?.stripe_account_last_synced_at}
+            canManage={profile?.role === "owner"}
+            chargesEnabled={Boolean(settings?.stripe_charges_enabled)}
+            connectedAccountId={accountId}
+            detailsSubmitted={Boolean(settings?.stripe_details_submitted)}
+            paymentReadinessStatus={paymentStatus}
+            payoutsEnabled={Boolean(settings?.stripe_payouts_enabled)}
+            platformFeeBasisPoints={Number(settings?.platform_fee_basis_points ?? 100)}
+            requirementsCurrentlyDue={settings?.stripe_requirements_currently_due ?? []}
+            requirementsDisabledReason={settings?.stripe_requirements_disabled_reason}
+          />
+        )}
 
         <section className="panel">
           <div className="section-heading">

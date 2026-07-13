@@ -9,7 +9,7 @@ describe("platform fee calculations", () => {
     [100_000, 1_000],
     [1_000_000, 10_000],
     [12_345, 123],
-    [2_499, 25],
+    [2_499, 24],
   ])("calculates a 1 percent fee for %i cents", (amountCents, expectedFeeCents) => {
     expect(calculatePlatformFeeCents(amountCents, 100)).toBe(expectedFeeCents);
   });

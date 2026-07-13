@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CreditCard, ExternalLink, RefreshCw } from "lucide-react";
+import { requestPaymentSetupApi } from "@/lib/payment-setup-client";
 import { Button } from "@/components/ui/button";
 
 type PaymentSetupState = "not_connected" | "onboarding_required" | "restricted" | "ready" | "payout_issue";
@@ -47,34 +49,64 @@ export function PaymentSetupCard({
   requirementsCurrentlyDue,
   requirementsDisabledReason,
 }: PaymentSetupCardProps) {
+  const router = useRouter();
   const [message, setMessage] = useState("");
-  const [isWorking, setIsWorking] = useState(false);
+  const [messageKind, setMessageKind] = useState<"error" | "success">("error");
+  const [workingAction, setWorkingAction] = useState<"primary" | "refresh" | null>(null);
 
-  async function startOnboarding() {
-    setIsWorking(true);
+  async function runPrimaryAction() {
+    const endpoint = paymentReadinessStatus === "ready" ? "/api/admin/stripe/connect/manage" : "/api/admin/stripe/connect/onboarding";
+    let isRedirecting = false;
+    setWorkingAction("primary");
     setMessage("");
-    const response = await fetch("/api/admin/stripe/connect", { method: "POST" });
-    const payload = await response.json();
 
-    if (response.ok && payload.url) {
-      window.location.href = payload.url;
-      return;
+    try {
+      const result = await requestPaymentSetupApi(endpoint, { method: "POST" });
+
+      if (result.ok && result.url) {
+        isRedirecting = true;
+        window.location.assign(result.url);
+        return;
+      }
+
+      if (result.ok) {
+        setMessageKind("success");
+        setMessage(result.message ?? "Stripe payment setup action completed.");
+        router.refresh();
+        return;
+      }
+
+      setMessageKind("error");
+      setMessage(result.message);
+    } finally {
+      if (!isRedirecting) {
+        setWorkingAction(null);
+      }
     }
-
-    setMessage(payload.message ?? "Unable to create Stripe onboarding link.");
-    setIsWorking(false);
   }
 
   async function refreshStatus() {
-    setIsWorking(true);
+    setWorkingAction("refresh");
     setMessage("");
-    const response = await fetch("/api/admin/stripe/status");
-    const payload = await response.json();
-    setMessage(response.ok && payload.ready ? "Stripe payments and payouts are ready." : payload.message ?? "Stripe setup still needs attention.");
-    setIsWorking(false);
+
+    try {
+      const result = await requestPaymentSetupApi("/api/admin/stripe/status", { method: "GET" });
+      if (result.ok) {
+        setMessageKind("success");
+        setMessage(result.message ?? "Stripe payment status refreshed.");
+        router.refresh();
+        return;
+      }
+
+      setMessageKind("error");
+      setMessage(result.message);
+    } finally {
+      setWorkingAction(null);
+    }
   }
 
   const feePercent = (platformFeeBasisPoints / 100).toFixed(2).replace(/\.00$/, "");
+  const isWorking = workingAction !== null;
 
   return (
     <section className="panel span-2">
@@ -101,14 +133,14 @@ export function PaymentSetupCard({
       {requirementsCurrentlyDue.length ? <p className="form-error">Stripe needs: {requirementsCurrentlyDue.join(", ")}</p> : null}
       {accountLastSyncedAt ? <p className="mini-meta">Last synced {new Date(accountLastSyncedAt).toLocaleString("en-US")}</p> : null}
       {!canManage ? <p className="form-error">Only the owner account can start or modify payout onboarding.</p> : null}
-      {message ? <p className={message.includes("ready") ? "form-success" : "form-error"}>{message}</p> : null}
+      {message ? <p className={messageKind === "success" ? "form-success" : "form-error"}>{message}</p> : null}
       <div className="topbar-actions">
-        <Button disabled={!canManage || isWorking} onClick={startOnboarding} type="button">
+        <Button disabled={!canManage || isWorking} onClick={runPrimaryAction} type="button">
           {paymentReadinessStatus === "ready" ? <ExternalLink size={16} /> : <CreditCard size={16} />}
-          {isWorking ? "Opening..." : primaryActionLabel(paymentReadinessStatus)}
+          {workingAction === "primary" ? "Opening..." : primaryActionLabel(paymentReadinessStatus)}
         </Button>
         <Button disabled={!canManage || isWorking || !connectedAccountId} onClick={refreshStatus} type="button" variant="light">
-          <RefreshCw size={16} /> Refresh Status
+          <RefreshCw size={16} /> {workingAction === "refresh" ? "Refreshing..." : "Refresh Status"}
         </Button>
       </div>
     </section>

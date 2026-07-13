@@ -23,7 +23,7 @@ export function calculatePlatformFeeCents(amountCents: number, basisPoints: numb
   const bps = parsePlatformFeeBasisPoints(basisPoints);
   if (amountCents === 0 || bps === 0) return 0;
 
-  const feeCents = Math.round((amountCents * bps) / 10_000);
+  const feeCents = Math.floor((amountCents * bps) / 10_000);
 
   if (feeCents >= amountCents) {
     throw new Error("Platform fee must be less than the payment amount.");
