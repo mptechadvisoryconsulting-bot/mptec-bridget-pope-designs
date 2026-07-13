@@ -3,6 +3,8 @@
 import { CreditCard } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { isValidStripeRedirectUrl } from "@/lib/payment-setup-client";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export function PayInvoiceButton({ invoiceId }: { invoiceId: string }) {
   const [message, setMessage] = useState("");
@@ -12,19 +14,17 @@ export function PayInvoiceButton({ invoiceId }: { invoiceId: string }) {
     setIsLoading(true);
     setMessage("");
 
-    const response = await fetch("/api/stripe/create-checkout-session", {
+    const result = await safeFetch<{ url?: string; message?: string }>("/api/stripe/create-checkout-session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoiceId }),
+      body: { invoiceId },
     });
-    const payload = await response.json();
 
-    if (response.ok && payload.url) {
-      window.location.href = payload.url;
+    if (result.ok && result.data?.url && isValidStripeRedirectUrl(result.data.url)) {
+      window.location.href = result.data.url;
       return;
     }
 
-    setMessage(payload.message ?? "Unable to create a secure checkout session.");
+    setMessage(result.ok ? "Payment setup returned an invalid response." : result.data?.message ?? result.message);
     setIsLoading(false);
   }
 

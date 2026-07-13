@@ -3,6 +3,7 @@ import { PaymentSetupCard } from "@/components/admin/PaymentSetupCard";
 import { ButtonLink } from "@/components/ui/button";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { currency } from "@/lib/currency";
+import { mapEmailReadinessStatus, readinessLabel } from "@/lib/email/delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripeReadinessStatus } from "@/lib/stripe/connect";
 
@@ -79,13 +80,16 @@ export default async function AdminDashboardPage() {
   const paymentStatus = settingsError ? "restricted" : stripeReadinessStatus(settings);
   const accountId = settings?.stripe_connected_account_id ? `****${settings.stripe_connected_account_id.slice(-4)}` : null;
   const emailRecipient = settings?.inquiry_recipient_email ?? settings?.business_email;
-  const emailReady = Boolean(emailRecipient && settings?.email_readiness_status !== "failed" && !settings?.email_provider_last_error);
+  const emailReadinessStatus = mapEmailReadinessStatus(
+    settings?.email_readiness_status,
+    settings?.email_provider_last_error ?? settings?.email_last_error,
+  );
   const ownerActionCount =
     requestRows.length +
     invoiceRows.length +
     Number(unreadNotifications ?? 0) +
     (paymentStatus === "ready" && !settingsError ? 0 : 1) +
-    (emailReady ? 0 : 1);
+    (emailReadinessStatus === "READY" ? 0 : 1);
 
   return (
     <div>
@@ -121,10 +125,10 @@ export default async function AdminDashboardPage() {
                 </div>
                 <div className="topbar-actions">
                   <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Open Request</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="secondary">Mark Contacted</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Schedule Consultation</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Convert to Client</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Archive</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=contacted`} variant="secondary">Mark Contacted</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=schedule`} variant="light">Schedule Consultation</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=convert`} variant="light">Convert to Client</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=archive`} variant="light">Archive</ButtonLink>
                 </div>
               </li>
             ))}
@@ -138,7 +142,7 @@ export default async function AdminDashboardPage() {
             <li><span>Open owner actions</span><span className="status">{ownerActionCount}</span></li>
             <li><span>Unread notifications</span><span className="status">{unreadNotifications ?? 0}</span></li>
             <li><span>Stripe setup</span><span className="status">{paymentStatus.replace(/_/g, " ")}</span></li>
-            <li><span>Email setup</span><span className="status">{emailReady ? "ready" : "needs setup"}</span></li>
+            <li><span>Email setup</span><span className="status">{readinessLabel(emailReadinessStatus)}</span></li>
           </ul>
         </section>
 
@@ -239,7 +243,7 @@ export default async function AdminDashboardPage() {
             <MailCheck size={18} />
           </div>
           <ul className="list">
-            <li><span>Readiness</span><span className="status">{emailReady ? "READY" : "NOT_CONFIGURED"}</span></li>
+            <li><span>Readiness</span><span className="status">{emailReadinessStatus}</span></li>
             <li><span>Inquiry recipient</span><span className="status">{emailRecipient ?? "Not configured"}</span></li>
             <li><span>Last test</span><span className="status">{settings?.email_last_test_sent_at ? formatTimestamp(settings.email_last_test_sent_at) : "None"}</span></li>
           </ul>
