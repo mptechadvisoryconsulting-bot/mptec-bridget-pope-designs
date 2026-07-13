@@ -186,6 +186,14 @@ export function mapStripeConnectError(stage: ConnectStage, error: unknown): Safe
     return { code: "STRIPE_AUTHENTICATION_ERROR", message: "Payment provider configuration needs attention.", status: 503 };
   }
 
+  if (type === "StripeConnectionError" || type === "StripeAPIError" && !code) {
+    return {
+      code: "STRIPE_PROVIDER_UNAVAILABLE",
+      message: "Stripe is temporarily unreachable. Please try payment setup again in a moment.",
+      status: 502,
+    };
+  }
+
   if (code === "resource_missing" && ACCOUNT_DEPENDENT_STAGES.includes(stage)) {
     return {
       code: "STRIPE_CONNECTED_ACCOUNT_ERROR",
@@ -239,6 +247,11 @@ export async function runStage<T>(stage: ConnectStage, correlationId: string, fn
 
 /** Logs safe diagnostic metadata only: stage, safe code, correlation id, Stripe type/code/request id. Never secrets. */
 export function logSafeStripeConnectError(error: ConnectStageError) {
+  const causeMessage =
+    error.cause && typeof error.cause === "object" && "message" in error.cause && typeof (error.cause as { message?: unknown }).message === "string"
+      ? String((error.cause as { message: string }).message).slice(0, 240)
+      : undefined;
+
   console.error("Stripe Connect operation failed", {
     stage: error.stage,
     code: error.safeCode,
@@ -247,6 +260,7 @@ export function logSafeStripeConnectError(error: ConnectStageError) {
     stripeErrorCode: error.stripeErrorCode,
     stripeRequestId: error.stripeRequestId,
     httpStatus: error.httpStatus,
+    causeMessage,
   });
 }
 
@@ -262,6 +276,8 @@ export function stripeConnectErrorResponse(error: unknown, stage: ConnectStage, 
       message: stageError.message,
       stage: stageError.stage,
       correlationId: stageError.correlationId,
+      ...(stageError.stripeErrorType ? { stripeErrorType: stageError.stripeErrorType } : {}),
+      ...(stageError.stripeErrorCode ? { stripeErrorCode: stageError.stripeErrorCode } : {}),
       ...(stageError.stripeRequestId ? { stripeRequestId: stageError.stripeRequestId } : {}),
     },
     { status: stageError.httpStatus ?? 500 },

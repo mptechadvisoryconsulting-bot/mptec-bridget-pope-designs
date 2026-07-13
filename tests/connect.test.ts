@@ -297,6 +297,29 @@ describe("ensureStripeConnectAccount", () => {
     expect(result.stripe_connected_account_id).toBe("acct_new");
   });
 
+  it("soft-fails recovery on StripeConnectionError for a stale lease and still creates one account", async () => {
+    const list = vi.fn().mockRejectedValue({ type: "StripeConnectionError", message: "An error occurred with our connection to Stripe. Request was retried 2 times." });
+    const created = makeStripeAccount({ id: "acct_after_soft_recover" });
+    const create = vi.fn().mockResolvedValue(created);
+    mockedGetStripe.mockReturnValue({ accounts: { retrieve: vi.fn(), create, list } } as never);
+
+    const { ensureStripeConnectAccount } = await import("@/lib/stripe/connect");
+    const staleStartedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const supabase = createMockSettingsSupabase({
+      id: "settings-1",
+      stripe_connected_account_id: null,
+      stripe_connect_provisioning_status: "provisioning",
+      stripe_connect_provisioning_key: "key-stale",
+      stripe_connect_provisioning_started_at: staleStartedAt,
+    });
+
+    const result = await ensureStripeConnectAccount(supabase as never);
+
+    expect(list).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result.stripe_connected_account_id).toBe("acct_after_soft_recover");
+  });
+
   it("claims a brand-new provisioning lease and creates exactly one account for a not_started row", async () => {
     const created = makeStripeAccount({ id: "acct_brand_new" });
     const create = vi.fn().mockResolvedValue(created);

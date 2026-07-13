@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import { randomUUID } from "crypto";
 import { appUrl } from "@/lib/env";
 import { getStripe } from "@/lib/stripe/client";
-import { ProvisioningConflictError, ProvisioningLeaseConflictError } from "@/lib/stripe/connect-stage-error";
+import { ConnectStageError, ProvisioningConflictError, ProvisioningLeaseConflictError } from "@/lib/stripe/connect-stage-error";
 import { runStage, toConnectStageError } from "@/lib/stripe/connect-errors";
 
 export const DESTINATION_CHARGE_V1 = "destination_charge_v1";
@@ -156,7 +156,8 @@ async function findConnectedAccountsByProvisioningKey(provisioningKey: string): 
   const stripe = getStripe();
   const matches: Stripe.Account[] = [];
   let startingAfter: string | undefined;
-  const MAX_PAGES = 5;
+  // Bound tightly: recovery only needs recently created platform accounts for this app.
+  const MAX_PAGES = 2;
   const PAGE_SIZE = 100;
 
   for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -184,6 +185,15 @@ async function findConnectedAccountsByProvisioningKey(provisioningKey: string): 
  * Returns the recovered settings row, or `null` if no platform-accessible account matches.
  * Throws (fail closed) if more than one account matches.
  */
+function isStripeConnectionFailure(error: unknown) {
+  if (error instanceof ConnectStageError) {
+    return error.stripeErrorType === "StripeConnectionError" || error.safeCode === "STRIPE_PROVIDER_UNAVAILABLE";
+  }
+  if (!error || typeof error !== "object") return false;
+  const type = "type" in error ? String((error as { type?: unknown }).type ?? "") : "";
+  return type === "StripeConnectionError";
+}
+
 async function tryRecoverProvisioningAccount(
   supabase: SupabaseAdmin,
   settings: StripeConnectSettings,
@@ -191,9 +201,25 @@ async function tryRecoverProvisioningAccount(
 ): Promise<StripeConnectSettings | null> {
   const provisioningKey = settings.stripe_connect_provisioning_key as string;
 
-  const matches = await runStage("connect_account_recover", correlationId, () =>
-    findConnectedAccountsByProvisioningKey(provisioningKey),
-  );
+  let matches: Stripe.Account[];
+  try {
+    matches = await runStage("connect_account_recover", correlationId, () =>
+      findConnectedAccountsByProvisioningKey(provisioningKey),
+    );
+  } catch (error) {
+    // accounts.list is best-effort recovery. A Stripe transport failure must not permanently
+    // deadlock a stale provisioning lease — the caller may reclaim and create once.
+    if (isStripeConnectionFailure(error) && isLeaseStale(settings.stripe_connect_provisioning_started_at)) {
+      console.error("Stripe Connect recovery skipped after provider connection failure on stale lease", {
+        stage: "connect_account_recover",
+        correlationId,
+        stripeErrorType: error instanceof ConnectStageError ? error.stripeErrorType : "StripeConnectionError",
+        stripeRequestId: error instanceof ConnectStageError ? error.stripeRequestId : undefined,
+      });
+      return null;
+    }
+    throw error;
+  }
 
   if (matches.length > 1) {
     throw toConnectStageError("connect_account_recover", new ProvisioningLeaseConflictError(), correlationId);

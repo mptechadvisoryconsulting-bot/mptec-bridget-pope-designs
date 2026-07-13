@@ -71,10 +71,21 @@ describe("mapStripeConnectError", () => {
     );
   });
 
+  it("maps StripeConnectionError to STRIPE_PROVIDER_UNAVAILABLE at any stage", () => {
+    const error = stripeError({ type: "StripeConnectionError", code: undefined, message: "Network timeout" });
+    expect(mapStripeConnectError("connect_account_recover", error)).toEqual(
+      expect.objectContaining({ code: "STRIPE_PROVIDER_UNAVAILABLE", status: 502 }),
+    );
+    expect(mapStripeConnectError("connect_account_link_create", error)).toEqual(
+      expect.objectContaining({ code: "STRIPE_PROVIDER_UNAVAILABLE", status: 502 }),
+    );
+  });
+
   it("does not misclassify an unrelated error at connect_account_link_create as a database error", () => {
     const error = stripeError({ type: "StripeConnectionError", code: undefined, message: "Network timeout" });
     const mapped = mapStripeConnectError("connect_account_link_create", error);
     expect(mapped.code).not.toBe("DATABASE_CONFIGURATION_ERROR");
+    expect(mapped.code).toBe("STRIPE_PROVIDER_UNAVAILABLE");
   });
 
   it("falls back to a stage-scoped generic error for unrecognized errors", () => {
