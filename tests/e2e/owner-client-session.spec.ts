@@ -76,40 +76,67 @@ async function createClientWorkspace(
   label: string,
   admin: ReturnType<typeof createClient>,
 ): Promise<CreatedRecord> {
-  const username = `E2E${label}${suffix}`;
+  const username = `e2e${label.toLowerCase()}${suffix}`;
   const password = `ClientTest${suffix}${label}!`;
   const eventName = `E2E ${label} Event ${suffix}`;
-  const email = `e2e.${username.toLowerCase()}@bridget-pope-designs.us`;
-  const accountResponse = await page.request.post("/api/admin/client-accounts", {
-    data: {
-      username,
-      firstName: "E2E",
-      lastName: label,
-      email,
-      phone: "6295550100",
-      eventName,
-      eventType: "Wedding",
-      eventDate: "2026-12-15",
-      venue: "Murfreesboro, TN",
-      status: "planning",
-    },
-  });
-  expect(accountResponse.ok(), await accountResponse.text()).toBeTruthy();
-  const payload = await accountResponse.json();
-  expect(payload.authUserId).toBeTruthy();
+  const email = `e2e.${username}@bridget-pope-designs.us`;
 
-  // Invite flow never returns a password. Set one via service role so E2E can log in.
-  const { error: passwordError } = await admin.auth.admin.updateUserById(payload.authUserId, {
+  // Avoid Supabase Auth invite email rate limits in release gates by creating the auth user
+  // directly, then completing the same relational provisioning the invite API performs.
+  const { data: userResult, error: userError } = await admin.auth.admin.createUser({
+    email,
     password,
     email_confirm: true,
+    user_metadata: { username, first_name: "E2E", last_name: label, role: "client" },
   });
-  expect(passwordError).toBeNull();
+  expect(userError, userError?.message).toBeNull();
+  expect(userResult.user?.id).toBeTruthy();
+
+  const authUserId = userResult.user!.id;
+  const { data: profile, error: profileError } = await admin
+    .from("bpd_profiles")
+    .insert({
+      auth_user_id: authUserId,
+      username,
+      role: "client",
+      first_name: "E2E",
+      last_name: label,
+      email,
+      phone: "6295550100",
+      active: true,
+    })
+    .select("id")
+    .single();
+  expect(profileError, profileError?.message).toBeNull();
+
+  const { data: client, error: clientError } = await admin.from("bpd_clients").insert({ profile_id: profile!.id }).select("id").single();
+  expect(clientError, clientError?.message).toBeNull();
+
+  const { data: project, error: projectError } = await admin
+    .from("bpd_projects")
+    .insert({
+      client_id: client!.id,
+      event_name: eventName,
+      event_type: "Wedding",
+      event_date: "2026-12-15",
+      venue_name: "Murfreesboro, TN",
+      status: "planning",
+    })
+    .select("id")
+    .single();
+  expect(projectError, projectError?.message).toBeNull();
+
+  const { error: conversationError } = await admin.from("bpd_conversations").insert({ project_id: project!.id, client_id: client!.id });
+  expect(conversationError, conversationError?.message).toBeNull();
+
+  // Keep the page authenticated as admin/owner for subsequent invoice API calls.
+  await page.goto("/admin/clients", { waitUntil: "domcontentloaded" });
 
   return {
-    authUserId: payload.authUserId,
-    profileId: payload.profileId,
-    clientId: payload.clientId,
-    projectId: payload.projectId,
+    authUserId,
+    profileId: profile!.id,
+    clientId: client!.id,
+    projectId: project!.id,
     username,
     password,
     eventName,
