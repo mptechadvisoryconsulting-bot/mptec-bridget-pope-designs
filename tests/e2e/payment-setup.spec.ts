@@ -43,7 +43,8 @@ test("owner payment setup failure shows an error and resets the button", async (
   const originalLabel = (await primaryButton.innerText()).replace(/\s+/g, " ").trim();
 
   await primaryButton.click();
-  await expect(page.getByRole("button", { name: /opening/i })).toBeVisible();
+  // The mocked HTML error can resolve faster than Playwright can observe "Opening...".
+  // Assert the durable failure-safe outcomes instead of the transient loading label.
   await expect(page.getByText("Payment setup returned an invalid response.")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: new RegExp(originalLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") })).toBeEnabled();
 });

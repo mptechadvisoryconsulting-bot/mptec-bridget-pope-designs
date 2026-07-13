@@ -70,17 +70,22 @@ async function backForwardProtected(page: Page, shellLabel: RegExp) {
   await expectProtectedShell(page, shellLabel);
 }
 
-async function createClientWorkspace(page: Page, suffix: string, label: string): Promise<CreatedRecord> {
+async function createClientWorkspace(
+  page: Page,
+  suffix: string,
+  label: string,
+  admin: ReturnType<typeof createClient>,
+): Promise<CreatedRecord> {
   const username = `E2E${label}${suffix}`;
   const password = `ClientTest${suffix}${label}!`;
   const eventName = `E2E ${label} Event ${suffix}`;
+  const email = `e2e.${username.toLowerCase()}@bridget-pope-designs.us`;
   const accountResponse = await page.request.post("/api/admin/client-accounts", {
     data: {
       username,
-      password,
       firstName: "E2E",
       lastName: label,
-      email: `${username.toLowerCase()}@example.com`,
+      email,
       phone: "6295550100",
       eventName,
       eventType: "Wedding",
@@ -89,8 +94,17 @@ async function createClientWorkspace(page: Page, suffix: string, label: string):
       status: "planning",
     },
   });
-  expect(accountResponse.ok()).toBeTruthy();
+  expect(accountResponse.ok(), await accountResponse.text()).toBeTruthy();
   const payload = await accountResponse.json();
+  expect(payload.authUserId).toBeTruthy();
+
+  // Invite flow never returns a password. Set one via service role so E2E can log in.
+  const { error: passwordError } = await admin.auth.admin.updateUserById(payload.authUserId, {
+    password,
+    email_confirm: true,
+  });
+  expect(passwordError).toBeNull();
+
   return {
     authUserId: payload.authUserId,
     profileId: payload.profileId,
@@ -194,8 +208,8 @@ test("owner routes, client invoice sync, and client isolation", async ({ page })
       await login(page, adminUsername!, adminPassword!, "/admin");
     }
 
-    const first = await createClientWorkspace(page, suffix, "One");
-    const second = await createClientWorkspace(page, suffix, "Two");
+    const first = await createClientWorkspace(page, suffix, "One", admin);
+    const second = await createClientWorkspace(page, suffix, "Two", admin);
     created.push(first, second);
     const firstInvoice = await createInvoice(page, first);
     await createInvoice(page, second);
