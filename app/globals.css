@@ -451,6 +451,20 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.admin-gallery-card figcaption {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.gallery-remove-btn {
+  flex-shrink: 0;
+  font-size: 13px;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
 .cta-band {
   background: #080706;
   color: white;

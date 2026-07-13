@@ -64,7 +64,9 @@ export function InquiryForm() {
     }
 
     setStatus("success");
-    setMessage(`Your consultation request was received. Lead ${payload.leadNumber} is now in the admin queue.`);
+    setMessage(
+      `Thank you — your consultation request was received. We will review your details and follow up shortly. Request Reference Number: ${payload.leadNumber}`,
+    );
   }
 
   return (
@@ -73,7 +75,7 @@ export function InquiryForm() {
         <div className="section-heading">
           <span className="eyebrow">Start your event</span>
           <h1>Book a Consultation</h1>
-          <p>Share the details you know today. The admin CRM will capture the lead, create follow-up tasks, and prepare a proposal workflow.</p>
+          <p>Share the details you know today. We will review your request and follow up to schedule a consultation.</p>
         </div>
         <form className="card" onSubmit={handleSubmit(submit)} style={{ margin: "0 auto", maxWidth: 920, padding: 28 }}>
           <input aria-hidden="true" suppressHydrationWarning tabIndex={-1} style={{ display: "none" }} {...register("company")} />

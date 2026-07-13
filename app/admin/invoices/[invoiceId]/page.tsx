@@ -2,20 +2,29 @@ import { notFound } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
 import { DownloadInvoicePdfButton } from "@/components/invoices/DownloadInvoicePdfButton";
+import { InvoicePaymentHistory } from "@/components/invoices/InvoicePaymentHistory";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
+import { RecordManualPaymentForm } from "@/components/invoices/RecordManualPaymentForm";
 import { SendInvoiceButton } from "@/components/invoices/SendInvoiceButton";
 import { ButtonLink } from "@/components/ui/button";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminInvoiceDetailPage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const { invoiceId } = await params;
-  const { data: invoice } = await createAdminClient()
+  const supabase = createAdminClient();
+  const { data: invoice } = await supabase
     .from("invoices")
     .select("*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_clients(bpd_profiles(first_name,last_name,email,username)), bpd_projects(event_name,event_date,venue_name)")
     .eq("id", invoiceId)
     .maybeSingle();
 
   if (!invoice) notFound();
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("id,amount,gross_amount,payment_method,payment_model,status,paid_at,metadata,created_at")
+    .eq("invoice_id", invoiceId)
+    .order("paid_at", { ascending: false });
 
   const items = invoice.bpd_invoice_items ?? [];
   const client = Array.isArray(invoice.bpd_clients) ? invoice.bpd_clients[0] : invoice.bpd_clients;
@@ -47,6 +56,16 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           is revised, preserving the original as an immutable record.
         </p>
       ) : null}
+
+      <div className="dashboard-grid" style={{ marginBottom: 16 }}>
+        <RecordManualPaymentForm
+          balanceDue={Number(invoice.balance_due ?? 0)}
+          invoiceId={invoice.id}
+          invoiceStatus={invoice.status}
+        />
+        <InvoicePaymentHistory payments={payments ?? []} />
+      </div>
+
       <section className="panel invoice-shell">
         <InvoiceDocument
           clientEmail={profile?.email}

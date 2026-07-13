@@ -34,6 +34,37 @@ export function derivePaymentRefundStatus(grossAmount: number, succeededRefundAm
   return "refunded";
 }
 
+export function deriveInvoiceStatusAfterReconciliation(input: {
+  total: number;
+  netPaid: number;
+  grossPaid: number;
+  refunded: number;
+  currentStatus: string;
+}) {
+  const total = money(input.total);
+  const netPaid = Math.max(0, money(input.netPaid));
+  const grossPaid = money(input.grossPaid);
+  const refunded = money(input.refunded);
+  const balanceDue = Math.max(0, roundMoney(total - netPaid));
+
+  let status = input.currentStatus;
+  if (grossPaid > 0 && netPaid <= 0 && refunded > 0) {
+    status = "refunded";
+  } else if (balanceDue <= 0 && netPaid > 0) {
+    status = "paid";
+  } else if (netPaid > 0) {
+    status = "partially_paid";
+  } else if (input.currentStatus === "draft") {
+    status = "draft";
+  } else if (input.currentStatus === "payment_arrangement") {
+    status = "payment_arrangement";
+  } else if (input.currentStatus === "sent" || input.currentStatus === "viewed") {
+    status = input.currentStatus;
+  }
+
+  return { balanceDue, netPaid, status };
+}
+
 export async function recalculatePaymentRefundState(supabase: SupabaseAdmin, paymentId: string) {
   const { data: payment, error: paymentError } = await supabase
     .from("payments")
@@ -96,28 +127,25 @@ export async function recalculateInvoiceFinancials(supabase: SupabaseAdmin, invo
 
   const grossPaid = roundMoney(((payments ?? []) as PaymentRow[]).reduce((sum, payment) => sum + money(payment.gross_amount ?? payment.amount), 0));
   const refunded = roundMoney(((refunds ?? []) as AdjustmentRow[]).reduce((sum, refund) => sum + money(refund.amount), 0));
-  const netPaid = Math.max(0, roundMoney(grossPaid - refunded));
-  const total = money(invoice.total);
-  const balanceDue = Math.max(0, roundMoney(total - netPaid));
-  const status =
-    grossPaid > 0 && netPaid <= 0 && refunded > 0
-      ? "refunded"
-      : balanceDue <= 0 && netPaid > 0
-        ? "paid"
-        : netPaid > 0
-          ? "partially_paid"
-          : invoice.status;
+  const netPaidRaw = roundMoney(grossPaid - refunded);
+  const derived = deriveInvoiceStatusAfterReconciliation({
+    total: money(invoice.total),
+    netPaid: Math.max(0, netPaidRaw),
+    grossPaid,
+    refunded,
+    currentStatus: String(invoice.status ?? "draft"),
+  });
 
   const { error: updateError } = await supabase
     .from("invoices")
     .update({
-      amount_paid: netPaid,
-      balance_due: balanceDue,
-      status,
-      checkout_status: balanceDue <= 0 && netPaid > 0 ? "paid" : invoice.status === "draft" ? null : "partial",
+      amount_paid: derived.netPaid,
+      balance_due: derived.balanceDue,
+      status: derived.status,
+      checkout_status: derived.balanceDue <= 0 && derived.netPaid > 0 ? "paid" : invoice.status === "draft" ? null : "partial",
     })
     .eq("id", invoiceId);
 
   if (updateError) throw new Error(updateError.message);
-  return { grossPaid, refunded, netPaid, balanceDue, status };
+  return { grossPaid, refunded, netPaid: derived.netPaid, balanceDue: derived.balanceDue, status: derived.status };
 }

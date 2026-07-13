@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       amount_paid: 0,
       balance_due: totals.total,
       due_date: input.dueDate,
-      status: "pending",
+      status: "draft",
       template_id: template.id,
       template_snapshot: snapshot,
       template_overrides: input.templateOverrides,

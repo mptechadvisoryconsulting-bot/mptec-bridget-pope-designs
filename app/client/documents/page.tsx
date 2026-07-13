@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { currency } from "@/lib/currency";
+import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +19,13 @@ export default async function ClientDocumentsPage() {
           .order("created_at", { ascending: false })
       : { data: [] },
     client?.id
-      ? supabase
-          .from("invoices")
-          .select("id,invoice_number,total,balance_due,status,created_at")
-          .eq("client_id", client.id)
-          .order("created_at", { ascending: false })
+      ? applyClientInvoiceVisibilityFilter(
+          supabase
+            .from("invoices")
+            .select("id,invoice_number,total,balance_due,status,created_at")
+            .eq("client_id", client.id)
+            .order("created_at", { ascending: false }),
+        )
       : { data: [] },
     project?.id
       ? supabase

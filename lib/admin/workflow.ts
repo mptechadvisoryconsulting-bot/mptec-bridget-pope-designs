@@ -109,87 +109,22 @@ export async function scheduleLeadConsultation(supabase: AnyClient, leadId: stri
   return { success: true, id: consultationId };
 }
 
-export async function convertLeadToClient(supabase: AnyClient, leadId: string, actorId?: string | null): Promise<WorkflowResult & { clientId?: string; projectId?: string }> {
-  const { data: lead, error: leadError } = await supabase.from("leads").select("*").eq("id", leadId).maybeSingle();
-  if (leadError || !lead) return { success: false, message: leadError?.message ?? "Lead not found." };
+export async function convertLeadToClient(supabase: AnyClient, leadId: string, actorId?: string | null): Promise<WorkflowResult & { clientId?: string; projectId?: string; conversationId?: string; profileId?: string }> {
+  const { provisionClientFromLead } = await import("@/lib/provisioning/provision-client");
+  const result = await provisionClientFromLead(supabase as any, { leadId, actorId, inviteToPortal: true });
 
-  const { data: existingClient } = await supabase.from("clients").select("id,profile_id").eq("lead_id", leadId).maybeSingle();
-  let clientId: string | undefined = existingClient?.id;
-  let profileId: string | undefined = existingClient?.profile_id;
-
-  if (!clientId) {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .insert({
-        role: "client",
-        first_name: lead.first_name,
-        last_name: lead.last_name,
-        email: lead.email,
-        phone: lead.phone,
-        active: true,
-      })
-      .select("id")
-      .single();
-
-    if (profileError || !profile) return { success: false, message: profileError?.message ?? "Unable to create client profile." };
-    profileId = profile.id;
-
-    const { data: client, error: clientError } = await supabase
-      .from("clients")
-      .insert({ profile_id: profileId, lead_id: leadId })
-      .select("id")
-      .single();
-
-    if (clientError || !client) return { success: false, message: clientError?.message ?? "Unable to create client record." };
-    clientId = client.id;
+  if (!result.success) {
+    return { success: false, message: result.message };
   }
 
-  const { data: existingProject } = await supabase.from("projects").select("id").eq("lead_id", leadId).maybeSingle();
-  let projectId: string | undefined = existingProject?.id;
-
-  if (!projectId) {
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .insert({
-        client_id: clientId,
-        lead_id: leadId,
-        event_name: [lead.first_name, lead.last_name, lead.event_type].filter(Boolean).join(" ").trim() || "New Event",
-        event_type: lead.event_type,
-        event_date: lead.event_date,
-        venue_name: lead.venue,
-        city: lead.city,
-        guest_count: lead.guest_count,
-        budget: lead.estimated_budget,
-        color_palette: lead.event_colors,
-        theme: lead.event_theme,
-        status: "pending",
-        assigned_admin_id: actorId ?? null,
-      })
-      .select("id")
-      .single();
-
-    if (projectError || !project) return { success: false, message: projectError?.message ?? "Unable to create project." };
-    projectId = project.id;
-
-    await supabase.from("conversations").insert({ project_id: projectId, client_id: clientId });
-  }
-
-  await supabase.from("leads").update({ status: "converted", updated_at: new Date().toISOString() }).eq("id", leadId);
-
-  if (profileId) {
-    await supabase.from("notifications").insert({
-      recipient_id: profileId,
-      project_id: projectId,
-      lead_id: leadId,
-      type: "portal_created",
-      title: "Your project workspace is ready",
-      message: "Bridget Pope Designs has started your project workspace.",
-      action_url: "/client/dashboard",
-    });
-  }
-
-  await logActivity(supabase, { actorId, leadId, projectId, action: "lead_converted", entityType: "project", entityId: projectId });
-  return { success: true, clientId, projectId };
+  return {
+    success: true,
+    clientId: result.clientId,
+    projectId: result.projectId,
+    conversationId: result.conversationId,
+    profileId: result.profileId,
+    message: result.idempotent ? "Already converted" : undefined,
+  };
 }
 
 export async function scheduleConsultation(

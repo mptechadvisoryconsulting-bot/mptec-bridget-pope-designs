@@ -31,6 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ invo
   const isOwningClient = client?.profile_id === profile.id;
 
   if (!isAdmin && !isOwningClient) return notFound();
+  if (!isAdmin && invoice.status === "draft") return notFound();
 
   const clientProfile = Array.isArray(client?.bpd_profiles) ? client?.bpd_profiles[0] : client?.bpd_profiles;
   const clientName = [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || clientProfile?.email || "Client";

@@ -1,13 +1,13 @@
 import { CalendarDays, FileSignature, MessageSquare, ReceiptText, Share2, Sparkles } from "lucide-react";
-import { redirect } from "next/navigation";
 import { Checklist } from "@/components/client/Checklist";
 import { EventProgress } from "@/components/client/EventProgress";
 import { MessagePanel } from "@/components/client/MessagePanel";
+import { PaymentCard } from "@/components/client/PaymentCard";
 import { Timeline } from "@/components/client/Timeline";
 import { ButtonLink } from "@/components/ui/button";
-import { currency } from "@/lib/currency";
+import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
+import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const quickActions = [
   { label: "View Proposals", href: "/client/proposals", icon: FileSignature },
@@ -20,47 +20,28 @@ const quickActions = [
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientDashboardPage() {
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login?next=/client/dashboard");
-  }
-
+export default async function ClientDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ project?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
+  const context = await requireClientPortalContext("/client/dashboard", { projectId: params.project });
+  const { profile, project, projects } = context;
   const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id,first_name,last_name")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
 
-  const { data: client } = profile?.id
-    ? await admin.from("clients").select("id").eq("profile_id", profile.id).maybeSingle()
-    : { data: null };
-
-  const { data: project } = client?.id
-    ? await admin
-        .from("projects")
-        .select("id,event_name,event_type,event_date,venue_name,city,status")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
-
-  const { data: invoice } = project?.id
-    ? await admin
-        .from("invoices")
-        .select("id,balance_due,due_date,status")
-        .eq("project_id", project.id)
-        .neq("status", "paid")
-        .order("due_date", { ascending: true })
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
+  const invoiceQuery = project?.id
+    ? applyClientInvoiceVisibilityFilter(
+        admin
+          .from("invoices")
+          .select("id,balance_due,due_date,status")
+          .eq("project_id", project.id)
+          .neq("status", "paid")
+          .order("due_date", { ascending: true })
+          .limit(1),
+      )
+    : null;
+  const { data: invoice } = invoiceQuery ? await invoiceQuery.maybeSingle() : { data: null };
   const { data: milestones } = project?.id
     ? await admin
         .from("milestones")
@@ -81,7 +62,7 @@ export default async function ClientDashboardPage() {
         .limit(10)
     : { data: [] };
 
-  const clientName = profile?.first_name ?? "Client";
+  const clientName = profile.first_name ?? "Client";
   const eventName = project?.event_name ?? "Your Event";
   const eventDate = project?.event_date ?? "Date pending";
   const venue = [project?.venue_name, project?.city].filter(Boolean).join(" - ") || "Venue pending";
@@ -100,6 +81,17 @@ export default async function ClientDashboardPage() {
             <strong style={{ display: "block", fontFamily: "Georgia, serif", fontSize: 22 }}>{eventName}</strong>
             <p className="mini-meta">{eventDate} - {venue}</p>
             <p><span className="status">{status}</span></p>
+            {projects.length > 1 ? (
+              <p className="mini-meta" style={{ marginTop: 8 }}>
+                Projects:{" "}
+                {projects.map((item, index) => (
+                  <span key={item.id}>
+                    {index > 0 ? " · " : null}
+                    <a href={`/client/dashboard?project=${item.id}`}>{item.event_name}</a>
+                  </span>
+                ))}
+              </p>
+            ) : null}
             <ButtonLink href="/client/event" variant="light">View Event Details</ButtonLink>
           </div>
           <img src="/images/client-event.png" alt="Client event preview" />
@@ -107,16 +99,12 @@ export default async function ClientDashboardPage() {
       </section>
       <EventProgress status={project?.status ?? "pending"} />
       <div className="client-grid">
-        <section className="panel">
-          <h2>Next Payment</h2>
-          <span className="mini-meta">Balance Due</span>
-          <strong style={{ display: "block", fontSize: 28, margin: "6px 0" }}>
-            {invoice ? currency(Number(invoice.balance_due ?? 0)) : "$0"}
-          </strong>
-          <p className="mini-meta">Due by {invoice?.due_date ?? "No open invoice"}</p>
-          <ButtonLink href={invoice?.id ? `/client/invoices/${invoice.id}` : "/client/payments"}>Make Payment</ButtonLink>
-          <p className="mini-meta" style={{ marginBottom: 0, marginTop: 10 }}>Secured by Stripe</p>
-        </section>
+        <PaymentCard
+          balanceDue={Number(invoice?.balance_due ?? 0)}
+          dueDate={invoice?.due_date}
+          status={invoice?.status}
+          invoiceId={invoice?.id}
+        />
         <section className="panel">
           <h2>Upcoming Milestone</h2>
           <strong style={{ display: "block", fontFamily: "Georgia, serif", fontSize: 24, margin: "20px 0 6px" }}>
@@ -165,7 +153,7 @@ export default async function ClientDashboardPage() {
           messages={(messages ?? []).map((message) => ({
             id: message.id,
             body: message.body,
-            fromAdmin: message.sender_id !== profile?.id,
+            fromAdmin: message.sender_id !== profile.id,
             readAt: message.read_at,
           }))}
         />

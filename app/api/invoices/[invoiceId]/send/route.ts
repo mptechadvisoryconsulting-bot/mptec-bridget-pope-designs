@@ -46,7 +46,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
     .update({
       status: invoice.status === "paid" ? "paid" : "sent",
       sent_at: new Date().toISOString(),
-      stripe_payment_link_url: null,
     })
     .eq("id", invoice.id);
 
@@ -62,7 +61,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
       title: isUpdatedInvoice ? "Invoice updated" : "Invoice ready",
       message: isUpdatedInvoice
         ? `${invoice.invoice_number} was updated (v${versionNumber}) and is ready for review.`
-        : `${invoice.invoice_number} is ready for review and payment.`,
+        : `${invoice.invoice_number} is ready for review.`,
       action_url: `/client/invoices/${invoice.id}`,
     });
   }
@@ -96,10 +95,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
         <p>${
           isUpdatedInvoice
             ? `Your invoice for ${project?.event_name ?? "your event"} has been updated to version ${versionNumber}. Please review the attached PDF for the latest details.`
-            : `Your invoice for ${project?.event_name ?? "your event"} is ready.`
+            : `Your invoice is ready.`
         }</p>
         <p><strong>Balance due:</strong> ${currency(Number(invoice.balance_due ?? invoice.total ?? 0))}</p>
-        <p><a href="${invoiceUrl}">Review and pay invoice</a></p>
+        <p><a href="${invoiceUrl}">Review invoice</a></p>
+        <p>Payment arrangements are handled directly with Bridget Pope Designs. Your portal balance updates when a payment is recorded.</p>
       `,
       attachments: [{ filename: `Invoice-${invoice.invoice_number}.pdf`, content: pdf.toString("base64") }],
     });

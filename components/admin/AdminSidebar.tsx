@@ -73,7 +73,7 @@ const navGroups: AdminNavGroup[] = [
       { label: "Contracts", href: "/admin/contracts", icon: FileSignature },
       { label: "Invoices", href: "/admin/invoices", icon: ReceiptText },
       { label: "Invoice Templates", href: "/admin/invoice-templates", icon: ReceiptText },
-      { label: "Payments", href: "/admin/payments", icon: CreditCard },
+      { label: "Payment records", href: "/admin/payments", icon: CreditCard },
     ],
   },
   {

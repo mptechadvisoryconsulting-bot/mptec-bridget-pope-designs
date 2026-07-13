@@ -22,7 +22,7 @@ export async function Gallery() {
         ) : null}
         <div className="gallery-grid">
           {galleryItems.map((item) => (
-            <figure className="gallery-card" key={item.title}>
+            <figure className="gallery-card" key={item.id}>
               <img src={item.image} alt={`${item.title} event design`} />
               <figcaption>
                 <small>{item.category}</small>
@@ -30,7 +30,9 @@ export async function Gallery() {
               </figcaption>
             </figure>
           ))}
-          {!galleryItems.length ? <p className="mini-meta">Gallery photos will appear here after they are uploaded in the admin gallery manager.</p> : null}
+          {!galleryItems.length ? (
+            <p className="mini-meta">Gallery photos will appear here after they are uploaded in the admin gallery manager.</p>
+          ) : null}
         </div>
       </div>
     </section>

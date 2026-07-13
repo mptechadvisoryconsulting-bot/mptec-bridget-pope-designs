@@ -85,8 +85,19 @@ create policy "Admins can manage bpd_contracts" on bpd_contracts for all to auth
 create policy "Clients can view project bpd_contracts" on bpd_contracts for select to authenticated using (bpd_can_access_project(project_id));
 
 create policy "Admins can manage bpd_invoices" on bpd_invoices for all to authenticated using (bpd_is_admin()) with check (bpd_is_admin());
-create policy "Clients can view own bpd_invoices" on bpd_invoices for select to authenticated using (bpd_can_access_project(project_id));
-create policy "Invoice items follow invoice access" on bpd_invoice_items for select to authenticated using (exists (select 1 from bpd_invoices where bpd_invoices.id = bpd_invoice_items.invoice_id and bpd_can_access_project(bpd_invoices.project_id)));
+create policy "Clients can view own bpd_invoices" on bpd_invoices for select to authenticated using (
+  bpd_can_access_project(project_id)
+  and status <> 'draft'
+  and sent_at is not null
+);
+create policy "Invoice items follow invoice access" on bpd_invoice_items for select to authenticated using (
+  exists (
+    select 1 from bpd_invoices
+    where bpd_invoices.id = bpd_invoice_items.invoice_id
+      and bpd_can_access_project(bpd_invoices.project_id)
+      and (bpd_is_admin() or (bpd_invoices.status <> 'draft' and bpd_invoices.sent_at is not null))
+  )
+);
 
 create policy "Admins can manage bpd_payments" on bpd_payments for all to authenticated using (bpd_is_admin()) with check (bpd_is_admin());
 create policy "Clients can view own bpd_payments" on bpd_payments for select to authenticated using (bpd_can_access_project(project_id));

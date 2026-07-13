@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { DesignUpdateCreateForm } from "@/components/admin/DesignUpdateCreateForm";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -42,11 +43,14 @@ export default async function DesignUpdatesPage({ searchParams }: { searchParams
     redirect("/admin/design-updates");
   }
 
-  const { data } = await supabase
-    .from("design_updates")
-    .select("id,title,description,status,client_visible,created_at,updated_at,project_id,bpd_projects(event_name,bpd_clients(bpd_profiles(first_name,last_name)))")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data }, { data: projects }] = await Promise.all([
+    supabase
+      .from("design_updates")
+      .select("id,title,description,status,client_visible,created_at,updated_at,project_id,bpd_projects(event_name,bpd_clients(bpd_profiles(first_name,last_name)))")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase.from("projects").select("id,event_name").order("created_at", { ascending: false }).limit(100),
+  ]);
 
   const updates = (data ?? []) as DesignUpdateRow[];
 
@@ -60,11 +64,24 @@ export default async function DesignUpdatesPage({ searchParams }: { searchParams
         </div>
       </div>
 
+      <div style={{ marginBottom: 16 }}>
+        <DesignUpdateCreateForm projects={projects ?? []} />
+      </div>
+
       <section className="panel">
-        <h2>{updates.length} Update{updates.length === 1 ? "" : "s"}</h2>
+        <h2>
+          {updates.length} Update{updates.length === 1 ? "" : "s"}
+        </h2>
         <table className="table">
           <thead>
-            <tr><th>Update</th><th>Project</th><th>Client</th><th>Status</th><th>Sent</th><th /></tr>
+            <tr>
+              <th>Update</th>
+              <th>Project</th>
+              <th>Client</th>
+              <th>Status</th>
+              <th>Sent</th>
+              <th />
+            </tr>
           </thead>
           <tbody>
             {updates.map((update) => {
@@ -75,16 +92,29 @@ export default async function DesignUpdatesPage({ searchParams }: { searchParams
 
               return (
                 <tr key={update.id}>
-                  <td>{update.title}{update.description ? <div className="mini-meta">{update.description}</div> : null}</td>
+                  <td>
+                    {update.title}
+                    {update.description ? <div className="mini-meta">{update.description}</div> : null}
+                  </td>
                   <td>{project?.event_name ?? "Project"}</td>
                   <td>{clientName}</td>
-                  <td><span className="status">{statusLabels[update.status] ?? update.status}</span></td>
+                  <td>
+                    <span className="status">{statusLabels[update.status] ?? update.status}</span>
+                  </td>
                   <td>{update.client_visible ? formatDateTime(update.updated_at) : "Not sent"}</td>
                   <td>
                     <div className="topbar-actions">
-                      <ButtonLink href={`/admin/projects/${update.project_id}`} variant="light">Open</ButtonLink>
-                      {!update.client_visible ? <ButtonLink href={`/admin/design-updates?action=send&id=${update.id}`} variant="light">Send</ButtonLink> : null}
-                      <ButtonLink href="/admin/messages" variant="light">Message</ButtonLink>
+                      <ButtonLink href={`/admin/projects/${update.project_id}`} variant="light">
+                        Open
+                      </ButtonLink>
+                      {!update.client_visible ? (
+                        <ButtonLink href={`/admin/design-updates?action=send&id=${update.id}`} variant="light">
+                          Send
+                        </ButtonLink>
+                      ) : null}
+                      <ButtonLink href="/admin/messages" variant="light">
+                        Message
+                      </ButtonLink>
                     </div>
                   </td>
                 </tr>

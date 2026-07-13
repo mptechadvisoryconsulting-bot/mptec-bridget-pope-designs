@@ -1,11 +1,8 @@
 import { Bell, CalendarDays, MailCheck, MessageSquare, Plus } from "lucide-react";
-import { PaymentSetupCard } from "@/components/admin/PaymentSetupCard";
 import { ButtonLink } from "@/components/ui/button";
-import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { currency } from "@/lib/currency";
 import { mapEmailReadinessStatus, readinessLabel } from "@/lib/email/delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripeReadinessStatus } from "@/lib/stripe/connect";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +17,9 @@ function formatTimestamp(value?: string | null) {
 }
 
 export default async function AdminDashboardPage() {
-  const { profile } = await getCurrentProfile();
   const supabase = createAdminClient();
+  const today = new Date().toISOString().slice(0, 10);
+
   const [
     { data: newRequests },
     { data: messages },
@@ -31,6 +29,13 @@ export default async function AdminDashboardPage() {
     { data: tasks },
     { count: unreadNotifications },
     settingsResult,
+    { count: newLeadCount },
+    { count: requestedConsultationCount },
+    { count: followUpConsultationCount },
+    { count: awaitingPortalCount },
+    { count: overdueByStatusCount },
+    { data: overdueByDateRows },
+    { count: unreadClientMessageCount },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -46,30 +51,46 @@ export default async function AdminDashboardPage() {
       .limit(5),
     supabase
       .from("projects")
-      .select("id,event_name,event_type,event_date,venue,status")
-      .gte("event_date", new Date().toISOString().slice(0, 10))
+      .select("id,event_name,event_type,event_date,venue_name,status")
+      .gte("event_date", today)
       .order("event_date", { ascending: true })
       .limit(5),
     supabase
       .from("invoices")
       .select("id,invoice_number,total,amount_paid,balance_due,due_date,status,clients(profiles(first_name,last_name))")
       .gt("balance_due", 0)
+      .not("status", "eq", "draft")
       .order("due_date", { ascending: true })
       .limit(5),
     supabase
       .from("payments")
-      .select("id,amount,gross_amount,platform_fee_amount,stripe_processing_fee,net_amount,status,paid_at,created_at,invoice_id,invoices(invoice_number,clients(profiles(first_name,last_name)))")
+      .select("id,amount,gross_amount,status,paid_at,created_at,invoice_id,payment_method,payment_model,invoices(invoice_number,clients(profiles(first_name,last_name)))")
       .order("created_at", { ascending: false })
       .limit(5),
     supabase.from("tasks").select("id,title,due_date,status").neq("status", "complete").order("due_date", { ascending: true }).limit(5),
     supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
     supabase
       .from("business_settings")
-      .select("business_email,inquiry_recipient_email,stripe_connected_account_id,stripe_charges_enabled,stripe_payouts_enabled,stripe_details_submitted,stripe_requirements_currently_due,stripe_requirements_disabled_reason,stripe_account_last_synced_at,email_readiness_status,email_provider_last_error,email_last_test_sent_at,email_last_error,payment_readiness_status,platform_fee_basis_points")
+      .select("business_email,inquiry_recipient_email,email_readiness_status,email_provider_last_error,email_last_test_sent_at,email_last_error")
       .limit(1)
       .maybeSingle(),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabase.from("consultations").select("id", { count: "exact", head: true }).eq("status", "requested"),
+    supabase.from("consultations").select("id", { count: "exact", head: true }).in("status", ["scheduled", "requested"]),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "client").eq("active", true).is("auth_user_id", null),
+    supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "overdue"),
+    supabase
+      .from("invoices")
+      .select("id")
+      .lt("due_date", today)
+      .gt("balance_due", 0)
+      .not("status", "eq", "draft")
+      .not("status", "eq", "paid")
+      .not("status", "eq", "cancelled")
+      .not("status", "eq", "void"),
+    supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
-  const { data: settings, error: settingsError } = settingsResult;
+  const { data: settings } = settingsResult;
 
   const requestRows = newRequests ?? [];
   const messageRows = messages ?? [];
@@ -77,19 +98,26 @@ export default async function AdminDashboardPage() {
   const invoiceRows = invoices ?? [];
   const paymentRows = payments ?? [];
   const taskRows = tasks ?? [];
-  const paymentStatus = settingsError ? "restricted" : stripeReadinessStatus(settings);
-  const accountId = settings?.stripe_connected_account_id ? `****${settings.stripe_connected_account_id.slice(-4)}` : null;
   const emailRecipient = settings?.inquiry_recipient_email ?? settings?.business_email;
   const emailReadinessStatus = mapEmailReadinessStatus(
     settings?.email_readiness_status,
     settings?.email_provider_last_error ?? settings?.email_last_error,
   );
+
+  // OR-style signal across leads + consultations (may overlap when both are open).
+  const newConsultationRequestCount = Number(newLeadCount ?? 0) + Number(requestedConsultationCount ?? 0);
+  const consultationsAwaitingFollowUp = Number(followUpConsultationCount ?? 0);
+  const clientsAwaitingPortal = Number(awaitingPortalCount ?? 0);
+  const overdueInvoiceIds = new Set((overdueByDateRows ?? []).map((row) => row.id));
+  const overdueInvoices = Math.max(Number(overdueByStatusCount ?? 0), overdueInvoiceIds.size);
+  const unreadClientMessages = Number(unreadClientMessageCount ?? 0);
+
   const ownerActionCount =
-    requestRows.length +
-    invoiceRows.length +
-    Number(unreadNotifications ?? 0) +
-    (paymentStatus === "ready" && !settingsError ? 0 : 1) +
-    (emailReadinessStatus === "READY" ? 0 : 1);
+    newConsultationRequestCount +
+    consultationsAwaitingFollowUp +
+    clientsAwaitingPortal +
+    overdueInvoices +
+    unreadClientMessages;
 
   return (
     <div>
@@ -140,8 +168,12 @@ export default async function AdminDashboardPage() {
           <h2>Owner Action Required</h2>
           <ul className="list">
             <li><span>Open owner actions</span><span className="status">{ownerActionCount}</span></li>
+            <li><span>New consultation requests</span><span className="status">{newConsultationRequestCount}</span></li>
+            <li><span>Consultations awaiting follow-up</span><span className="status">{consultationsAwaitingFollowUp}</span></li>
+            <li><span>Clients awaiting portal</span><span className="status">{clientsAwaitingPortal}</span></li>
+            <li><span>Overdue invoices</span><span className="status">{overdueInvoices}</span></li>
+            <li><span>Unread client messages</span><span className="status">{unreadClientMessages}</span></li>
             <li><span>Unread notifications</span><span className="status">{unreadNotifications ?? 0}</span></li>
-            <li><span>Stripe setup</span><span className="status">{paymentStatus.replace(/_/g, " ")}</span></li>
             <li><span>Email setup</span><span className="status">{readinessLabel(emailReadinessStatus)}</span></li>
           </ul>
         </section>
@@ -170,7 +202,7 @@ export default async function AdminDashboardPage() {
           <ul className="list">
             {projectRows.map((project) => (
               <li key={project.id}>
-                <span>{project.event_name}<span className="mini-meta">{formatDate(project.event_date)} · {project.venue || project.event_type}</span></span>
+                <span>{project.event_name}<span className="mini-meta">{formatDate(project.event_date)} · {project.venue_name || project.event_type}</span></span>
                 <ButtonLink href={`/admin/projects/${project.id}`} variant="light">Open</ButtonLink>
               </li>
             ))}
@@ -197,9 +229,9 @@ export default async function AdminDashboardPage() {
             {paymentRows.map((payment) => (
               <li key={payment.id}>
                 <span>
-                  Customer Payment {currency(Number(payment.gross_amount ?? payment.amount ?? 0))}
+                  Payment {currency(Number(payment.gross_amount ?? payment.amount ?? 0))}
                   <span className="mini-meta">
-                    Platform Fee {currency(Number(payment.platform_fee_amount ?? 0))} · Stripe Fee {payment.stripe_processing_fee == null ? "pending" : currency(Number(payment.stripe_processing_fee))} · Net {payment.net_amount == null ? "pending" : currency(Number(payment.net_amount))}
+                    {payment.payment_method || "manual"} · {payment.payment_model || "manual"}
                   </span>
                 </span>
                 <strong>{payment.status}</strong>
@@ -208,34 +240,6 @@ export default async function AdminDashboardPage() {
             {!paymentRows.length ? <li>No payment activity yet.</li> : null}
           </ul>
         </section>
-
-        {settingsError ? (
-          <section className="panel span-2">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">Payment Setup / Payout Status</span>
-                <h2>Payment Configuration Needs Attention</h2>
-              </div>
-              <span className="status">CONFIGURATION_ERROR</span>
-            </div>
-            <p className="form-error">Payment setup could not load. The production payment configuration needs attention.</p>
-            <p className="mini-meta">Online payment creation remains disabled until the payment ledger migrations are applied and verified.</p>
-            <ButtonLink href="/admin/settings/payments" variant="light">Open Payment Settings</ButtonLink>
-          </section>
-        ) : (
-          <PaymentSetupCard
-            accountLastSyncedAt={settings?.stripe_account_last_synced_at}
-            canManage={profile?.role === "owner"}
-            chargesEnabled={Boolean(settings?.stripe_charges_enabled)}
-            connectedAccountId={accountId}
-            detailsSubmitted={Boolean(settings?.stripe_details_submitted)}
-            paymentReadinessStatus={paymentStatus}
-            payoutsEnabled={Boolean(settings?.stripe_payouts_enabled)}
-            platformFeeBasisPoints={Number(settings?.platform_fee_basis_points ?? 100)}
-            requirementsCurrentlyDue={settings?.stripe_requirements_currently_due ?? []}
-            requirementsDisabledReason={settings?.stripe_requirements_disabled_reason}
-          />
-        )}
 
         <section className="panel">
           <div className="section-heading">

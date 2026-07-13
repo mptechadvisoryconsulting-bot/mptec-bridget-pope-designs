@@ -1,6 +1,7 @@
 import { ReceiptText } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
+import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,11 +26,13 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 export default async function ClientInvoicesPage() {
   const { client } = await requireClientPortalContext("/client/invoices");
   const { data: invoices } = client?.id
-    ? await createAdminClient()
-        .from("invoices")
-        .select("id,invoice_number,invoice_type,total,amount_paid,balance_due,due_date,status,bpd_projects(event_name)")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false })
+    ? await applyClientInvoiceVisibilityFilter(
+        createAdminClient()
+          .from("invoices")
+          .select("id,invoice_number,invoice_type,total,amount_paid,balance_due,due_date,status,bpd_projects(event_name)")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false }),
+      )
     : { data: [] };
 
   return (

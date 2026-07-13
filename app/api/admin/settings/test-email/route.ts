@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appUrl } from "@/lib/env";
 import { requireOwnerProfile } from "@/lib/auth/require-owner";
 import { sendTrackedEmail } from "@/lib/email/delivery";
 import { emailFrom } from "@/lib/email/resend";
@@ -29,7 +30,7 @@ export async function POST() {
     html: `
       <p>This confirms the Bridget Pope Designs owner email settings are ready.</p>
       <p>Consultation inquiries will send important lead details to this inbox.</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}/admin">Open admin dashboard</a></p>
+      <p><a href="${appUrl()}/admin">Open admin dashboard</a></p>
     `,
   });
 

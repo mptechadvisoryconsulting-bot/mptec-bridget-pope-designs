@@ -29,15 +29,10 @@ not work. Start Docker Desktop first, confirm it is healthy, then run:
 npx supabase start
 ```
 
-## Production must NOT enable payment creation ahead of the release gate
+## Offline billing
 
-`PAYMENT_CREATION_ENABLED` gates whether the app will create real Stripe Checkout Sessions /
-PaymentIntents in production. **Production must NOT set `PAYMENT_CREATION_ENABLED=true` until the
-release gate is explicitly signed off** (payment ledger migrations applied and verified, Stripe
-Connect account fully onboarded, E2E payment specs green with `E2E_RELEASE_GATE=true`). Until
-then, it must remain `false` in the Vercel production environment. See `.env.example` for the
-full list of required production payment envs (`PAYMENT_CREATION_ENABLED`,
-`PLATFORM_FEE_BASIS_POINTS=100`, `REFUND_PLATFORM_FEE_POLICY=retain`).
+Online card checkout is not enabled. Admins send invoices (email + PDF), collect payment outside
+the app, and record payments manually on each invoice via `/api/invoices/[invoiceId]/payments`.
 
 ## Migration order
 
@@ -52,10 +47,10 @@ The payment ledger specifically depends on this chain from `0005` onward:
 
 - **0005** (`owner_readiness_payment_ledger.sql`) — creates `bpd_payment_attempts`, adds owner
   email/payment readiness columns to `bpd_business_settings`.
-- **0006** (`payment_setup_resilience.sql`) — adds Stripe Connect provisioning status tracking
-  columns/constraints to `bpd_business_settings`.
-- **0007** (`payment_model_versioning.sql`) — adds `payment_model` / `stripe_account_context`
-  columns to both `bpd_payment_attempts` and `bpd_payments`, backfilling existing rows.
+- **0006** (`payment_setup_resilience.sql`) — historical payment-setup columns (legacy; not used
+  by the active offline-billing app surface).
+- **0007** (`payment_model_versioning.sql`) — adds `payment_model` / related context columns to
+  payment tables, backfilling existing rows.
 - **0008** (`invoice_template_asset_storage.sql`) — adds the invoice template asset storage
   bucket.
 

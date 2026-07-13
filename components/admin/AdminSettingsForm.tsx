@@ -8,17 +8,6 @@ import { Input } from "@/components/ui/input";
 import { readinessLabel } from "@/lib/email/delivery";
 import { safeFetch } from "@/lib/safe-fetch";
 
-type StripeSettings = {
-  connectedAccountId?: string | null;
-  paymentModel: string;
-  chargesEnabled: boolean;
-  payoutsEnabled: boolean;
-  detailsSubmitted: boolean;
-  requirementsCurrentlyDue: string[];
-  requirementsDisabledReason?: string | null;
-  accountLastSyncedAt?: string | null;
-};
-
 type OwnerEmailSettings = {
   businessDisplayName: string;
   inquiryRecipientEmail: string;
@@ -95,14 +84,10 @@ export function AdminSettingsForm({
   currentRole,
   ownerEmailSettings,
   emailReadiness,
-  platformFeeBasisPoints,
-  stripeSettings,
 }: {
   currentRole: string;
   ownerEmailSettings: OwnerEmailSettings;
   emailReadiness: EmailReadiness;
-  platformFeeBasisPoints: number;
-  stripeSettings: StripeSettings;
 }) {
   const [form, setForm] = useState(ownerEmailSettings);
   const [readiness, setReadiness] = useState(emailReadiness);
@@ -179,8 +164,6 @@ export function AdminSettingsForm({
     }
     setIsTestingEmail(false);
   }
-
-  const stripeReady = stripeSettings.connectedAccountId && stripeSettings.chargesEnabled && stripeSettings.payoutsEnabled;
 
   return (
     <div className="dashboard-grid">
@@ -302,27 +285,16 @@ export function AdminSettingsForm({
       </section>
 
       <section className="panel span-2">
-        <h2>Payment Setup / Payout Status</h2>
+        <h2>Billing & payments</h2>
         <p className="mini-meta">
-          Payment setup now lives in a dedicated owner workflow. Checkout Sessions transfer invoice payments to the owner's connected Stripe account.
+          Online card checkout is not enabled. Send invoices to clients, collect payment offline, and
+          record payments manually on each invoice.
         </p>
-        <p className="mini-meta">Platform payment fee: {(platformFeeBasisPoints / 100).toFixed(2).replace(/\.00$/, "")}%.</p>
-        <p className="mini-meta">Direct payout setup is owner-only. Admin users can view readiness but cannot replace the payment destination.</p>
-        <ul className="list">
-          <li><span>Connected account</span><span className="status">{stripeSettings.connectedAccountId ?? "Not connected"}</span></li>
-          <li><span>Charges enabled</span><span className="status">{stripeSettings.chargesEnabled ? "Enabled" : "Pending"}</span></li>
-          <li><span>Payouts enabled</span><span className="status">{stripeSettings.payoutsEnabled ? "Enabled" : "Pending"}</span></li>
-          <li><span>Details submitted</span><span className="status">{stripeSettings.detailsSubmitted ? "Submitted" : "Required"}</span></li>
-          {stripeSettings.requirementsDisabledReason ? (
-            <li><span>Disabled reason</span><span className="status">{stripeSettings.requirementsDisabledReason}</span></li>
-          ) : null}
-        </ul>
-        {stripeSettings.requirementsCurrentlyDue.length ? (
-          <p className="form-error">Stripe still requires: {stripeSettings.requirementsCurrentlyDue.join(", ")}</p>
-        ) : null}
-        {stripeSettings.accountLastSyncedAt ? <p className="mini-meta">Last synced {new Date(stripeSettings.accountLastSyncedAt).toLocaleString("en-US")}</p> : null}
         <div className="topbar-actions">
-          <ButtonLink href="/admin/settings/payments">{stripeReady ? "Open Payment Setup" : "Set Up Payments"}</ButtonLink>
+          <ButtonLink href="/admin/settings/payments">Billing guidance</ButtonLink>
+          <ButtonLink href="/admin/payments" variant="light">
+            Payment records
+          </ButtonLink>
         </div>
       </section>
     </div>

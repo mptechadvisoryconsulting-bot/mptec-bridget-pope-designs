@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Shared client-side fetch helper. Generalizes the payment-setup-safe fetch pattern
- * (see lib/payment-setup-client.ts) for any JSON API call: it never throws on network
+ * Shared client-side fetch helper. Never throws on network
  * failure or a non-JSON response body, always resolves to a typed result, and always
  * clears its timeout via `finally`.
  */

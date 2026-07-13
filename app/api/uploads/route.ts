@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { revalidatePath } from "next/cache";
 import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { hasSupabaseAdminEnv, safeErrorMessage } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -81,6 +82,10 @@ export async function POST(request: Request) {
     }
 
     const { data: publicUrl } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/admin/gallery");
 
     return NextResponse.json({ success: true, file: data, publicUrl: publicUrl.publicUrl }, { status: 201 });
   } catch (error) {

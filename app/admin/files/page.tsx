@@ -1,5 +1,7 @@
+import { ProjectFileUploadForm } from "@/components/files/ProjectFileUploadForm";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/dates";
+import { resolveFileUrl } from "@/lib/files/resolve-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { first } from "@/lib/supabase/relations";
 
@@ -35,28 +37,16 @@ function formatSize(bytes?: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-async function resolveFileUrl(supabase: ReturnType<typeof createAdminClient>, file: FileRow) {
-  if (file.visibility === "public_gallery") {
-    const { data } = supabase.storage.from("event-gallery").getPublicUrl(file.storage_path);
-    return data.publicUrl;
-  }
-
-  const buckets = ["inquiry-pdfs", "event-gallery"];
-  for (const bucket of buckets) {
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(file.storage_path, 3600);
-    if (!error && data?.signedUrl) return data.signedUrl;
-  }
-
-  return null;
-}
-
 export default async function FilesPage() {
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("files")
-    .select("id,file_name,category,mime_type,file_size,visibility,storage_path,created_at,project_id,bpd_projects(event_name),bpd_profiles(first_name,last_name)")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data }, { data: projects }] = await Promise.all([
+    supabase
+      .from("files")
+      .select("id,file_name,category,mime_type,file_size,visibility,storage_path,created_at,project_id,bpd_projects(event_name),bpd_profiles(first_name,last_name)")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase.from("projects").select("id,event_name").order("created_at", { ascending: false }).limit(50),
+  ]);
 
   const files = (data ?? []) as FileRow[];
   const links = await Promise.all(files.map((file) => resolveFileUrl(supabase, file)));
@@ -71,11 +61,33 @@ export default async function FilesPage() {
         </div>
       </div>
 
+      {projects?.length ? (
+        <div style={{ marginBottom: 16 }}>
+          <ProjectFileUploadForm
+            allowVisibilityChoice
+            defaultCategory="Project File"
+            defaultVisibility="client_visible"
+            projects={projects}
+            title="Upload a project file"
+          />
+        </div>
+      ) : null}
+
       <section className="panel">
-        <h2>{files.length} File{files.length === 1 ? "" : "s"}</h2>
+        <h2>
+          {files.length} File{files.length === 1 ? "" : "s"}
+        </h2>
         <table className="table">
           <thead>
-            <tr><th>File</th><th>Project</th><th>Category</th><th>Visibility</th><th>Size</th><th>Uploaded</th><th /></tr>
+            <tr>
+              <th>File</th>
+              <th>Project</th>
+              <th>Category</th>
+              <th>Visibility</th>
+              <th>Size</th>
+              <th>Uploaded</th>
+              <th />
+            </tr>
           </thead>
           <tbody>
             {files.map((file, index) => {
@@ -86,15 +98,25 @@ export default async function FilesPage() {
 
               return (
                 <tr key={file.id}>
-                  <td>{file.file_name}<div className="mini-meta">{file.mime_type || "Unknown type"}</div></td>
+                  <td>
+                    {file.file_name}
+                    <div className="mini-meta">{file.mime_type || "Unknown type"}</div>
+                  </td>
                   <td>{project?.event_name ?? "Unassigned"}</td>
-                  <td><span className="status">{(file.category || "General").replace(/_/g, " ")}</span></td>
+                  <td>
+                    <span className="status">{(file.category || "General").replace(/_/g, " ")}</span>
+                  </td>
                   <td>{visibilityLabels[file.visibility] ?? file.visibility}</td>
                   <td>{formatSize(file.file_size)}</td>
-                  <td>{formatDateTime(file.created_at)}{uploaderName ? <div className="mini-meta">by {uploaderName}</div> : null}</td>
+                  <td>
+                    {formatDateTime(file.created_at)}
+                    {uploaderName ? <div className="mini-meta">by {uploaderName}</div> : null}
+                  </td>
                   <td>
                     {link ? (
-                      <ButtonLink href={link} variant="light">View / Download</ButtonLink>
+                      <ButtonLink href={link} variant="light">
+                        View / Download
+                      </ButtonLink>
                     ) : (
                       <span className="mini-meta">Storage link unavailable</span>
                     )}
