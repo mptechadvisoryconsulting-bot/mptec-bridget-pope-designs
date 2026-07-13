@@ -299,22 +299,38 @@ async function createAndPersistAccount(
   claim: ProvisioningClaim,
   correlationId: string,
 ): Promise<StripeConnectSettings> {
-  const account = await runStage("connect_account_create", correlationId, () =>
-    getStripe().accounts.create({
-      type: "express",
-      country: "US",
-      email: claim.businessEmail ?? process.env.OWNER_EMAIL ?? undefined,
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      metadata: {
-        business: "bridget-pope-designs",
-        payment_model: STRIPE_PAYMENT_MODEL,
-        provisioning_key: claim.provisioningKey,
-      },
-    }),
-  );
+  let account: Stripe.Account;
+  try {
+    account = await runStage("connect_account_create", correlationId, () =>
+      getStripe().accounts.create({
+        type: "express",
+        country: "US",
+        email: claim.businessEmail ?? process.env.OWNER_EMAIL ?? undefined,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        metadata: {
+          business: "bridget-pope-designs",
+          payment_model: STRIPE_PAYMENT_MODEL,
+          provisioning_key: claim.provisioningKey,
+        },
+      }),
+    );
+  } catch (error) {
+    // Release the lease so the owner is not deadlocked for the full lease window when Stripe
+    // create fails (e.g. provider connection errors). Keep the provisioning key for later recovery.
+    await supabase
+      .from("business_settings")
+      .update({
+        stripe_connect_provisioning_status: "failed",
+        stripe_connect_provisioning_error: "connect_account_create_failed",
+      })
+      .eq("id", claim.settingsId)
+      .eq("stripe_connect_provisioning_key", claim.provisioningKey)
+      .is("stripe_connected_account_id", null);
+    throw error;
+  }
 
   return runStage("connect_account_persist", correlationId, async () => {
     const { data, error } = await supabase
