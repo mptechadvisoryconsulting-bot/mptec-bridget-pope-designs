@@ -189,9 +189,9 @@ test("owner routes, client invoice sync, and client isolation", async ({ page })
     await backForwardProtected(page, /admin navigation/i);
 
     await page.goto("/admin/settings", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: /settings/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await expect(page.getByText(/Payment Setup \/ Payout Status/i)).toBeVisible();
-    await expect(page.getByText(/Consultation Inquiry Email/i)).toBeVisible();
+    await expect(page.getByText(/Inquiry Recipient Email/i)).toBeVisible();
 
     await page.goto("/admin/invoice-templates", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /invoice templates/i })).toBeVisible();
