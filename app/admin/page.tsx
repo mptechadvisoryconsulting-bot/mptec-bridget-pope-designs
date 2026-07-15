@@ -1,35 +1,28 @@
-import { Bell, CalendarDays, MailCheck, MessageSquare, Plus } from "lucide-react";
-import { PaymentSetupCard } from "@/components/admin/PaymentSetupCard";
+import { Bell, CalendarDays, MailCheck, MessageSquare } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { getCurrentProfile } from "@/lib/auth/current-profile";
-import { currency } from "@/lib/currency";
+import { formatDate, formatDateTime } from "@/lib/dates";
+import { mapEmailReadinessStatus, readinessLabel } from "@/lib/email/delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripeReadinessStatus } from "@/lib/stripe/connect";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(value?: string | null) {
-  if (!value) return "Date pending";
-  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function formatTimestamp(value?: string | null) {
-  if (!value) return "Time pending";
-  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
 export default async function AdminDashboardPage() {
-  const { profile } = await getCurrentProfile();
   const supabase = createAdminClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const next20 = new Date();
+  next20.setDate(next20.getDate() + 20);
+  const next20Date = next20.toISOString().slice(0, 10);
+
   const [
     { data: newRequests },
     { data: messages },
     { data: projects },
-    { data: invoices },
-    { data: payments },
+    { data: designActions },
+    { data: honeybookReviews },
     { data: tasks },
     { count: unreadNotifications },
     settingsResult,
+    { count: activeClientCount },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -45,47 +38,47 @@ export default async function AdminDashboardPage() {
       .limit(5),
     supabase
       .from("projects")
-      .select("id,event_name,event_type,event_date,venue,status")
-      .gte("event_date", new Date().toISOString().slice(0, 10))
+      .select("id,event_name,event_type,event_date,venue_name,status")
+      .gte("event_date", today)
+      .lte("event_date", next20Date)
       .order("event_date", { ascending: true })
-      .limit(5),
+      .limit(6),
     supabase
-      .from("invoices")
-      .select("id,invoice_number,total,amount_paid,balance_due,due_date,status,clients(profiles(first_name,last_name))")
-      .gt("balance_due", 0)
-      .order("due_date", { ascending: true })
-      .limit(5),
+      .from("design_updates")
+      .select("id,project_id,title,client_action_status,client_action_due_date")
+      .eq("requires_client_action", true)
+      .in("client_action_status", ["pending", "overdue"])
+      .order("client_action_due_date", { ascending: true })
+      .limit(6),
     supabase
-      .from("payments")
-      .select("id,amount,gross_amount,platform_fee_amount,stripe_processing_fee,net_amount,status,paid_at,created_at,invoice_id,invoices(invoice_number,clients(profiles(first_name,last_name)))")
-      .order("created_at", { ascending: false })
+      .from("honeybook_financial_references")
+      .select("id,project_id,honeybook_invoice_number,updated_at")
+      .eq("review_status", "needs_review")
+      .order("updated_at", { ascending: false })
       .limit(5),
     supabase.from("tasks").select("id,title,due_date,status").neq("status", "complete").order("due_date", { ascending: true }).limit(5),
     supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
     supabase
       .from("business_settings")
-      .select("business_email,inquiry_recipient_email,stripe_connected_account_id,stripe_charges_enabled,stripe_payouts_enabled,stripe_details_submitted,stripe_requirements_currently_due,stripe_requirements_disabled_reason,stripe_account_last_synced_at,email_readiness_status,email_provider_last_error,email_last_test_sent_at,email_last_error,payment_readiness_status,platform_fee_basis_points")
+      .select("business_email,inquiry_recipient_email,email_readiness_status,email_provider_last_error,email_last_test_sent_at,email_last_error")
       .limit(1)
       .maybeSingle(),
+    supabase.from("clients").select("id", { count: "exact", head: true }),
   ]);
-  const { data: settings, error: settingsError } = settingsResult;
 
   const requestRows = newRequests ?? [];
   const messageRows = messages ?? [];
   const projectRows = projects ?? [];
-  const invoiceRows = invoices ?? [];
-  const paymentRows = payments ?? [];
+  const designActionRows = designActions ?? [];
+  const honeybookRows = honeybookReviews ?? [];
   const taskRows = tasks ?? [];
-  const paymentStatus = settingsError ? "restricted" : stripeReadinessStatus(settings);
-  const accountId = settings?.stripe_connected_account_id ? `****${settings.stripe_connected_account_id.slice(-4)}` : null;
+  const { data: settings } = settingsResult;
   const emailRecipient = settings?.inquiry_recipient_email ?? settings?.business_email;
-  const emailReady = Boolean(emailRecipient && settings?.email_readiness_status !== "failed" && !settings?.email_provider_last_error);
-  const ownerActionCount =
-    requestRows.length +
-    invoiceRows.length +
-    Number(unreadNotifications ?? 0) +
-    (paymentStatus === "ready" && !settingsError ? 0 : 1) +
-    (emailReady ? 0 : 1);
+  const emailReadinessStatus = mapEmailReadinessStatus(
+    settings?.email_readiness_status,
+    settings?.email_provider_last_error ?? settings?.email_last_error,
+  );
+  const ownerActionCount = requestRows.length + messageRows.length + designActionRows.length + honeybookRows.length + taskRows.length;
 
   return (
     <div>
@@ -93,14 +86,22 @@ export default async function AdminDashboardPage() {
         <div>
           <span className="eyebrow">Owner Operating Dashboard</span>
           <h1>Bridget Pope Designs</h1>
+          <p className="mini-meta">Leads, consultations, project actions, and HoneyBook references in one operating queue.</p>
         </div>
         <div className="topbar-actions">
           <button className="icon-btn" aria-label="Notifications"><Bell size={17} /></button>
-          <ButtonLink href="/admin/proposals/new"><Plus size={16} /> New Proposal</ButtonLink>
+          <ButtonLink href="/admin/today" variant="secondary">Open Today</ButtonLink>
         </div>
       </div>
 
-      <div className="dashboard-grid">
+      <section className="stats-grid" aria-label="Owner dashboard statistics">
+        <article className="stat-card"><span>New Leads</span><strong>{requestRows.length}</strong><small>Consultation requests</small></article>
+        <article className="stat-card"><span>Active Clients</span><strong>{activeClientCount ?? 0}</strong><small>Portal records</small></article>
+        <article className="stat-card"><span>Events Next 20 Days</span><strong>{projectRows.length}</strong><small>Project countdowns</small></article>
+        <article className="stat-card"><span>Needs Attention</span><strong>{ownerActionCount}</strong><small>Messages, tasks, actions</small></article>
+      </section>
+
+      <div className="dashboard-grid" style={{ marginTop: 16 }}>
         <section className="panel span-2">
           <div className="section-heading">
             <div>
@@ -114,17 +115,17 @@ export default async function AdminDashboardPage() {
               <li key={lead.id}>
                 <div>
                   <strong>{lead.first_name} {lead.last_name}</strong>
-                  <div className="mini-meta">Submitted {formatTimestamp(lead.created_at)}</div>
-                  <div className="mini-meta">{lead.event_type} · {formatDate(lead.event_date)} · {lead.venue || lead.city || "Venue pending"}</div>
-                  <div className="mini-meta">{lead.estimated_budget || "Budget pending"} · {(lead.services_needed ?? []).join(", ") || "Services pending"} · {lead.preferred_consultation_method || "Consultation method pending"}</div>
+                  <div className="mini-meta">Submitted {formatDateTime(lead.created_at)}</div>
+                  <div className="mini-meta">{lead.event_type} · {formatDate(lead.event_date, "Date pending")} · {lead.venue || lead.city || "Venue pending"}</div>
+                  <div className="mini-meta">{lead.estimated_budget || "Budget pending"} · {(lead.services_needed ?? []).join(", ") || "Services pending"} · {lead.preferred_consultation_method || "Consultation pending"}</div>
                   <div className="mini-meta">{lead.email} · {lead.phone}</div>
                 </div>
                 <div className="topbar-actions">
                   <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Open Request</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="secondary">Mark Contacted</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Schedule Consultation</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Convert to Client</ButtonLink>
-                  <ButtonLink href={`/admin/leads/${lead.id}`} variant="light">Archive</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=contacted`} variant="secondary">Mark Contacted</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=schedule`} variant="light">Schedule Consultation</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=convert`} variant="light">Approve & Create Client</ButtonLink>
+                  <ButtonLink href={`/admin/leads/${lead.id}?action=archive`} variant="light">Archive</ButtonLink>
                 </div>
               </li>
             ))}
@@ -135,10 +136,11 @@ export default async function AdminDashboardPage() {
         <section className="panel">
           <h2>Owner Action Required</h2>
           <ul className="list">
-            <li><span>Open owner actions</span><span className="status">{ownerActionCount}</span></li>
+            <li><span>Open actions</span><span className="status">{ownerActionCount}</span></li>
+            <li><span>Unread client messages</span><span className="status">{messageRows.length}</span></li>
+            <li><span>Client design actions</span><span className="status">{designActionRows.length}</span></li>
+            <li><span>HoneyBook records needing review</span><span className="status">{honeybookRows.length}</span></li>
             <li><span>Unread notifications</span><span className="status">{unreadNotifications ?? 0}</span></li>
-            <li><span>Stripe setup</span><span className="status">{paymentStatus.replace(/_/g, " ")}</span></li>
-            <li><span>Email setup</span><span className="status">{emailReady ? "ready" : "needs setup"}</span></li>
           </ul>
         </section>
 
@@ -150,7 +152,7 @@ export default async function AdminDashboardPage() {
           <ul className="list">
             {messageRows.map((message) => (
               <li key={message.id}>
-                <span>{message.body?.slice(0, 72) || "Message"}<span className="mini-meta">{formatTimestamp(message.created_at)}</span></span>
+                <span>{message.body?.slice(0, 72) || "Message"}<span className="mini-meta">{formatDateTime(message.created_at)}</span></span>
                 <ButtonLink href="/admin/messages" variant="light">Open</ButtonLink>
               </li>
             ))}
@@ -166,72 +168,39 @@ export default async function AdminDashboardPage() {
           <ul className="list">
             {projectRows.map((project) => (
               <li key={project.id}>
-                <span>{project.event_name}<span className="mini-meta">{formatDate(project.event_date)} · {project.venue || project.event_type}</span></span>
+                <span>{project.event_name}<span className="mini-meta">{formatDate(project.event_date, "Date pending")} · {project.venue_name || project.event_type}</span></span>
                 <ButtonLink href={`/admin/projects/${project.id}`} variant="light">Open</ButtonLink>
               </li>
             ))}
-            {!projectRows.length ? <li>No upcoming events are synced yet.</li> : null}
+            {!projectRows.length ? <li>No events in the next 20 days.</li> : null}
           </ul>
         </section>
 
         <section className="panel">
-          <h2>Open Invoices</h2>
+          <h2>Client Action Required</h2>
           <ul className="list">
-            {invoiceRows.map((invoice) => (
-              <li key={invoice.id}>
-                <span>{invoice.invoice_number}<span className="mini-meta">Due {formatDate(invoice.due_date)} · {invoice.status}</span></span>
-                <strong>{currency(Number(invoice.balance_due ?? 0))}</strong>
+            {designActionRows.map((action) => (
+              <li key={action.id}>
+                <span>{action.title}<span className="mini-meta">{action.client_action_status} · due {formatDate(action.client_action_due_date, "not set")}</span></span>
+                <ButtonLink href={`/admin/projects/${action.project_id}`} variant="light">Open</ButtonLink>
               </li>
             ))}
-            {!invoiceRows.length ? <li>No open invoice balances.</li> : null}
+            {!designActionRows.length ? <li>No client design actions are pending.</li> : null}
           </ul>
         </section>
 
-        <section className="panel span-2">
-          <h2>Recent Payments</h2>
+        <section className="panel">
+          <h2>HoneyBook Review</h2>
           <ul className="list">
-            {paymentRows.map((payment) => (
-              <li key={payment.id}>
-                <span>
-                  Customer Payment {currency(Number(payment.gross_amount ?? payment.amount ?? 0))}
-                  <span className="mini-meta">
-                    Platform Fee {currency(Number(payment.platform_fee_amount ?? 0))} · Stripe Fee {payment.stripe_processing_fee == null ? "pending" : currency(Number(payment.stripe_processing_fee))} · Net {payment.net_amount == null ? "pending" : currency(Number(payment.net_amount))}
-                  </span>
-                </span>
-                <strong>{payment.status}</strong>
+            {honeybookRows.map((reference) => (
+              <li key={reference.id}>
+                <span>{reference.honeybook_invoice_number ?? "HoneyBook record"}<span className="mini-meta">{formatDateTime(reference.updated_at)}</span></span>
+                <ButtonLink href={`/admin/projects/${reference.project_id}`} variant="light">Review</ButtonLink>
               </li>
             ))}
-            {!paymentRows.length ? <li>No payment activity yet.</li> : null}
+            {!honeybookRows.length ? <li>No HoneyBook references need review.</li> : null}
           </ul>
         </section>
-
-        {settingsError ? (
-          <section className="panel span-2">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">Payment Setup / Payout Status</span>
-                <h2>Payment Configuration Needs Attention</h2>
-              </div>
-              <span className="status">CONFIGURATION_ERROR</span>
-            </div>
-            <p className="form-error">Payment setup could not load. The production payment configuration needs attention.</p>
-            <p className="mini-meta">Online payment creation remains disabled until the payment ledger migrations are applied and verified.</p>
-            <ButtonLink href="/admin/settings/payments" variant="light">Open Payment Settings</ButtonLink>
-          </section>
-        ) : (
-          <PaymentSetupCard
-            accountLastSyncedAt={settings?.stripe_account_last_synced_at}
-            canManage={profile?.role === "owner"}
-            chargesEnabled={Boolean(settings?.stripe_charges_enabled)}
-            connectedAccountId={accountId}
-            detailsSubmitted={Boolean(settings?.stripe_details_submitted)}
-            paymentReadinessStatus={paymentStatus}
-            payoutsEnabled={Boolean(settings?.stripe_payouts_enabled)}
-            platformFeeBasisPoints={Number(settings?.platform_fee_basis_points ?? 100)}
-            requirementsCurrentlyDue={settings?.stripe_requirements_currently_due ?? []}
-            requirementsDisabledReason={settings?.stripe_requirements_disabled_reason}
-          />
-        )}
 
         <section className="panel">
           <div className="section-heading">
@@ -239,9 +208,9 @@ export default async function AdminDashboardPage() {
             <MailCheck size={18} />
           </div>
           <ul className="list">
-            <li><span>Readiness</span><span className="status">{emailReady ? "READY" : "NOT_CONFIGURED"}</span></li>
+            <li><span>Readiness</span><span className="status">{readinessLabel(emailReadinessStatus)}</span></li>
             <li><span>Inquiry recipient</span><span className="status">{emailRecipient ?? "Not configured"}</span></li>
-            <li><span>Last test</span><span className="status">{settings?.email_last_test_sent_at ? formatTimestamp(settings.email_last_test_sent_at) : "None"}</span></li>
+            <li><span>Last test</span><span className="status">{settings?.email_last_test_sent_at ? formatDateTime(settings.email_last_test_sent_at) : "None"}</span></li>
           </ul>
           {settings?.email_provider_last_error || settings?.email_last_error ? <p className="form-error">{settings.email_provider_last_error ?? settings.email_last_error}</p> : null}
           <ButtonLink href="/admin/settings" variant="light">Open Email Settings</ButtonLink>
@@ -252,7 +221,7 @@ export default async function AdminDashboardPage() {
           <ul className="list">
             {taskRows.map((task) => (
               <li key={task.id}>
-                <span>{task.title}<span className="mini-meta">{task.due_date ? formatDate(task.due_date) : task.status}</span></span>
+                <span>{task.title}<span className="mini-meta">{task.due_date ? formatDateTime(task.due_date) : task.status}</span></span>
                 <ButtonLink href="/admin/tasks" variant="light">Open</ButtonLink>
               </li>
             ))}

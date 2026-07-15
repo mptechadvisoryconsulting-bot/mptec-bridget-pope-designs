@@ -1,13 +1,13 @@
-import { CalendarDays, Check, CreditCard, FileSignature, Sparkles } from "lucide-react";
+import { CalendarDays, Check, Image, MessageSquare, Palette, Sparkles } from "lucide-react";
 
-const icons = [FileSignature, Check, CreditCard, Sparkles, CreditCard, CalendarDays];
-const labels = ["Proposal", "Contract", "Deposit", "Design", "Final Payment", "Event Day"];
+const icons = [Check, MessageSquare, Palette, Image, Sparkles, CalendarDays];
+const labels = ["Consultation", "Project Setup", "Design", "Client Feedback", "Final Details", "Event Day"];
 
 const statusIndex: Record<string, number> = {
   pending: 0,
-  booked: 2,
-  planning: 3,
-  design_in_progress: 3,
+  booked: 1,
+  planning: 2,
+  design_in_progress: 2,
   awaiting_client_approval: 3,
   finalizing: 4,
   ready_for_event: 5,

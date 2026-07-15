@@ -6,8 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   ChevronDown,
-  CreditCard,
-  FileSignature,
+  ExternalLink,
   FolderKanban,
   GalleryHorizontalEnd,
   LayoutDashboard,
@@ -15,7 +14,6 @@ import {
   LogOut,
   MessageSquare,
   Package,
-  ReceiptText,
   Settings,
   Users,
 } from "lucide-react";
@@ -36,7 +34,10 @@ const navGroups: AdminNavGroup[] = [
   {
     id: "dashboard",
     label: "Dashboard",
-    items: [{ label: "Overview", href: "/admin", icon: LayoutDashboard }],
+    items: [
+      { label: "Overview", href: "/admin", icon: LayoutDashboard },
+      { label: "Today", href: "/admin/today", icon: CalendarDays },
+    ],
   },
   {
     id: "crm",
@@ -66,15 +67,9 @@ const navGroups: AdminNavGroup[] = [
     ],
   },
   {
-    id: "sales-billing",
-    label: "Sales & Billing",
-    items: [
-      { label: "Proposals", href: "/admin/proposals", icon: FileSignature },
-      { label: "Contracts", href: "/admin/contracts", icon: FileSignature },
-      { label: "Invoices", href: "/admin/invoices", icon: ReceiptText },
-      { label: "Invoice Templates", href: "/admin/invoice-templates", icon: ReceiptText },
-      { label: "Payments", href: "/admin/payments", icon: CreditCard },
-    ],
+    id: "honeybook",
+    label: "HoneyBook",
+    items: [{ label: "Reference Review", href: "/admin/honeybook", icon: ExternalLink }],
   },
   {
     id: "business",

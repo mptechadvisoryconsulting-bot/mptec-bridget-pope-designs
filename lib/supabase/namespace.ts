@@ -4,20 +4,11 @@ const tableAliases = {
   clients: "bpd_clients",
   projects: "bpd_projects",
   consultations: "bpd_consultations",
-  proposals: "bpd_proposals",
-  proposal_items: "bpd_proposal_items",
-  contracts: "bpd_contracts",
-  contract_signatures: "bpd_contract_signatures",
-  invoices: "bpd_invoices",
-  invoice_items: "bpd_invoice_items",
-  invoice_templates: "bpd_invoice_templates",
-  invoice_template_assets: "bpd_invoice_template_assets",
-  invoice_versions: "bpd_invoice_versions",
-  payments: "bpd_payments",
-  payment_attempts: "bpd_payment_attempts",
-  payment_adjustments: "bpd_payment_adjustments",
-  stripe_events: "bpd_stripe_events",
+  honeybook_financial_references: "bpd_honeybook_financial_references",
   design_updates: "bpd_design_updates",
+  design_versions: "bpd_design_versions",
+  design_feedback: "bpd_design_feedback",
+  design_approvals: "bpd_design_approvals",
   milestones: "bpd_milestones",
   tasks: "bpd_tasks",
   inventory_items: "bpd_inventory_items",
@@ -36,6 +27,7 @@ const tableAliases = {
 const bucketAliases = {
   "event-gallery": "bpd-event-gallery",
   "inquiry-pdfs": "bpd-inquiry-pdfs",
+  "project-files": "bpd-project-files",
 } as const;
 
 export function mapSupabaseTable(table: string) {

@@ -7,16 +7,26 @@ import { mapSupabaseTable } from "@/lib/supabase/namespace";
 const adminRoles = new Set(["owner", "admin"]);
 const portalRoles = new Set(["owner", "admin", "planner", "team_member", "client"]);
 
+/**
+ * /admin and /client responses carry per-user data and must never be cached by shared caches,
+ * CDNs, or the browser's back/forward cache — otherwise one authenticated user's page could be
+ * served to the next visitor (or a signed-out view of the same browser).
+ */
+function withNoStore<T extends { headers: Headers }>(response: T): T {
+  response.headers.set("Cache-Control", "no-store, private");
+  return response;
+}
+
 function redirectPath(request: NextRequest, pathname: string) {
   const url = (request.nextUrl as URL & { clone: () => URL }).clone();
   url.pathname = pathname;
   url.search = "";
-  return NextResponse.redirect(url);
+  return withNoStore(NextResponse.redirect(url));
 }
 
 export async function updateSession(request: NextRequest) {
   if (!hasSupabasePublicEnv()) {
-    return NextResponse.next();
+    return withNoStore(NextResponse.next());
   }
 
   let response = NextResponse.next({ request });
@@ -47,7 +57,7 @@ export async function updateSession(request: NextRequest) {
   loginUrl.searchParams.set("next", request.nextUrl.pathname);
 
   if (!user) {
-    return NextResponse.redirect(loginUrl);
+    return withNoStore(NextResponse.redirect(loginUrl));
   }
 
   const { data: profile } = await supabase
@@ -58,7 +68,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!profile?.active || !portalRoles.has(profile.role)) {
     loginUrl.searchParams.set("error", "profile");
-    return NextResponse.redirect(loginUrl);
+    return withNoStore(NextResponse.redirect(loginUrl));
   }
 
   if (request.nextUrl.pathname.startsWith("/admin") && !adminRoles.has(profile.role)) {
@@ -69,5 +79,5 @@ export async function updateSession(request: NextRequest) {
     return redirectPath(request, adminRoles.has(profile.role) ? "/admin" : "/client/dashboard");
   }
 
-  return response;
+  return withNoStore(response);
 }

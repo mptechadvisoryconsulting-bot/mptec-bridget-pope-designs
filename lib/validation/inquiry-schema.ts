@@ -6,12 +6,14 @@ const optionalDate = z
   .optional()
   .or(z.literal(""));
 
+const approvedService = z.enum(["Weddings", "Baby Showers", "Birthdays", "Corporate Events", "Luxury Balloons", "Full Planning"]);
+
 export const inquirySchema = z.object({
   firstName: z.string().trim().min(2).max(80),
   lastName: z.string().trim().min(2).max(80),
   email: z.string().trim().email(),
   phone: z.string().trim().min(7).max(30),
-  eventType: z.string().trim().min(2).max(100),
+  eventType: z.enum(["Wedding", "Baby Shower", "Birthday", "Corporate Event", "Luxury Balloons", "Full Planning"]),
   eventDate: optionalDate,
   venue: z.string().trim().max(200).optional().or(z.literal("")),
   city: z.string().trim().max(120).optional().or(z.literal("")),
@@ -22,7 +24,7 @@ export const inquirySchema = z.object({
   preferredConsultationTime: z.string().trim().max(30).optional().or(z.literal("")),
   eventColors: z.string().trim().max(300).optional().or(z.literal("")),
   eventTheme: z.string().trim().max(300).optional().or(z.literal("")),
-  servicesNeeded: z.array(z.string().trim().min(2)).min(1),
+  servicesNeeded: z.array(approvedService).min(1),
   message: z.string().trim().min(10).max(5000),
   inspirationFileNames: z.array(z.string().trim().max(200)).default([]),
   consent: z.boolean().refine((value) => value === true, "Consent is required"),

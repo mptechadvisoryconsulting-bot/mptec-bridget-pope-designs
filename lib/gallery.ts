@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { galleryItems } from "@/lib/data";
 import { hasSupabaseAdminEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,7 +36,10 @@ export function fallbackGalleryItems(): PublicGalleryItem[] {
   }));
 }
 
+/** Public landing/gallery photos only — excludes invoice template assets and other public files. */
 export async function getPublicGalleryItems(limit = 24): Promise<PublicGalleryItem[]> {
+  noStore();
+
   if (!hasSupabaseAdminEnv()) {
     return fallbackGalleryItems();
   }
@@ -45,6 +49,7 @@ export async function getPublicGalleryItems(limit = 24): Promise<PublicGalleryIt
     .select("id,file_name,category,storage_path,created_at")
     .eq("visibility", "public_gallery")
     .ilike("mime_type", "image/%")
+    .like("storage_path", "gallery/%")
     .order("created_at", { ascending: false })
     .limit(limit);
 

@@ -11,16 +11,12 @@ import { Select } from "@/components/ui/select";
 import { inquirySchema, type InquiryInput } from "@/lib/validation/inquiry-schema";
 
 const serviceOptions = [
-  "Wedding design",
-  "Baby shower",
-  "Birthday party",
-  "Corporate event",
-  "Luxury balloons",
-  "Backdrop",
-  "Centerpieces",
-  "Florals",
-  "Event rentals",
-  "Day-of coordination",
+  "Weddings",
+  "Baby Showers",
+  "Birthdays",
+  "Corporate Events",
+  "Luxury Balloons",
+  "Full Planning",
 ];
 
 export function InquiryForm() {
@@ -40,7 +36,7 @@ export function InquiryForm() {
       phone: "",
       eventType: "Wedding",
       preferredConsultationMethod: "phone",
-      servicesNeeded: ["Wedding design"],
+      servicesNeeded: ["Weddings"],
       inspirationFileNames: [],
       consent: false,
       company: "",
@@ -64,7 +60,9 @@ export function InquiryForm() {
     }
 
     setStatus("success");
-    setMessage(`Your consultation request was received. Lead ${payload.leadNumber} is now in the admin queue.`);
+    setMessage(
+      `Thank you — your consultation request was received. We will review your details and follow up shortly. Request Reference Number: ${payload.leadNumber}`,
+    );
   }
 
   return (
@@ -73,7 +71,7 @@ export function InquiryForm() {
         <div className="section-heading">
           <span className="eyebrow">Start your event</span>
           <h1>Book a Consultation</h1>
-          <p>Share the details you know today. The admin CRM will capture the lead, create follow-up tasks, and prepare a proposal workflow.</p>
+          <p>Share the details you know today. We will review your request and follow up to schedule a consultation.</p>
         </div>
         <form className="card" onSubmit={handleSubmit(submit)} style={{ margin: "0 auto", maxWidth: 920, padding: 28 }}>
           <input aria-hidden="true" suppressHydrationWarning tabIndex={-1} style={{ display: "none" }} {...register("company")} />
@@ -100,7 +98,8 @@ export function InquiryForm() {
                 <option>Baby Shower</option>
                 <option>Birthday</option>
                 <option>Corporate Event</option>
-                <option>Graduation</option>
+                <option>Luxury Balloons</option>
+                <option>Full Planning</option>
               </Select>
             </Field>
             <Field label="Event Date">

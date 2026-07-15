@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CheckSquare,
-  CreditCard,
-  FileText,
+  ExternalLink,
   FolderOpen,
   ImageIcon,
   LayoutDashboard,
@@ -18,16 +17,13 @@ import {
 const clientLinks = [
   { label: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard },
   { label: "My Event", href: "/client/event", icon: CalendarDays },
-  { label: "Proposals & Contracts", href: "/client/proposals", icon: FileText },
-  { label: "Payments", href: "/client/payments", icon: CreditCard },
-  { label: "Invoices", href: "/client/invoices", icon: CreditCard },
   { label: "Timeline", href: "/client/timeline", icon: CalendarDays },
   { label: "Tasks & Checklist", href: "/client/checklist", icon: CheckSquare },
   { label: "Design Updates", href: "/client/designs", icon: Palette },
   { label: "Project Files", href: "/client/files", icon: FolderOpen },
   { label: "Messages", href: "/client/messages", icon: MessageSquare },
+  { label: "HoneyBook", href: "/client/honeybook", icon: ExternalLink },
   { label: "Inspiration Board", href: "/client/inspiration", icon: Palette },
-  { label: "Documents", href: "/client/documents", icon: ImageIcon },
   { label: "Profile", href: "/client/profile", icon: ImageIcon },
 ];
 

@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { ImagePlus, RefreshCw } from "lucide-react";
+import { ImagePlus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { PublicGalleryItem } from "@/lib/gallery";
@@ -17,6 +17,7 @@ export function AdminGalleryManager({ initialItems }: { initialItems: PublicGall
   const [items, setItems] = useState(initialItems);
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   async function refreshGallery() {
     const response = await fetch("/api/gallery");
@@ -46,8 +47,29 @@ export function AdminGalleryManager({ initialItems }: { initialItems: PublicGall
 
     event.currentTarget.reset();
     await refreshGallery();
-    setStatus("Photo added to the public gallery.");
+    setStatus("Photo added to the public gallery and landing page.");
     setIsSubmitting(false);
+  }
+
+  async function removePhoto(item: PublicGalleryItem) {
+    const confirmed = window.confirm(`Remove “${item.title}” from the gallery and landing page?`);
+    if (!confirmed) return;
+
+    setRemovingId(item.id);
+    setStatus("");
+
+    const response = await fetch(`/api/files/${item.id}`, { method: "DELETE" });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setStatus(payload.message ?? "Unable to remove that photo.");
+      setRemovingId(null);
+      return;
+    }
+
+    setItems((current) => current.filter((entry) => entry.id !== item.id));
+    setStatus("Photo removed from the public gallery.");
+    setRemovingId(null);
   }
 
   return (
@@ -56,6 +78,7 @@ export function AdminGalleryManager({ initialItems }: { initialItems: PublicGall
         <div>
           <span className="eyebrow">Content</span>
           <h1>Gallery Manager</h1>
+          <p className="mini-meta">Upload and remove photos shown on the homepage and public gallery.</p>
         </div>
         <button className="icon-btn" aria-label="Refresh gallery" onClick={refreshGallery} type="button">
           <RefreshCw size={17} />
@@ -77,7 +100,9 @@ export function AdminGalleryManager({ initialItems }: { initialItems: PublicGall
             <span>Photo</span>
             <Input accept="image/jpeg,image/png,image/webp" name="file" required type="file" />
           </label>
-          {status ? <p className={status.includes("failed") || status.includes("required") ? "form-error" : "form-success"}>{status}</p> : null}
+          {status ? (
+            <p className={/fail|unable|required|error/i.test(status) ? "form-error" : "form-success"}>{status}</p>
+          ) : null}
           <Button disabled={isSubmitting} type="submit">
             <ImagePlus size={16} /> {isSubmitting ? "Uploading..." : "Add to Gallery"}
           </Button>
@@ -87,15 +112,31 @@ export function AdminGalleryManager({ initialItems }: { initialItems: PublicGall
           <h2>Public Gallery Photos</h2>
           <div className="admin-gallery-grid">
             {items.map((item) => (
-              <figure className="gallery-card" key={item.id}>
+              <figure className="gallery-card admin-gallery-card" key={item.id}>
                 <img alt={`${item.title} event design`} src={item.image} />
                 <figcaption>
-                  <small>{item.category}</small>
-                  <strong>{item.title}</strong>
+                  <div>
+                    <small>{item.category}</small>
+                    <strong>{item.title}</strong>
+                  </div>
+                  <button
+                    aria-label={`Remove ${item.title}`}
+                    className="btn btn-light gallery-remove-btn"
+                    disabled={removingId === item.id}
+                    onClick={() => removePhoto(item)}
+                    type="button"
+                  >
+                    <Trash2 size={15} /> {removingId === item.id ? "Removing..." : "Remove"}
+                  </button>
                 </figcaption>
               </figure>
             ))}
           </div>
+          {!items.length ? (
+            <p className="mini-meta" style={{ marginTop: 12, marginBottom: 0 }}>
+              No public gallery photos yet. Uploaded photos appear on the homepage and /gallery.
+            </p>
+          ) : null}
         </section>
       </div>
     </div>

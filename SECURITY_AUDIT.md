@@ -32,10 +32,6 @@ Date: 2026-07-11
   - Classification: public
   - Reason: public landing-page form must create leads and notifications. Rate limited and validated.
 
-- `POST /api/stripe/webhook`
-  - Classification: signed Stripe webhook
-  - Reason: validates Stripe signature before processing.
-
 - `/api/cron/*`
   - Classification: cron secret
   - Reason: requires `CRON_SECRET`.
@@ -54,7 +50,7 @@ These routes still use the service-role client and should be explicitly classifi
 - `/api/notifications`, `/api/notifications/[notificationId]`, `/api/notifications/mark-all-read`: authenticated notification recipient or owner/admin.
 - `/api/proposals/[proposalId]/send` and `/api/proposals/[proposalId]/approve`: owner/admin for send; owning client for approve.
 - `/api/contracts/[contractId]/sign`: owning client or owner/admin.
-- `/api/stripe/create-payment-link` and `/api/stripe/create-checkout-session`: owner/admin or owning client depending on invoice flow.
+- `/api/invoices/[invoiceId]/payments`: owner/admin manual payment recording.
 
 ## Current Dependency Audit
 

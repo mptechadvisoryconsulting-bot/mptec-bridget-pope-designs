@@ -3,33 +3,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
+type ProfileRow = {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  active?: boolean | null;
+};
+
 type ProjectRow = {
   id: string;
   event_name: string;
   event_type: string;
   event_date?: string | null;
   status: string;
-  bpd_clients?: {
-    bpd_profiles?: {
-      first_name?: string | null;
-      last_name?: string | null;
-      username?: string | null;
-    } | Array<{
-      first_name?: string | null;
-      last_name?: string | null;
-      username?: string | null;
-    }> | null;
-  } | Array<{
-    bpd_profiles?: {
-      first_name?: string | null;
-      last_name?: string | null;
-      username?: string | null;
-    } | Array<{
-      first_name?: string | null;
-      last_name?: string | null;
-      username?: string | null;
-    }> | null;
-  }> | null;
+  bpd_clients?: { bpd_profiles?: ProfileRow | ProfileRow[] | null } | Array<{ bpd_profiles?: ProfileRow | ProfileRow[] | null }> | null;
 };
 
 function first<T>(value: T | T[] | null | undefined): T | null {
@@ -39,7 +28,7 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 export default async function ClientsPage() {
   const { data } = await createAdminClient()
     .from("projects")
-    .select("id,event_name,event_type,event_date,status,bpd_clients(bpd_profiles(first_name,last_name,username))")
+    .select("id,event_name,event_type,event_date,status,bpd_clients(bpd_profiles(id,first_name,last_name,username,email,active))")
     .order("created_at", { ascending: false });
 
   const projects = ((data ?? []) as ProjectRow[]).map((project) => {
@@ -49,8 +38,11 @@ export default async function ClientsPage() {
 
     return {
       id: project.id,
+      profileId: profile?.id ?? "",
       clientName,
       username: profile?.username ?? "Not set",
+      email: profile?.email ?? "",
+      active: profile?.active ?? true,
       eventName: project.event_name,
       eventType: project.event_type,
       eventDate: project.event_date ?? "",

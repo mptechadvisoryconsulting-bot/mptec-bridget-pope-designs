@@ -76,11 +76,11 @@ export const faqs = [
   },
   {
     question: "Do you offer rentals?",
-    answer: "Yes. Rental inventory can be bundled with design, setup, breakdown, and delivery.",
+    answer: "Select event pieces may be included inside a full design plan when they support the overall event concept.",
   },
   {
-    question: "Can I approve a proposal online?",
-    answer: "Yes. Clients can review proposals, approve designs, sign contracts, and pay invoices from the portal.",
+    question: "Where are proposals, contracts, and payments handled?",
+    answer: "Financial documents are handled in HoneyBook. The client portal is used for project updates, designs, files, messages, and event details.",
   },
   {
     question: "Do you travel?",

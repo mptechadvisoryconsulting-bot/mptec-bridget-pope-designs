@@ -177,6 +177,7 @@ export async function POST(request: Request) {
         html: `
           <p>Hello ${input.firstName},</p>
           <p>Bridget Pope Designs received your event request for ${input.eventType}.</p>
+          <p>Your request reference number is <strong>${lead.lead_number}</strong>.</p>
           <p>We will review the details and contact you to schedule a consultation.</p>
         `,
       });
