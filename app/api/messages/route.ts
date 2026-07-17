@@ -92,7 +92,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const { data: conversation, error: conversationLookupError } = await supabase
     .from("conversations")
-    .select("id,project_id,client_id,bpd_clients(profile_id,bpd_profiles(email,first_name,last_name)),bpd_projects(assigned_admin_id,event_name)")
+    .select("id,project_id,client_id,bpd_clients!client_id(profile_id,bpd_profiles(email,first_name,last_name)),bpd_projects!project_id(assigned_admin_id,event_name)")
     .eq("id", input.conversationId)
     .maybeSingle();
 

@@ -57,7 +57,7 @@ export default async function AdminMessagesPage() {
   const supabase = createAdminClient();
   const { data: conversations } = await supabase
     .from("conversations")
-    .select("id,project_id,client_id,bpd_projects(event_name,status),bpd_clients(profile_id,bpd_profiles(first_name,last_name,email,username))")
+    .select("id,project_id,client_id,bpd_projects!project_id(event_name,status),bpd_clients!client_id(profile_id,bpd_profiles(first_name,last_name,email,username))")
     .order("updated_at", { ascending: false });
   const ids = (conversations ?? []).map((conversation) => conversation.id);
   const { data: messages } = ids.length

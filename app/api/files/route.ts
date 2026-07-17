@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   if (input.projectId) {
     const { data: project } = await supabase
       .from("projects")
-      .select("id,assigned_admin_id,bpd_clients(profile_id)")
+      .select("id,assigned_admin_id,bpd_clients!client_id(profile_id)")
       .eq("id", input.projectId)
       .maybeSingle();
     const client = Array.isArray(project?.bpd_clients) ? project?.bpd_clients[0] : project?.bpd_clients;

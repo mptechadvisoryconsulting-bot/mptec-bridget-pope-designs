@@ -36,7 +36,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id,project_number,event_name,event_type,event_date,venue_name,status,bpd_clients(bpd_profiles(first_name,last_name))")
+    .select("id,project_number,event_name,event_type,event_date,venue_name,status,bpd_clients!client_id(bpd_profiles(first_name,last_name))")
     .order("event_date", { ascending: true, nullsFirst: false })
     .limit(100);
 

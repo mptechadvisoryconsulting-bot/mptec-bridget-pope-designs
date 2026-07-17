@@ -46,11 +46,35 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
 
   const { data } = await supabase
     .from("proposals")
-    .select("id,proposal_number,title,total,status,created_at,updated_at,project_id,bpd_projects(event_name,bpd_clients(bpd_profiles(first_name,last_name)))")
+    .select("id,proposal_number,title,total,status,created_at,updated_at,project_id")
     .order("created_at", { ascending: false })
     .limit(100);
 
-  const proposals = (data ?? []) as ProposalRow[];
+  const proposalRows = data ?? [];
+  const projectIds = [...new Set(proposalRows.map((row) => row.project_id).filter(Boolean))];
+  const { data: projects } = projectIds.length
+    ? await supabase.from("projects").select("id,event_name,client_id").in("id", projectIds)
+    : { data: [] as { id: string; event_name: string | null; client_id: string | null }[] };
+  const projectById = new Map((projects ?? []).map((project) => [project.id, project]));
+  const clientIds = [...new Set([...(projects ?? [])].map((project) => project.client_id).filter(Boolean))] as string[];
+  const { data: clients } = clientIds.length
+    ? await supabase.from("clients").select("id,bpd_profiles(first_name,last_name)").in("id", clientIds)
+    : { data: [] as { id: string; bpd_profiles: unknown }[] };
+  const clientById = new Map((clients ?? []).map((client) => [client.id, client]));
+
+  const proposals = proposalRows.map((row) => {
+    const project = projectById.get(row.project_id);
+    const client = project?.client_id ? clientById.get(project.client_id) : null;
+    return {
+      ...row,
+      bpd_projects: project
+        ? {
+            event_name: project.event_name,
+            bpd_clients: client ? { bpd_profiles: client.bpd_profiles } : null,
+          }
+        : null,
+    };
+  }) as ProposalRow[];
 
   return (
     <div>

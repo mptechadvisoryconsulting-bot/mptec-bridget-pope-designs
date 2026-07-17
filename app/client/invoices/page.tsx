@@ -29,7 +29,7 @@ export default async function ClientInvoicesPage() {
     ? await applyClientInvoiceVisibilityFilter(
         createAdminClient()
           .from("invoices")
-          .select("id,invoice_number,invoice_type,total,amount_paid,balance_due,due_date,status,bpd_projects(event_name)")
+          .select("id,invoice_number,invoice_type,total,amount_paid,balance_due,due_date,status,bpd_projects!project_id(event_name)")
           .eq("client_id", client.id)
           .order("created_at", { ascending: false }),
       )

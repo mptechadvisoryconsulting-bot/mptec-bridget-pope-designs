@@ -80,12 +80,13 @@ export async function recalculatePaymentRefundState(supabase: SupabaseAdmin, pay
     .eq("payment_id", paymentId)
     .eq("adjustment_type", "refund");
 
-  if (adjustmentError) throw new Error(adjustmentError.message);
+  // Prod may not have bpd_payment_adjustments yet (Stripe-era table). Treat as no refunds.
+  const adjustmentRows = adjustmentError ? [] : ((adjustments ?? []) as AdjustmentRow[]);
 
-  const succeededRefundAmount = ((adjustments ?? []) as AdjustmentRow[])
+  const succeededRefundAmount = adjustmentRows
     .filter((adjustment) => successfulRefundStatuses.includes(String(adjustment.status)))
     .reduce((sum, adjustment) => sum + money(adjustment.amount), 0);
-  const hasPendingRefund = ((adjustments ?? []) as AdjustmentRow[]).some((adjustment) => !successfulRefundStatuses.includes(String(adjustment.status)));
+  const hasPendingRefund = adjustmentRows.some((adjustment) => !successfulRefundStatuses.includes(String(adjustment.status)));
   const status = derivePaymentRefundStatus(money(payment.gross_amount ?? payment.amount), succeededRefundAmount, hasPendingRefund);
   const { error: updateError } = await supabase
     .from("payments")
@@ -123,10 +124,11 @@ export async function recalculateInvoiceFinancials(supabase: SupabaseAdmin, invo
     .eq("adjustment_type", "refund")
     .in("status", successfulRefundStatuses);
 
-  if (refundsError) throw new Error(refundsError.message);
+  // Missing payment_adjustments table must not block recording manual payments.
+  const refundRows = refundsError ? [] : ((refunds ?? []) as AdjustmentRow[]);
 
   const grossPaid = roundMoney(((payments ?? []) as PaymentRow[]).reduce((sum, payment) => sum + money(payment.gross_amount ?? payment.amount), 0));
-  const refunded = roundMoney(((refunds ?? []) as AdjustmentRow[]).reduce((sum, refund) => sum + money(refund.amount), 0));
+  const refunded = roundMoney(refundRows.reduce((sum, refund) => sum + money(refund.amount), 0));
   const netPaidRaw = roundMoney(grossPaid - refunded);
   const derived = deriveInvoiceStatusAfterReconciliation({
     total: money(invoice.total),

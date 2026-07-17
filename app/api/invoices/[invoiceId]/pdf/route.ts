@@ -15,10 +15,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ invo
   if (!profile?.active) return notFound();
 
   const supabase = createAdminClient();
+  // Explicit FK hints: invoices→projects via project_id; projects→clients via client_id
+  // (clients.active_project_id makes bare bpd_clients embeds ambiguous / HTTP 300).
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "*, bpd_invoice_items(*), bpd_projects(id,client_id,event_name,venue_name,bpd_clients(profile_id,bpd_profiles(first_name,last_name,email,username)))",
+      "*, bpd_invoice_items(*), bpd_projects!project_id(id,client_id,event_name,venue_name,bpd_clients!client_id(profile_id,bpd_profiles(first_name,last_name,email,username)))",
     )
     .eq("id", invoiceId)
     .maybeSingle();

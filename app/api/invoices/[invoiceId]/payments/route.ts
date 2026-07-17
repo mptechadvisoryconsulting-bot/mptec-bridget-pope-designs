@@ -120,7 +120,18 @@ export async function POST(request: Request, context: { params: Promise<{ invoic
     return NextResponse.json({ success: false, message: insertError.message }, { status: 500 });
   }
 
-  const financials = await recalculateInvoiceFinancials(supabase, invoice.id);
+  let financials: { netPaid: number; balanceDue: number; status: string };
+  try {
+    financials = await recalculateInvoiceFinancials(supabase, invoice.id);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Payment saved but invoice totals could not be recalculated.",
+      },
+      { status: 500 },
+    );
+  }
 
   await supabase.from("activity_logs").insert({
     actor_id: admin.profile.id,

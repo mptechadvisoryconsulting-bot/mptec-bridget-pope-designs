@@ -16,7 +16,9 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
   const supabase = createAdminClient();
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_clients(bpd_profiles(first_name,last_name,email,username)), bpd_projects(event_name,event_date,venue_name)")
+    .select(
+      "*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_clients!client_id(bpd_profiles(first_name,last_name,email,username)), bpd_projects!project_id(event_name,event_date,venue_name)",
+    )
     .eq("id", invoiceId)
     .maybeSingle();
 

@@ -70,7 +70,7 @@ export default async function InvoicesPage() {
     supabase.from("invoice_templates").select("id,name,is_default").order("is_default", { ascending: false }),
     supabase
       .from("invoices")
-      .select("id,invoice_number,invoice_type,total,balance_due,status,due_date,bpd_clients(bpd_profiles(first_name,last_name,username,email)),bpd_projects(event_name)")
+      .select("id,invoice_number,invoice_type,total,balance_due,status,due_date,bpd_clients!client_id(bpd_profiles(first_name,last_name,username,email)),bpd_projects!project_id(event_name)")
       .order("created_at", { ascending: false })
       .limit(10),
   ]);

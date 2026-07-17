@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const { data: projects, error } = await supabase
     .from("projects")
-    .select("id,event_name,event_date,venue_name,assigned_admin_id,bpd_clients(profile_id)")
+    .select("id,event_name,event_date,venue_name,assigned_admin_id,bpd_clients!client_id(profile_id)")
     .in("status", ACTIVE_STATUSES)
     .not("event_date", "is", null);
 

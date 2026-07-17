@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ upd
   const supabase = createAdminClient();
   const { data: update } = await supabase
     .from("design_updates")
-    .select("id,title,description,project_id,bpd_projects(assigned_admin_id,bpd_clients(id,profile_id))")
+    .select("id,title,description,project_id,bpd_projects!project_id(assigned_admin_id,bpd_clients!client_id(id,profile_id))")
     .eq("id", updateId)
     .eq("client_visible", true)
     .maybeSingle();

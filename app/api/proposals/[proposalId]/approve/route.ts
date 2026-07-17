@@ -10,16 +10,29 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
   }
 
   const supabase = createAdminClient();
-  const { data: existing } = await supabase
-    .from("proposals")
-    .select("id,project_id,bpd_projects(assigned_admin_id,bpd_clients(profile_id))")
-    .eq("id", proposalId)
-    .maybeSingle();
-  const project = Array.isArray(existing?.bpd_projects) ? existing?.bpd_projects[0] : existing?.bpd_projects;
-  const client = Array.isArray(project?.bpd_clients) ? project?.bpd_clients[0] : project?.bpd_clients;
-  const canApprove = adminRoles.has(profile.role) || client?.profile_id === profile.id || project?.assigned_admin_id === profile.id;
+  // Avoid nested embeds here: ambiguous PostgREST relationships on bpd_proposals→bpd_projects
+  // previously returned HTTP 300, which surfaced as a false "Proposal not found" 404.
+  const { data: existing } = await supabase.from("proposals").select("id,project_id").eq("id", proposalId).maybeSingle();
+  if (!existing) {
+    return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
+  }
 
-  if (!existing || !canApprove) {
+  let canApprove = adminRoles.has(profile.role);
+  if (!canApprove) {
+    const { data: project } = await supabase
+      .from("projects")
+      .select("assigned_admin_id,client_id")
+      .eq("id", existing.project_id)
+      .maybeSingle();
+    if (project?.assigned_admin_id === profile.id) {
+      canApprove = true;
+    } else if (project?.client_id) {
+      const { data: client } = await supabase.from("clients").select("profile_id").eq("id", project.client_id).maybeSingle();
+      canApprove = client?.profile_id === profile.id;
+    }
+  }
+
+  if (!canApprove) {
     return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
   }
 

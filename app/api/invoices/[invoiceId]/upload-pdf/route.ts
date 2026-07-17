@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ inv
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "id,invoice_number,status,project_id,client_id,bpd_clients(profile_id,bpd_profiles(first_name,last_name,email)),bpd_projects(event_name)",
+      "id,invoice_number,status,project_id,client_id,bpd_clients!client_id(profile_id,bpd_profiles(first_name,last_name,email)),bpd_projects!project_id(event_name)",
     )
     .eq("id", invoiceId)
     .maybeSingle();

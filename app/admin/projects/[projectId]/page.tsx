@@ -40,7 +40,7 @@ export default async function ProjectDetailPage({
 
   const { data: project } = await supabase
     .from("projects")
-    .select("*, bpd_clients(id,bpd_profiles(first_name,last_name,email,phone))")
+    .select("*, bpd_clients!client_id(id,bpd_profiles(first_name,last_name,email,phone))")
     .eq("id", projectId)
     .maybeSingle();
 

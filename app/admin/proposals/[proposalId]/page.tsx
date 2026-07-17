@@ -35,19 +35,35 @@ export default async function ProposalDetailPage({
     redirect(`/admin/proposals/${proposalId}`);
   }
 
+  // Disambiguate proposal→project FK (PostgREST otherwise returns HTTP 300 and the page 404s).
   const { data: proposal } = await supabase
     .from("proposals")
-    .select("*, bpd_proposal_items(*), bpd_projects(event_name,event_date,venue_name,bpd_clients(bpd_profiles(first_name,last_name,email)))")
+    .select("*, bpd_proposal_items(*)")
     .eq("id", proposalId)
     .maybeSingle();
 
   if (!proposal) notFound();
 
+  const { data: projectRow } = await supabase
+    .from("projects")
+    .select("event_name,event_date,venue_name,client_id")
+    .eq("id", proposal.project_id)
+    .maybeSingle();
+
+  let clientName = "Client";
+  if (projectRow?.client_id) {
+    const { data: clientRow } = await supabase
+      .from("clients")
+      .select("bpd_profiles(first_name,last_name,email)")
+      .eq("id", projectRow.client_id)
+      .maybeSingle();
+    const clientProfile = first(clientRow?.bpd_profiles);
+    clientName =
+      [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || clientProfile?.email || "Client";
+  }
+
   const items = proposal.bpd_proposal_items ?? [];
-  const project = first(proposal.bpd_projects);
-  const client = first(project?.bpd_clients);
-  const clientProfile = first(client?.bpd_profiles);
-  const clientName = [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || clientProfile?.email || "Client";
+  const project = projectRow;
   const sentAt = proposal.status !== "draft" ? proposal.updated_at : null;
 
   return (

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   const { data: invoices, error } = await supabase
     .from("invoices")
-    .select("id,invoice_number,due_date,balance_due,status,project_id,client_id,bpd_clients(profile_id,bpd_profiles(email,first_name)),bpd_projects(event_name)")
+    .select("id,invoice_number,due_date,balance_due,status,project_id,client_id,bpd_clients!client_id(profile_id,bpd_profiles(email,first_name)),bpd_projects!project_id(event_name)")
     .in("status", OPEN_STATUSES)
     .gt("balance_due", 0)
     .not("due_date", "is", null)

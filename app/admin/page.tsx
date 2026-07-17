@@ -38,7 +38,11 @@ export default async function AdminDashboardPage() {
       .limit(8),
     supabase
       .from("messages")
-      .select("id,body,created_at,read_at,conversations(project_id,projects(event_name,clients(profiles(first_name,last_name))))")
+      // Use bpd_ conversation/project embeds with FK hints; bare `conversations/projects/clients`
+      // names 400, and projects↔clients is ambiguous without !client_id / !project_id.
+      .select(
+        "id,body,created_at,read_at,bpd_conversations(project_id,bpd_projects!project_id(event_name,bpd_clients!client_id(bpd_profiles(first_name,last_name))))",
+      )
       .is("read_at", null)
       .order("created_at", { ascending: false })
       .limit(5),

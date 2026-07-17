@@ -22,7 +22,7 @@ export default async function AdminTodayPage() {
   ] = await Promise.all([
     supabase.from("leads").select("id,first_name,last_name,event_type,event_date,city,created_at").eq("status", "new").order("created_at", { ascending: false }).limit(8),
     supabase.from("consultations").select("id,scheduled_at,meeting_type,status,bpd_leads(first_name,last_name,event_type)").gte("scheduled_at", `${today}T00:00:00`).lt("scheduled_at", `${today}T23:59:59`).order("scheduled_at", { ascending: true }),
-    supabase.from("messages").select("id,body,created_at,conversations(project_id)").is("read_at", null).order("created_at", { ascending: false }).limit(8),
+    supabase.from("messages").select("id,body,created_at,bpd_conversations(project_id)").is("read_at", null).order("created_at", { ascending: false }).limit(8),
     supabase.from("design_updates").select("id,project_id,title,client_action_status,client_action_due_date").eq("requires_client_action", true).in("client_action_status", ["pending", "overdue"]).order("client_action_due_date", { ascending: true }).limit(8),
     supabase.from("projects").select("id,event_name,event_date,status").gte("event_date", today).lte("event_date", next20Date).order("event_date", { ascending: true }).limit(8),
     supabase.from("tasks").select("id,title,due_date,status").neq("status", "complete").lte("due_date", `${today}T23:59:59`).order("due_date", { ascending: true }).limit(8),

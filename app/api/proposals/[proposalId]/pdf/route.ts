@@ -10,11 +10,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
 
   const { proposalId } = await params;
   const supabase = createAdminClient();
+  // Split embeds: nested projects→clients is ambiguous (client_id vs active_project_id).
   const { data: proposal } = await supabase
     .from("proposals")
-    .select(
-      "*, bpd_proposal_items(*), bpd_projects(event_name,event_date,venue_name,bpd_clients(bpd_profiles(first_name,last_name,email)))",
-    )
+    .select("*, bpd_proposal_items(*)")
     .eq("id", proposalId)
     .maybeSingle();
 
@@ -22,10 +21,24 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
     return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
   }
 
-  const project = first(proposal.bpd_projects);
-  const client = first(project?.bpd_clients);
-  const profile = first(client?.bpd_profiles);
-  const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Client";
+  const { data: project } = await supabase
+    .from("projects")
+    .select("event_name,event_date,venue_name,client_id")
+    .eq("id", proposal.project_id)
+    .maybeSingle();
+
+  let clientName = "Client";
+  let clientEmail: string | undefined;
+  if (project?.client_id) {
+    const { data: clientRow } = await supabase
+      .from("clients")
+      .select("bpd_profiles(first_name,last_name,email)")
+      .eq("id", project.client_id)
+      .maybeSingle();
+    const profileRow = first(clientRow?.bpd_profiles);
+    clientName = [profileRow?.first_name, profileRow?.last_name].filter(Boolean).join(" ") || "Client";
+    clientEmail = profileRow?.email ?? undefined;
+  }
 
   const pdf = await generateProposalPdf({
     proposalNumber: proposal.proposal_number,
@@ -33,7 +46,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
     status: proposal.status,
     introduction: proposal.introduction,
     clientName,
-    clientEmail: profile?.email,
+    clientEmail,
     projectName: project?.event_name,
     venue: project?.venue_name,
     eventDate: project?.event_date,

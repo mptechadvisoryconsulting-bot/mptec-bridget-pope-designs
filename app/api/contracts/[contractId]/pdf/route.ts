@@ -12,7 +12,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
   const supabase = createAdminClient();
   const { data: contract } = await supabase
     .from("contracts")
-    .select("*, bpd_projects(event_name,event_date,venue_name,bpd_clients(bpd_profiles(first_name,last_name,email)))")
+    .select(
+      "*, bpd_projects!project_id(event_name,event_date,venue_name,bpd_clients!client_id(bpd_profiles(first_name,last_name,email)))",
+    )
     .eq("id", contractId)
     .maybeSingle();
 

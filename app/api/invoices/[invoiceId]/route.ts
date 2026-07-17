@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ inv
 
   const { data, error } = await supabase
     .from("invoices")
-    .select("*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_projects(client_id,bpd_clients(profile_id))")
+    .select("*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_projects!project_id(client_id,bpd_clients!client_id(profile_id))")
     .eq("id", invoiceId)
     .maybeSingle();
 
