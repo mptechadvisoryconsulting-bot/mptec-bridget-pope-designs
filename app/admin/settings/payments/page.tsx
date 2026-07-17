@@ -1,4 +1,4 @@
-import { ButtonLink } from "@/components/ui/button";
+﻿import { ButtonLink } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -15,35 +15,35 @@ export default async function PaymentSettingsPage() {
         <section className="panel span-2">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">HoneyBook Billing</span>
-              <h2>How financial documents work</h2>
+              <span className="eyebrow">Offline Billing</span>
+              <h2>How payments work</h2>
             </div>
           </div>
           <p>
-            Bridget Pope Designs uses HoneyBook for proposals, contracts, invoices, payment plans,
-            payment collection, and receipts. This application stores project context and a
-            client-visible HoneyBook reference only.
+            Online card checkout is not enabled in this application. Send invoices from the admin
+            CRM, then record payments manually when funds are received (check, bank transfer, cash,
+            or other offline methods).
           </p>
           <ul className="list" style={{ marginTop: 16 }}>
             <li>
-              <span>Create/send in HoneyBook</span>
-              <span className="status">Source of truth</span>
+              <span>Send invoice</span>
+              <span className="status">Client receives email + PDF</span>
             </li>
             <li>
-              <span>Link reference</span>
-              <span className="status">Project workspace</span>
+              <span>Collect offline</span>
+              <span className="status">Outside this app</span>
             </li>
             <li>
-              <span>Client view</span>
-              <span className="status">View in HoneyBook</span>
+              <span>Record payment</span>
+              <span className="status">On the invoice detail page</span>
             </li>
           </ul>
           <div className="topbar-actions" style={{ marginTop: 16 }}>
-            <ButtonLink href="/admin/honeybook" variant="light">
-              Review HoneyBook References
+            <ButtonLink href="/admin/invoices" variant="light">
+              Open invoices
             </ButtonLink>
-            <ButtonLink href="/admin/projects" variant="secondary">
-              Open Projects
+            <ButtonLink href="/admin/payments" variant="secondary">
+              Payment records
             </ButtonLink>
           </div>
         </section>

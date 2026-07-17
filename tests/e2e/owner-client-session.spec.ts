@@ -21,7 +21,8 @@ type CreatedRecord = {
   profileId?: string;
   clientId?: string;
   projectId?: string;
-  referenceId?: string;
+  invoiceId?: string;
+  invoiceNumber: string;
   username: string;
   password: string;
   eventName: string;
@@ -127,38 +128,40 @@ async function createClientWorkspace(
   const { error: conversationError } = await admin.from("bpd_conversations").insert({ project_id: project!.id, client_id: client!.id });
   expect(conversationError, conversationError?.message).toBeNull();
 
-  const { data: reference, error: referenceError } = await admin
-    .from("bpd_honeybook_financial_references")
+  const invoiceNumber = `INV-${suffix}-${label}`;
+  const { data: invoice, error: invoiceError } = await admin
+    .from("bpd_invoices")
     .insert({
       project_id: project!.id,
       client_id: client!.id,
-      honeybook_project_id: `HB-${suffix}-${label}`,
-      honeybook_invoice_number: `INV-${suffix}-${label}`,
-      invoice_total: 2500,
+      invoice_number: invoiceNumber,
+      invoice_type: "custom",
+      description: "E2E invoice",
+      subtotal: 2500,
+      total: 2500,
       amount_paid: 500,
-      balance_remaining: 2000,
-      invoice_status: "sent",
-      honeybook_url: "https://www.honeybook.com/",
-      source: "manual",
-      review_status: "confirmed",
+      balance_due: 2000,
+      status: "sent",
+      sent_at: new Date().toISOString(),
     })
     .select("id")
     .single();
-  expect(referenceError, referenceError?.message).toBeNull();
+  expect(invoiceError, invoiceError?.message).toBeNull();
 
   return {
     authUserId,
     profileId: profile!.id,
     clientId: client!.id,
     projectId: project!.id,
-    referenceId: reference!.id,
+    invoiceId: invoice!.id,
+    invoiceNumber,
     username,
     password,
     eventName,
   };
 }
 
-test("owner and client sessions preserve the HoneyBook project workflow", async ({ page }) => {
+test("owner and client sessions preserve the internal billing project workflow", async ({ page }) => {
   const suffix = Date.now().toString().slice(-8);
   const created: CreatedRecord[] = [];
   const admin = createClient(supabaseUrl!, serviceRoleKey!, {
@@ -184,7 +187,10 @@ test("owner and client sessions preserve the HoneyBook project workflow", async 
       "/admin/design-updates",
       "/admin/files",
       "/admin/notifications",
-      "/admin/honeybook",
+      "/admin/invoices",
+      "/admin/proposals",
+      "/admin/contracts",
+      "/admin/payments",
       "/admin/inventory",
       "/admin/gallery",
       "/admin/reports",
@@ -202,7 +208,7 @@ test("owner and client sessions preserve the HoneyBook project workflow", async 
 
     await page.goto("/admin/settings", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
-    await expect(page.getByText(/HoneyBook Financial References/i)).toBeVisible();
+    await expect(page.getByText(/Internal Billing/i)).toBeVisible();
     await expect(page.getByText(/Inquiry Recipient Email/i)).toBeVisible();
 
     if (ownerUsername && ownerPassword) {
@@ -234,7 +240,10 @@ test("owner and client sessions preserve the HoneyBook project workflow", async 
       "/client/files",
       "/client/messages",
       "/client/inspiration",
-      "/client/honeybook",
+      "/client/invoices",
+      "/client/payments",
+      "/client/proposals",
+      "/client/contracts",
       "/client/profile",
     ];
 
@@ -242,22 +251,23 @@ test("owner and client sessions preserve the HoneyBook project workflow", async 
       await navigateProtected(page, route, /client navigation/i);
     }
 
-    await expect(page.getByText(`INV-${suffix}-One`)).toBeVisible();
-    await expect(page.getByText(`INV-${suffix}-Two`)).toHaveCount(0);
+    await page.goto("/client/invoices", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText(first.invoiceNumber)).toBeVisible();
+    await expect(page.getByText(second.invoiceNumber)).toHaveCount(0);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expectProtectedShell(page, /client navigation/i);
     await backForwardProtected(page, /client navigation/i);
 
     const secondTab = await page.context().newPage();
-    await secondTab.goto("/client/honeybook", { waitUntil: "domcontentloaded" });
-    await expect(secondTab.getByText(`INV-${suffix}-One`)).toBeVisible();
-    await expect(secondTab.getByText(`INV-${suffix}-Two`)).toHaveCount(0);
+    await secondTab.goto("/client/invoices", { waitUntil: "domcontentloaded" });
+    await expect(secondTab.getByText(first.invoiceNumber)).toBeVisible();
+    await expect(secondTab.getByText(second.invoiceNumber)).toHaveCount(0);
     await secondTab.close();
   } finally {
     for (const record of [...created].reverse()) {
       if (record.projectId) {
-        await admin.from("bpd_honeybook_financial_references").delete().eq("project_id", record.projectId);
+        if (record.invoiceId) await admin.from("bpd_invoices").delete().eq("id", record.invoiceId);
         const { data: conversations } = await admin.from("bpd_conversations").select("id").eq("project_id", record.projectId);
         const conversationIds = conversations?.map((row) => row.id) ?? [];
         if (conversationIds.length) await admin.from("bpd_messages").delete().in("conversation_id", conversationIds);

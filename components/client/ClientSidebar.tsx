@@ -6,7 +6,6 @@ import {
   CalendarDays,
   CheckSquare,
   CreditCard,
-  ExternalLink,
   FileText,
   FolderOpen,
   ImageIcon,
@@ -27,7 +26,6 @@ const clientLinks = [
   { label: "Design Updates", href: "/client/designs", icon: Palette },
   { label: "Project Files", href: "/client/files", icon: FolderOpen },
   { label: "Messages", href: "/client/messages", icon: MessageSquare },
-  { label: "HoneyBook", href: "/client/honeybook", icon: ExternalLink },
   { label: "Inspiration Board", href: "/client/inspiration", icon: Palette },
   { label: "Profile", href: "/client/profile", icon: ImageIcon },
 ];

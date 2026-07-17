@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { runPipelineAction } from "@/lib/admin/pipeline";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { pipelineActionSchema } from "@/lib/validation/honeybook-schema";
+import { pipelineActionSchema } from "@/lib/validation/pipeline-schema";
 
 export async function POST(request: Request, { params }: { params: Promise<{ projectId: string }> }) {
   const admin = await requireAdminProfile();
@@ -21,7 +21,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   const result = await runPipelineAction(supabase, projectId, {
     action: parsed.data.action,
     actorId: admin.profile.id,
-    honeybookUrl: parsed.data.honeybookUrl || null,
     proposalId: parsed.data.proposalId,
     invoiceId: parsed.data.invoiceId,
     note: parsed.data.note || null,
@@ -34,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   return NextResponse.json({
     success: true,
     stage: result.stage,
-    honeybookUrl: result.honeybookUrl,
+    proposalUrl: result.proposalUrl,
     provisioned: result.provisioned,
     warning: result.warning,
     message: result.message,

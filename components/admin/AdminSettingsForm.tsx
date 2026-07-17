@@ -169,7 +169,7 @@ export function AdminSettingsForm({
     <div className="dashboard-grid">
       <form className="panel form-grid span-2" onSubmit={saveSettings}>
         <h2 className="wide">Owner Email Settings</h2>
-        <p className="mini-meta wide">These settings control who receives inquiry, HoneyBook reference, message, and project notifications, and how outgoing email identifies the business.</p>
+        <p className="mini-meta wide">These settings control who receives inquiry, invoice, message, and project notifications, and how outgoing email identifies the business.</p>
 
         <Field label="Business Display Name">
           <Input
@@ -245,7 +245,7 @@ export function AdminSettingsForm({
                 onChange={(event) => update("invoiceNotificationsEnabled", event.target.checked)}
                 type="checkbox"
               />
-              <span>HoneyBook reference notifications</span>
+              <span>Invoice notifications</span>
             </label>
             <label className="check-row">
               <input
@@ -285,15 +285,14 @@ export function AdminSettingsForm({
       </section>
 
       <section className="panel span-2">
-        <h2>HoneyBook Financial References</h2>
+        <h2>Internal Billing</h2>
         <p className="mini-meta">
-          Proposals, contracts, invoices, payment plans, receipts, and payment collection live in HoneyBook.
-          This portal stores project-safe reference details so Bridget and each client can see the correct status.
+          Proposals, contracts, invoices, and manual payment records are managed in this app. Clients review them in the portal.
         </p>
         <div className="topbar-actions">
-          <ButtonLink href="/admin/settings/payments">HoneyBook guidance</ButtonLink>
-          <ButtonLink href="/admin/honeybook" variant="light">
-            Reference review
+          <ButtonLink href="/admin/settings/payments">Billing guidance</ButtonLink>
+          <ButtonLink href="/admin/invoices" variant="light">
+            Open invoices
           </ButtonLink>
         </div>
       </section>

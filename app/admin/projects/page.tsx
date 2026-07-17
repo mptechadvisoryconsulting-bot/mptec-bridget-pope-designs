@@ -43,16 +43,16 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const projectRows = (projects ?? []) as ProjectRow[];
   const projectIds = projectRows.map((project) => project.id);
 
-  const [{ data: openTasks }, { data: honeybookReferences }] = await Promise.all([
+  const [{ data: openTasks }, { data: openInvoices }] = await Promise.all([
     projectIds.length
       ? supabase.from("tasks").select("id,project_id").in("project_id", projectIds).neq("status", "complete")
       : Promise.resolve({ data: [] }),
     projectIds.length
       ? supabase
-          .from("honeybook_financial_references")
-          .select("project_id,balance_remaining,updated_at")
+          .from("invoices")
+          .select("project_id,balance_due")
           .in("project_id", projectIds)
-          .order("updated_at", { ascending: false })
+          .gt("balance_due", 0)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -62,10 +62,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   }
 
   const balanceByProject = new Map<string, number>();
-  for (const reference of honeybookReferences ?? []) {
-    if (!balanceByProject.has(reference.project_id)) {
-      balanceByProject.set(reference.project_id, Number(reference.balance_remaining ?? 0));
-    }
+  for (const invoice of openInvoices ?? []) {
+    balanceByProject.set(invoice.project_id, (balanceByProject.get(invoice.project_id) ?? 0) + Number(invoice.balance_due ?? 0));
   }
 
   return (
@@ -89,7 +87,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
               <th>Venue</th>
               <th>Status</th>
               <th>Open Tasks</th>
-              <th>HoneyBook Balance</th>
+              <th>Invoice Balance</th>
               <th />
             </tr>
           </thead>

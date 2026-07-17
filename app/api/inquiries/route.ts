@@ -157,12 +157,25 @@ export async function POST(request: Request) {
         attachments: [{ filename: `consultation-${lead.lead_number}.pdf`, content: pdf.toString("base64") }],
       });
 
+      const ownerLogStatus =
+        ownerEmailResult.status === "failed"
+          ? "failed"
+          : ownerEmailResult.status === "sent"
+            ? "success"
+            : ownerEmailResult.status;
+      console.info("inquiry_owner_email", {
+        leadId: lead.id,
+        recipient: ownerEmail,
+        status: ownerEmailResult.status,
+        error: ownerEmailResult.error ?? null,
+      });
       await supabase.from("automation_logs").insert({
         automation_type: "inquiry_owner_email",
         lead_id: lead.id,
         recipient: ownerEmail,
-        status: ownerEmailResult.status,
+        status: ownerLogStatus,
         error_message: ownerEmailResult.error ?? null,
+        metadata: { delivery_status: ownerEmailResult.status },
         executed_at: new Date().toISOString(),
       });
     }
@@ -182,12 +195,25 @@ export async function POST(request: Request) {
         `,
       });
 
+      const clientLogStatus =
+        clientEmailResult.status === "failed"
+          ? "failed"
+          : clientEmailResult.status === "sent"
+            ? "success"
+            : clientEmailResult.status;
+      console.info("inquiry_client_confirmation_email", {
+        leadId: lead.id,
+        recipient: input.email,
+        status: clientEmailResult.status,
+        error: clientEmailResult.error ?? null,
+      });
       await supabase.from("automation_logs").insert({
         automation_type: "inquiry_client_confirmation_email",
         lead_id: lead.id,
         recipient: input.email,
-        status: clientEmailResult.status,
+        status: clientLogStatus,
         error_message: clientEmailResult.error ?? null,
+        metadata: { delivery_status: clientEmailResult.status },
         executed_at: new Date().toISOString(),
       });
     }

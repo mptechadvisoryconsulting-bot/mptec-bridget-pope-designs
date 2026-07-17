@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { first } from "@/lib/supabase/relations";
-import { getHoneyBookService } from "@/lib/integrations/honeybook";
-import type { HoneyBookPipelineStage, PipelineAction } from "@/lib/admin/pipeline-constants";
+import type { PipelineAction, PipelineStage } from "@/lib/admin/pipeline-constants";
 import { provisionClientFromLead } from "@/lib/provisioning/provision-client";
 
 export type { PipelineAction } from "@/lib/admin/pipeline-constants";
@@ -12,7 +11,6 @@ type AnyClient = SupabaseClient;
 export type PipelineActionInput = {
   action: PipelineAction;
   actorId?: string | null;
-  honeybookUrl?: string | null;
   proposalId?: string | null;
   invoiceId?: string | null;
   note?: string | null;
@@ -21,8 +19,8 @@ export type PipelineActionInput = {
 export type PipelineActionResult = {
   success: boolean;
   message?: string;
-  stage?: HoneyBookPipelineStage;
-  honeybookUrl?: string;
+  stage?: PipelineStage;
+  proposalUrl?: string;
   provisioned?: boolean;
   warning?: string;
 };
@@ -32,7 +30,6 @@ type ProjectRow = {
   lead_id?: string | null;
   client_id?: string | null;
   event_name?: string | null;
-  honeybook_url?: string | null;
   pipeline_stage?: string | null;
   assigned_admin_id?: string | null;
   status?: string | null;
@@ -45,10 +42,61 @@ type ProjectRow = {
 async function loadProject(supabase: AnyClient, projectId: string): Promise<ProjectRow | null> {
   const { data } = await supabase
     .from("projects")
-    .select("id,lead_id,client_id,event_name,honeybook_url,pipeline_stage,assigned_admin_id,status,bpd_clients(profile_id)")
+    .select("id,lead_id,client_id,event_name,pipeline_stage,assigned_admin_id,status,bpd_clients(profile_id)")
     .eq("id", projectId)
     .maybeSingle();
   return (data as ProjectRow | null) ?? null;
+}
+
+async function setPipelineStage(
+  supabase: AnyClient,
+  stage: PipelineStage,
+  context: {
+    projectId: string;
+    actorId?: string | null;
+    leadId?: string | null;
+    note?: string | null;
+    metadata?: Record<string, unknown>;
+    source?: "manual" | "system";
+  },
+) {
+  const source = context.source ?? "manual";
+  const metadata = {
+    ...(context.metadata ?? {}),
+    ...(context.note ? { note: context.note } : {}),
+  };
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id,lead_id")
+    .eq("id", context.projectId)
+    .maybeSingle();
+
+  const leadId = context.leadId ?? project?.lead_id ?? null;
+
+  const { error: projectError } = await supabase
+    .from("projects")
+    .update({ pipeline_stage: stage, updated_at: new Date().toISOString() })
+    .eq("id", context.projectId);
+
+  if (projectError) throw new Error(projectError.message);
+
+  const { data: event, error: eventError } = await supabase
+    .from("pipeline_events")
+    .insert({
+      project_id: context.projectId,
+      lead_id: leadId,
+      stage,
+      source,
+      actor_id: context.actorId ?? null,
+      metadata,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (eventError) throw new Error(eventError.message);
+
+  return { stage, eventId: event?.id ?? null };
 }
 
 async function notifyOwners(
@@ -114,7 +162,7 @@ async function logAutomation(
     projectId: string;
     leadId?: string | null;
     action: PipelineAction;
-    stage: HoneyBookPipelineStage;
+    stage: PipelineStage;
     status: string;
     metadata?: Record<string, unknown>;
   },
@@ -166,45 +214,51 @@ export async function runPipelineAction(
     return { success: false, message: "Project not found." };
   }
 
-  const honeybook = getHoneyBookService(supabase);
   const note = input.note?.trim() || null;
   const eventName = project.event_name || "Project";
 
-  if (input.action === "open_honeybook") {
-    const opened = await honeybook.getOpenUrl({
+  if (input.action === "open_proposal") {
+    const stage: PipelineStage = "proposal_workspace";
+    await setPipelineStage(supabase, stage, {
       projectId,
       actorId: input.actorId,
-      honeybookUrl: input.honeybookUrl,
+      leadId: project.lead_id,
       note,
+      metadata: { proposalId: input.proposalId ?? null },
+      source: "manual",
     });
+
+    const proposalUrl = input.proposalId
+      ? `/admin/proposals/${input.proposalId}`
+      : `/admin/proposals/new?projectId=${projectId}`;
 
     await logActivity(supabase, {
       actorId: input.actorId,
       projectId,
       leadId: project.lead_id,
-      action: "pipeline_open_honeybook",
-      metadata: { stage: opened.stage, honeybook_url: opened.url, note },
+      action: "pipeline_open_proposal",
+      metadata: { stage, proposal_url: proposalUrl, note },
     });
     await logAutomation(supabase, {
       projectId,
       leadId: project.lead_id,
       action: input.action,
-      stage: opened.stage,
+      stage,
       status: "success",
-      metadata: { honeybook_url: opened.url },
+      metadata: { proposal_url: proposalUrl },
     });
 
     return {
       success: true,
-      stage: opened.stage,
-      honeybookUrl: opened.url,
-      message: "HoneyBook opened and pipeline updated.",
+      stage,
+      proposalUrl,
+      message: "Proposal workspace opened and pipeline updated.",
     };
   }
 
   if (input.action === "proposal_sent") {
-    const stage: HoneyBookPipelineStage = "proposal_sent";
-    await honeybook.markStage(stage, {
+    const stage: PipelineStage = "proposal_sent";
+    await setPipelineStage(supabase, stage, {
       projectId,
       actorId: input.actorId,
       leadId: project.lead_id,
@@ -256,7 +310,7 @@ export async function runPipelineAction(
   }
 
   if (input.action === "proposal_approved") {
-    const stage: HoneyBookPipelineStage = "proposal_approved";
+    const stage: PipelineStage = "proposal_approved";
     let provisioned = false;
     let warning: string | undefined;
 
@@ -294,7 +348,7 @@ export async function runPipelineAction(
       .update({ status: nextProjectStatus, updated_at: new Date().toISOString() })
       .eq("id", projectId);
 
-    await honeybook.markStage(stage, {
+    await setPipelineStage(supabase, stage, {
       projectId,
       actorId: input.actorId,
       leadId: project.lead_id,
@@ -353,7 +407,7 @@ export async function runPipelineAction(
   }
 
   if (input.action === "invoice_paid") {
-    const stage: HoneyBookPipelineStage = "invoice_paid";
+    const stage: PipelineStage = "invoice_paid";
 
     if (input.invoiceId) {
       const { data: invoice } = await supabase
@@ -377,7 +431,7 @@ export async function runPipelineAction(
       }
     }
 
-    await honeybook.markStage(stage, {
+    await setPipelineStage(supabase, stage, {
       projectId,
       actorId: input.actorId,
       leadId: project.lead_id,
@@ -421,7 +475,7 @@ export async function runPipelineAction(
   }
 
   if (input.action === "project_started") {
-    const stage: HoneyBookPipelineStage = "project_started";
+    const stage: PipelineStage = "project_started";
     const nextStatus =
       project.status === "design_in_progress" || project.status === "awaiting_client_approval"
         ? project.status
@@ -434,7 +488,7 @@ export async function runPipelineAction(
       .update({ status: nextStatus, updated_at: new Date().toISOString() })
       .eq("id", projectId);
 
-    await honeybook.markStage(stage, {
+    await setPipelineStage(supabase, stage, {
       projectId,
       actorId: input.actorId,
       leadId: project.lead_id,

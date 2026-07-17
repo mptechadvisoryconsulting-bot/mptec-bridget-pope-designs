@@ -19,7 +19,7 @@ Primary routes:
 
 - Supabase stores the shared business records once, using `bpd_*` tables and row-level-security policies.
 - The landing page writes inquiries to leads and creates admin notifications.
-- Approved leads become client-specific projects, conversations, design updates, files, milestones, notifications, and HoneyBook financial references.
-- HoneyBook is the source of truth for proposals, contracts, invoices, payment plans, payment collection, receipts, and financial transaction handling.
-- The custom app displays HoneyBook reference details by project; it does not process card payments or maintain a competing invoice engine.
+- Approved leads become client-specific projects, conversations, design updates, files, milestones, notifications, proposals, contracts, and invoices.
+- Internal offline billing is the source of truth: generate or upload invoice PDFs, send proposals/contracts, and record manual payments in the CRM.
+- Card checkout is not enabled; payments are collected offline and recorded against invoices.
 - Resend handles inquiry, client invitation, project message, design update, and notification email delivery when configured.

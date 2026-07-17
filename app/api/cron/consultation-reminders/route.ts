@@ -26,6 +26,7 @@ export async function GET(request: Request) {
 
   const { data: settings } = await supabase.from("business_settings").select("id").limit(1).maybeSingle();
   let reminded = 0;
+  let failed = 0;
 
   for (const consultation of consultations ?? []) {
     const lead = Array.isArray(consultation.bpd_leads) ? consultation.bpd_leads[0] : consultation.bpd_leads;
@@ -50,8 +51,11 @@ export async function GET(request: Request) {
       );
     }
 
+    let emailStatus: "sent" | "not_configured" | "failed" | "skipped" = "skipped";
+    let errorMessage: string | null = null;
+
     if (lead?.email) {
-      await sendTrackedEmail({
+      const result = await sendTrackedEmail({
         supabase,
         settingsId: settings?.id,
         from: emailFrom(),
@@ -66,18 +70,24 @@ export async function GET(request: Request) {
           <p><a href="${appUrl()}/admin/consultations">Open consultations</a></p>
         `,
       });
+      emailStatus = result.status;
+      errorMessage = result.error ?? null;
+      if (result.status === "failed") failed += 1;
     }
 
     await supabase.from("automation_logs").insert({
       automation_type: "consultation_reminders",
       project_id: consultation.project_id,
+      lead_id: consultation.lead_id,
       recipient: lead?.email ?? recipients.join(","),
-      status: "success",
+      status: emailStatus === "failed" ? "failed" : emailStatus === "sent" || emailStatus === "skipped" ? "success" : emailStatus,
+      error_message: errorMessage,
+      metadata: { consultation_id: consultation.id, email_status: emailStatus },
       executed_at: new Date().toISOString(),
     });
 
     reminded += 1;
   }
 
-  return NextResponse.json({ success: true, reminded });
+  return NextResponse.json({ success: true, reminded, failed });
 }

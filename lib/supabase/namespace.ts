@@ -21,7 +21,6 @@ const tableAliases = {
   design_versions: "bpd_design_versions",
   design_feedback: "bpd_design_feedback",
   design_approvals: "bpd_design_approvals",
-  honeybook_financial_references: "bpd_honeybook_financial_references",
   pipeline_events: "bpd_pipeline_events",
   milestones: "bpd_milestones",
   tasks: "bpd_tasks",
@@ -42,6 +41,7 @@ const bucketAliases = {
   "event-gallery": "bpd-event-gallery",
   "inquiry-pdfs": "bpd-inquiry-pdfs",
   "invoice-template-assets": "bpd-invoice-template-assets",
+  "invoice-uploads": "bpd-invoice-uploads",
   "project-files": "bpd-project-files",
 } as const;
 

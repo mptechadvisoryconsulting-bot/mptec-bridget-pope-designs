@@ -80,7 +80,7 @@ export const faqs = [
   },
   {
     question: "Where are proposals, contracts, and payments handled?",
-    answer: "Financial documents are handled in HoneyBook. The client portal is used for project updates, designs, files, messages, and event details.",
+    answer: "Invoices, proposals, and contracts live in your client portal alongside project updates, designs, files, messages, and event details.",
   },
   {
     question: "Do you travel?",

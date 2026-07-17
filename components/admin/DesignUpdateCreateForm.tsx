@@ -96,7 +96,6 @@ export function DesignUpdateCreateForm({ projects }: { projects: Array<{ id: str
             <option value="design_feedback">Design Feedback</option>
             <option value="information_requested">Information Requested</option>
             <option value="file_requested">File Requested</option>
-            <option value="honeybook_action">HoneyBook Action</option>
             <option value="general">General</option>
           </select>
         </Field>

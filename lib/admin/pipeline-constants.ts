@@ -1,7 +1,19 @@
-import { honeybookPipelineStages, type HoneyBookPipelineStage } from "@/lib/integrations/honeybook/types";
+export const pipelineStages = [
+  "lead_received",
+  "consultation",
+  "proposal_draft",
+  "proposal_workspace",
+  "proposal_sent",
+  "proposal_approved",
+  "project_started",
+  "invoice_paid",
+  "completed",
+] as const;
+
+export type PipelineStage = (typeof pipelineStages)[number];
 
 export const pipelineActions = [
-  "open_honeybook",
+  "open_proposal",
   "proposal_sent",
   "proposal_approved",
   "invoice_paid",
@@ -10,17 +22,14 @@ export const pipelineActions = [
 
 export type PipelineAction = (typeof pipelineActions)[number];
 
-export const pipelineStageLabels: Record<HoneyBookPipelineStage, string> = {
+export const pipelineStageLabels: Record<PipelineStage, string> = {
   lead_received: "Lead Received",
   consultation: "Consultation",
   proposal_draft: "Proposal Draft",
-  honeybook_opened: "HoneyBook Opened",
+  proposal_workspace: "Proposal Workspace",
   proposal_sent: "Proposal Sent",
   proposal_approved: "Proposal Approved",
   project_started: "Project Started",
   invoice_paid: "Invoice Paid",
   completed: "Completed",
 };
-
-export { honeybookPipelineStages };
-export type { HoneyBookPipelineStage };

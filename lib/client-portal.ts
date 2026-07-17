@@ -67,6 +67,15 @@ export async function requireClientPortalContext(
     projectList[0] ??
     null;
 
+  // Persist explicit ?project= selection (and first-project fallback) as active_project_id.
+  if (client?.id && project?.id && project.id !== activeId) {
+    await supabase
+      .from("clients")
+      .update({ active_project_id: project.id, updated_at: new Date().toISOString() })
+      .eq("id", client.id);
+    client.active_project_id = project.id;
+  }
+
   return { profile, client: client ?? null, project, projects: projectList };
 }
 

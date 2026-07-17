@@ -7,7 +7,6 @@ import {
   CalendarDays,
   ChevronDown,
   CreditCard,
-  ExternalLink,
   FileSignature,
   FolderKanban,
   GalleryHorizontalEnd,
@@ -78,7 +77,6 @@ const navGroups: AdminNavGroup[] = [
       { label: "Invoices", href: "/admin/invoices", icon: ReceiptText },
       { label: "Invoice Templates", href: "/admin/invoice-templates", icon: ReceiptText },
       { label: "Payment records", href: "/admin/payments", icon: CreditCard },
-      { label: "HoneyBook", href: "/admin/honeybook", icon: ExternalLink },
     ],
   },
   {

@@ -60,7 +60,7 @@ vi.mock("@/lib/provisioning/provision-client", () => ({
 describe("pipeline constants", () => {
   it("exposes the supported manual pipeline actions", () => {
     expect(pipelineActions).toEqual([
-      "open_honeybook",
+      "open_proposal",
       "proposal_sent",
       "proposal_approved",
       "invoice_paid",
@@ -71,22 +71,16 @@ describe("pipeline constants", () => {
   it("labels proposal_sent and proposal_approved stages", () => {
     expect(pipelineStageLabels.proposal_sent).toBe("Proposal Sent");
     expect(pipelineStageLabels.proposal_approved).toBe("Proposal Approved");
+    expect(pipelineStageLabels.proposal_workspace).toBe("Proposal Workspace");
   });
 });
 
 describe("runPipelineAction", () => {
-  const originalWorkspace = process.env.HONEYBOOK_WORKSPACE_URL;
-
-  beforeEach(() => {
-    process.env.HONEYBOOK_WORKSPACE_URL = "https://www.honeybook.com/workspace";
-  });
-
   afterEach(() => {
-    process.env.HONEYBOOK_WORKSPACE_URL = originalWorkspace;
     vi.clearAllMocks();
   });
 
-  it("open_honeybook returns a workspace URL and advances stage", async () => {
+  it("open_proposal returns a proposal workspace URL and advances stage", async () => {
     const { supabase } = createMockSupabase({
       projects: [
         {
@@ -95,7 +89,6 @@ describe("runPipelineAction", () => {
             lead_id: "lead-1",
             client_id: "client-1",
             event_name: "Garden Wedding",
-            honeybook_url: null,
             pipeline_stage: "proposal_draft",
             assigned_admin_id: "admin-1",
             status: "pending",
@@ -103,7 +96,6 @@ describe("runPipelineAction", () => {
           },
           error: null,
         },
-        { data: { id: "project-1", honeybook_url: null }, error: null },
         { data: { id: "project-1", lead_id: "lead-1" }, error: null },
         { data: null, error: null },
       ],
@@ -115,13 +107,13 @@ describe("runPipelineAction", () => {
     });
 
     const result = await runPipelineAction(supabase, "project-1", {
-      action: "open_honeybook",
+      action: "open_proposal",
       actorId: "admin-1",
     });
 
     expect(result.success).toBe(true);
-    expect(result.stage).toBe("honeybook_opened");
-    expect(result.honeybookUrl).toBe("https://www.honeybook.com/workspace");
+    expect(result.stage).toBe("proposal_workspace");
+    expect(result.proposalUrl).toBe("/admin/proposals/new?projectId=project-1");
   });
 
   it("proposal_sent transitions to proposal_sent stage", async () => {
@@ -133,8 +125,7 @@ describe("runPipelineAction", () => {
             lead_id: "lead-1",
             client_id: "client-1",
             event_name: "Garden Wedding",
-            honeybook_url: null,
-            pipeline_stage: "honeybook_opened",
+            pipeline_stage: "proposal_workspace",
             assigned_admin_id: "admin-1",
             status: "pending",
             bpd_clients: { profile_id: "client-profile" },
@@ -173,7 +164,6 @@ describe("runPipelineAction", () => {
             lead_id: "lead-1",
             client_id: "client-1",
             event_name: "Garden Wedding",
-            honeybook_url: null,
             pipeline_stage: "proposal_sent",
             assigned_admin_id: "admin-1",
             status: "pending",
@@ -217,7 +207,6 @@ describe("runPipelineAction", () => {
             lead_id: "lead-1",
             client_id: "client-1",
             event_name: "Garden Wedding",
-            honeybook_url: null,
             pipeline_stage: "proposal_approved",
             assigned_admin_id: "admin-1",
             status: "booked",

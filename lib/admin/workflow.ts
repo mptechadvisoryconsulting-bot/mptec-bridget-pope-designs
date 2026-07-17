@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { emailSubjects } from "@/lib/email/templates";
+import { sendTrackedEmail } from "@/lib/email/delivery";
+import { emailFrom } from "@/lib/email/resend";
+import { appUrl } from "@/lib/env";
 import { first } from "@/lib/supabase/relations";
 
 type AnyClient = SupabaseClient<any>;
@@ -24,6 +28,15 @@ async function logActivity(
     entity_id: input.entityId ?? null,
     metadata: input.metadata ?? {},
   });
+}
+
+async function businessSettings(supabase: AnyClient) {
+  const { data } = await supabase
+    .from("business_settings")
+    .select("id,business_email,invoice_reply_to,inquiry_recipient_email,invoice_notifications_enabled")
+    .limit(1)
+    .maybeSingle();
+  return data;
 }
 
 export type WorkflowResult = { success: boolean; message?: string; id?: string | null };
@@ -278,25 +291,99 @@ export async function markAllNotificationsRead(supabase: AnyClient): Promise<Wor
 }
 
 export async function sendContract(supabase: AnyClient, contractId: string, actorId?: string | null): Promise<WorkflowResult> {
-  await logActivity(supabase, {
-    actorId,
-    action: "contract_send_blocked",
-    entityType: "contract",
-    entityId: contractId,
-    metadata: { reason: "contracts_managed_in_honeybook" },
-  });
-  return { success: false, message: "Contracts are managed in HoneyBook. Open the linked HoneyBook project instead." };
+  const { data: contract, error } = await supabase
+    .from("contracts")
+    .select("id,status,contract_number,project_id,bpd_projects(event_name,bpd_clients(profile_id,bpd_profiles(first_name,last_name,email)))")
+    .eq("id", contractId)
+    .maybeSingle();
+
+  if (error || !contract) return { success: false, message: error?.message ?? "Contract not found." };
+
+  const nextStatus = contract.status === "draft" ? "sent" : contract.status;
+  await supabase.from("contracts").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", contractId);
+
+  const project = first(contract.bpd_projects);
+  const client = first(project?.bpd_clients);
+  const profile = first(client?.bpd_profiles);
+  const clientEmail = profile?.email;
+  const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "there";
+
+  if (client?.profile_id) {
+    await supabase.from("notifications").insert({
+      recipient_id: client.profile_id,
+      project_id: contract.project_id,
+      type: "contract_sent",
+      title: "Contract ready for signature",
+      message: `${contract.contract_number ?? "Your contract"} is ready to review and sign.`,
+      action_url: "/client/contracts",
+    });
+  }
+
+  let emailStatus = "not_configured";
+  if (clientEmail) {
+    const settings = await businessSettings(supabase);
+    const result = await sendTrackedEmail({
+      supabase,
+      settingsId: settings?.id,
+      from: emailFrom(),
+      to: clientEmail,
+      replyTo: settings?.invoice_reply_to ?? settings?.business_email ?? undefined,
+      subject: emailSubjects.contractReady,
+      html: `<p>Hello ${clientName},</p><p>Your contract ${contract.contract_number ?? ""} for ${project?.event_name ?? "your event"} is ready to review and sign.</p><p><a href="${appUrl()}/client/contracts">Review your contract</a></p>`,
+    });
+    emailStatus = result.status;
+  }
+
+  await logActivity(supabase, { actorId, projectId: contract.project_id, action: "contract_sent", entityType: "contract", entityId: contractId, metadata: { emailStatus } });
+  return { success: true, message: emailStatus };
 }
 
 export async function sendProposal(supabase: AnyClient, proposalId: string, actorId?: string | null): Promise<WorkflowResult> {
-  await logActivity(supabase, {
-    actorId,
-    action: "proposal_send_blocked",
-    entityType: "proposal",
-    entityId: proposalId,
-    metadata: { reason: "proposals_managed_in_honeybook" },
-  });
-  return { success: false, message: "Proposals are managed in HoneyBook. Open the linked HoneyBook project instead." };
+  const { data: proposal, error } = await supabase
+    .from("proposals")
+    .select("id,status,proposal_number,title,total,project_id,bpd_projects(event_name,bpd_clients(profile_id,bpd_profiles(first_name,last_name,email)))")
+    .eq("id", proposalId)
+    .maybeSingle();
+
+  if (error || !proposal) return { success: false, message: error?.message ?? "Proposal not found." };
+
+  const nextStatus = proposal.status === "draft" ? "sent" : proposal.status;
+  await supabase.from("proposals").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", proposalId);
+
+  const project = first(proposal.bpd_projects);
+  const client = first(project?.bpd_clients);
+  const profile = first(client?.bpd_profiles);
+  const clientEmail = profile?.email;
+  const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "there";
+
+  if (client?.profile_id) {
+    await supabase.from("notifications").insert({
+      recipient_id: client.profile_id,
+      project_id: proposal.project_id,
+      type: "proposal_sent",
+      title: "Proposal ready for review",
+      message: `${proposal.title ?? proposal.proposal_number ?? "Your proposal"} is ready to review.`,
+      action_url: "/client/proposals",
+    });
+  }
+
+  let emailStatus = "not_configured";
+  if (clientEmail) {
+    const settings = await businessSettings(supabase);
+    const result = await sendTrackedEmail({
+      supabase,
+      settingsId: settings?.id,
+      from: emailFrom(),
+      to: clientEmail,
+      replyTo: settings?.invoice_reply_to ?? settings?.business_email ?? undefined,
+      subject: emailSubjects.proposalSent,
+      html: `<p>Hello ${clientName},</p><p>Your proposal ${proposal.title ?? proposal.proposal_number ?? ""} for ${project?.event_name ?? "your event"} is ready to review.</p><p><a href="${appUrl()}/client/proposals/${proposal.id}">Review your proposal</a></p>`,
+    });
+    emailStatus = result.status;
+  }
+
+  await logActivity(supabase, { actorId, projectId: proposal.project_id, action: "proposal_sent", entityType: "proposal", entityId: proposalId, metadata: { emailStatus } });
+  return { success: true, message: emailStatus };
 }
 
 export async function sendDesignUpdate(supabase: AnyClient, updateId: string, actorId?: string | null): Promise<WorkflowResult> {

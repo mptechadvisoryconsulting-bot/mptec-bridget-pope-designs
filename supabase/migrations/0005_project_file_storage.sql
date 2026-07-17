@@ -1,6 +1,4 @@
 -- Project-file storage bucket used by client and admin project workspaces.
--- HoneyBook remains the source of truth for proposals, contracts, invoices,
--- payment collection, receipts, and financial transactions.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

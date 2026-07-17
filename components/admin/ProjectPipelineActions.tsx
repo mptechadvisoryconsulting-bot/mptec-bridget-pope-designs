@@ -7,7 +7,7 @@ import type { PipelineAction } from "@/lib/admin/pipeline-constants";
 import { pipelineStageLabels } from "@/lib/admin/pipeline-constants";
 
 const actions: Array<{ action: PipelineAction; label: string; variant?: "primary" | "secondary" | "light" }> = [
-  { action: "open_honeybook", label: "Open HoneyBook", variant: "secondary" },
+  { action: "open_proposal", label: "Open Proposal Workspace", variant: "secondary" },
   { action: "proposal_sent", label: "Proposal Sent", variant: "light" },
   { action: "proposal_approved", label: "Proposal Approved", variant: "primary" },
   { action: "invoice_paid", label: "Invoice Paid", variant: "light" },
@@ -34,7 +34,7 @@ export function ProjectPipelineActions({
   if (!projectId) {
     return (
       <div>
-        <p className="mini-meta">Convert this lead to a client/project before using the HoneyBook pipeline.</p>
+        <p className="mini-meta">Convert this lead to a client/project before using the sales pipeline.</p>
         {convertFirstHref ? (
           <div className="topbar-actions" style={{ marginTop: 12 }}>
             <a className="btn btn-secondary" href={convertFirstHref}>
@@ -67,8 +67,9 @@ export function ProjectPipelineActions({
         return;
       }
 
-      if (action === "open_honeybook" && result.honeybookUrl) {
-        window.open(result.honeybookUrl, "_blank", "noopener,noreferrer");
+      if (action === "open_proposal" && result.proposalUrl) {
+        router.push(result.proposalUrl);
+        return;
       }
 
       setMessage(result.message ?? "Pipeline updated.");

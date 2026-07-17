@@ -12,4 +12,4 @@ export const leadStatuses = [
 ] as const;
 
 export const projectStatuses = ["Planning", "In Design", "Awaiting Client Feedback", "Final Details", "Install Ready", "Complete"] as const;
-export const honeybookReferenceStatuses = ["Not Started", "Sent", "Partially Paid", "Paid", "Overdue", "Needs Review"] as const;
+export const invoiceStatuses = ["Draft", "Sent", "Partially Paid", "Paid", "Overdue", "Cancelled"] as const;

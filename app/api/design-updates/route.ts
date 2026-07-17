@@ -11,7 +11,7 @@ const designUpdateSchema = z.object({
   clientVisible: z.boolean().default(false),
   requiresClientAction: z.boolean().default(false),
   clientActionType: z
-    .enum(["design_approval", "design_feedback", "information_requested", "file_requested", "honeybook_action", "general"])
+    .enum(["design_approval", "design_feedback", "information_requested", "file_requested", "general"])
     .default("design_feedback"),
 });
 

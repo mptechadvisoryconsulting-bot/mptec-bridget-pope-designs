@@ -129,7 +129,7 @@ export default async function LeadDetailPage({
         </section>
 
         <section className="panel span-2">
-          <h2>HoneyBook Pipeline</h2>
+          <h2>Sales Pipeline</h2>
           <ProjectPipelineActions
             convertFirstHref={!project ? `/admin/leads/${leadId}?action=convert` : null}
             pipelineStage={project?.pipeline_stage}

@@ -19,15 +19,16 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
 
   if (!client) notFound();
 
-  const [{ data: projects }, { data: honeybookReferences }] = await Promise.all([
+  const [{ data: projects }, { data: invoices }] = await Promise.all([
     supabase.from("projects").select("id,event_name,event_type,event_date,venue_name,status").eq("client_id", clientId).order("event_date", { ascending: true }),
-    supabase.from("honeybook_financial_references").select("*").eq("client_id", clientId).order("updated_at", { ascending: false }),
+    supabase.from("invoices").select("id,invoice_number,status,total,balance_due,due_date").eq("client_id", clientId).order("created_at", { ascending: false }),
   ]);
 
   const profile = first(client.bpd_profiles);
   const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.email || "Client";
   const projectRows = projects ?? [];
-  const referenceRows = honeybookReferences ?? [];
+  const invoiceRows = invoices ?? [];
+  const outstanding = invoiceRows.reduce((sum, row) => sum + Number(row.balance_due ?? 0), 0);
 
   return (
     <div>
@@ -38,15 +39,16 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
           <p className="mini-meta">{profile?.email} · {profile?.phone || "Phone not set"} · {profile?.active ? "Active portal" : "Portal not active"}</p>
         </div>
         <div className="topbar-actions">
-          <ButtonLink href="/admin/projects" variant="secondary">Open Projects</ButtonLink>
+          <ButtonLink href={`/admin/proposals/new`} variant="secondary">Create Proposal</ButtonLink>
+          <ButtonLink href="/admin/projects" variant="light">Open Projects</ButtonLink>
           <ButtonLink href="/admin/clients" variant="light">Back to Clients</ButtonLink>
         </div>
       </div>
 
       <section className="stats-grid" aria-label="Client statistics">
         <article className="stat-card"><span>Projects</span><strong>{projectRows.length}</strong></article>
-        <article className="stat-card"><span>HoneyBook References</span><strong>{referenceRows.length}</strong></article>
-        <article className="stat-card"><span>Reference Balance</span><strong>{currency(referenceRows.reduce((sum, row) => sum + Number(row.balance_remaining ?? 0), 0))}</strong></article>
+        <article className="stat-card"><span>Invoices</span><strong>{invoiceRows.length}</strong></article>
+        <article className="stat-card"><span>Outstanding</span><strong>{currency(outstanding)}</strong></article>
         <article className="stat-card"><span>Client Since</span><strong>{formatDate(client.created_at?.slice(0, 10), "Not set")}</strong></article>
       </section>
 
@@ -80,20 +82,20 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
         </section>
 
         <section className="panel span-2">
-          <h2>HoneyBook References</h2>
+          <h2>Invoices</h2>
           <table className="table">
-            <thead><tr><th>Reference</th><th>Status</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Status</th><th>Total</th><th>Balance</th><th>Due</th></tr></thead>
             <tbody>
-              {referenceRows.map((reference) => (
-                <tr key={reference.id}>
-                  <td>{reference.honeybook_invoice_number ?? reference.honeybook_project_id ?? "HoneyBook"}</td>
-                  <td><span className="status">{reference.invoice_status ?? "unknown"}</span></td>
-                  <td>{reference.invoice_total != null ? currency(Number(reference.invoice_total)) : "—"}</td>
-                  <td>{reference.amount_paid != null ? currency(Number(reference.amount_paid)) : "—"}</td>
-                  <td>{reference.balance_remaining != null ? currency(Number(reference.balance_remaining)) : "—"}</td>
+              {invoiceRows.map((invoice) => (
+                <tr key={invoice.id}>
+                  <td><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoice_number}</a></td>
+                  <td><span className="status">{invoice.status}</span></td>
+                  <td>{currency(Number(invoice.total ?? 0))}</td>
+                  <td>{currency(Number(invoice.balance_due ?? 0))}</td>
+                  <td>{formatDate(invoice.due_date, "—")}</td>
                 </tr>
               ))}
-              {!referenceRows.length ? <tr><td colSpan={5}>No HoneyBook references linked yet.</td></tr> : null}
+              {!invoiceRows.length ? <tr><td colSpan={5}>No invoices yet for this client.</td></tr> : null}
             </tbody>
           </table>
         </section>

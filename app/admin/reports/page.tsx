@@ -6,26 +6,26 @@ export const dynamic = "force-dynamic";
 export default async function ReportsPage() {
   const supabase = createAdminClient();
 
-  const [{ data: consultations }, { data: leads }, { data: projects }, { data: designActions }, { data: honeybookRefs }] = await Promise.all([
+  const [{ data: consultations }, { data: leads }, { data: projects }, { data: designActions }, { data: invoices }] = await Promise.all([
     supabase.from("consultations").select("status").limit(1000),
     supabase.from("leads").select("status,event_type").limit(1000),
     supabase.from("projects").select("status,event_type,event_date").limit(1000),
     supabase.from("design_updates").select("client_action_status,requires_client_action").eq("requires_client_action", true).limit(1000),
-    supabase.from("honeybook_financial_references").select("review_status").limit(1000),
+    supabase.from("invoices").select("status,balance_due").limit(1000),
   ]);
 
   const consultationRows = consultations ?? [];
   const leadRows = leads ?? [];
   const projectRows = projects ?? [];
   const designActionRows = designActions ?? [];
-  const honeybookRows = honeybookRefs ?? [];
+  const invoiceRows = invoices ?? [];
 
   const completedConsultations = consultationRows.filter((row) => row.status === "completed").length;
   const scheduledConsultations = consultationRows.filter((row) => row.status === "scheduled").length;
   const convertedLeads = leadRows.filter((row) => row.status === "converted").length;
   const conversionRate = leadRows.length ? Math.round((convertedLeads / leadRows.length) * 100) : 0;
   const pendingDesignActions = designActionRows.filter((row) => row.client_action_status === "pending" || row.client_action_status === "overdue").length;
-  const honeybookNeedsReview = honeybookRows.filter((row) => row.review_status === "needs_review").length;
+  const openInvoices = invoiceRows.filter((row) => Number(row.balance_due ?? 0) > 0 && row.status !== "draft" && row.status !== "cancelled").length;
   const nextEvent = projectRows
     .filter((project) => project.event_date)
     .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)))[0];
@@ -36,7 +36,7 @@ export default async function ReportsPage() {
         <div>
           <span className="eyebrow">Analytics</span>
           <h1>Project Reports</h1>
-          <p className="mini-meta">Operational reporting for leads, consultations, projects, design actions, and HoneyBook reference review.</p>
+          <p className="mini-meta">Operational reporting for leads, consultations, projects, design actions, and invoices.</p>
         </div>
       </div>
 
@@ -44,7 +44,7 @@ export default async function ReportsPage() {
         <article className="stat-card"><span>Total Leads</span><strong>{leadRows.length}</strong><small>{conversionRate}% converted</small></article>
         <article className="stat-card"><span>Consultations</span><strong>{consultationRows.length}</strong><small>{scheduledConsultations} scheduled, {completedConsultations} complete</small></article>
         <article className="stat-card"><span>Active Projects</span><strong>{projectRows.length}</strong><small>Client project workspaces</small></article>
-        <article className="stat-card"><span>Needs Review</span><strong>{pendingDesignActions + honeybookNeedsReview}</strong><small>Design + HoneyBook</small></article>
+        <article className="stat-card"><span>Needs Review</span><strong>{pendingDesignActions + openInvoices}</strong><small>Design + open invoices</small></article>
       </section>
 
       <div className="dashboard-grid" style={{ marginTop: 16 }}>
@@ -77,10 +77,10 @@ export default async function ReportsPage() {
         </section>
 
         <section className="panel">
-          <h2>HoneyBook References</h2>
+          <h2>Invoices</h2>
           <ul className="list">
-            <li><span>Linked</span><strong>{honeybookRows.length}</strong></li>
-            <li><span>Needs Review</span><strong>{honeybookNeedsReview}</strong></li>
+            <li><span>Total tracked</span><strong>{invoiceRows.length}</strong></li>
+            <li><span>Open balances</span><strong>{openInvoices}</strong></li>
           </ul>
         </section>
       </div>

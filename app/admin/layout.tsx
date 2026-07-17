@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { RealtimeRefresh } from "@/components/realtime/RealtimeRefresh";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="app-shell admin-shell">
       <AdminSidebar />
-      <main className="portal-main">{children}</main>
+      <main className="portal-main">
+        <RealtimeRefresh userId={profile.id} />
+        {children}
+      </main>
     </div>
   );
 }
