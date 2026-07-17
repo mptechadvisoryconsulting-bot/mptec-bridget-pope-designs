@@ -166,7 +166,7 @@ using (
     from bpd_invoices i
     join bpd_clients c on c.id = i.client_id
     where i.uploaded_pdf_path = name
-      and c.profile_id = auth.uid()
+      and c.profile_id = bpd_current_profile_id()
   )
 );
 
