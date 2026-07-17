@@ -44,12 +44,15 @@ export function toHoneyBookReferenceInsert(input: HoneyBookReferenceInput) {
     due_date: cleanText(input.dueDate),
     honeybook_url: cleanText(input.honeybookUrl),
     source: input.source ?? "manual",
-    review_status: "confirmed",
+    review_status: "confirmed" as const,
     imported_at: new Date().toISOString(),
   };
 }
 
-export async function loadProjectHoneyBookReferences(supabase: SupabaseClient<any>, projectId: string) {
+export async function loadProjectHoneyBookReferences(
+  supabase: SupabaseClient,
+  projectId: string,
+) {
   const { data, error } = await supabase
     .from("honeybook_financial_references")
     .select("*")
@@ -60,8 +63,8 @@ export async function loadProjectHoneyBookReferences(supabase: SupabaseClient<an
   return data ?? [];
 }
 
-export function latestHoneyBookReference<TReference extends { updated_at?: string | null; created_at?: string | null }>(
-  references: TReference[] | null | undefined,
-) {
+export function latestHoneyBookReference<
+  TReference extends { updated_at?: string | null; created_at?: string | null },
+>(references: TReference[] | null | undefined) {
   return references?.[0] ?? null;
 }

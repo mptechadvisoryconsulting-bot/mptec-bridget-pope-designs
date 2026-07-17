@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { ProjectPipelineActions } from "@/components/admin/ProjectPipelineActions";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -44,7 +45,7 @@ export default async function LeadDetailPage({
   const [{ data: lead }, { data: client }, { data: project }, { data: consultation }] = await Promise.all([
     supabase.from("leads").select("*").eq("id", leadId).maybeSingle(),
     supabase.from("clients").select("id").eq("lead_id", leadId).maybeSingle(),
-    supabase.from("projects").select("id,event_name,status").eq("lead_id", leadId).maybeSingle(),
+    supabase.from("projects").select("id,event_name,status,pipeline_stage").eq("lead_id", leadId).maybeSingle(),
     supabase
       .from("consultations")
       .select("id,scheduled_at,meeting_type,status")
@@ -125,6 +126,15 @@ export default async function LeadDetailPage({
           {consultation?.scheduled_at ? (
             <p className="mini-meta">Next consultation: {formatDateTime(consultation.scheduled_at)} ({consultation.meeting_type ?? "method pending"})</p>
           ) : null}
+        </section>
+
+        <section className="panel span-2">
+          <h2>HoneyBook Pipeline</h2>
+          <ProjectPipelineActions
+            convertFirstHref={!project ? `/admin/leads/${leadId}?action=convert` : null}
+            pipelineStage={project?.pipeline_stage}
+            projectId={project?.id}
+          />
         </section>
       </div>
     </div>

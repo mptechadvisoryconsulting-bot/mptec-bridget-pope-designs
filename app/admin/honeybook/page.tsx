@@ -20,7 +20,42 @@ type ReferenceRow = {
   honeybook_url?: string | null;
   review_status?: string | null;
   updated_at?: string | null;
-  bpd_projects?: { event_name?: string | null; bpd_clients?: { bpd_profiles?: { first_name?: string | null; last_name?: string | null } | Array<{ first_name?: string | null; last_name?: string | null }> | null } | Array<{ bpd_profiles?: { first_name?: string | null; last_name?: string | null } | Array<{ first_name?: string | null; last_name?: string | null }> | null }> | null } | Array<any> | null;
+  bpd_projects?:
+    | {
+        event_name?: string | null;
+        bpd_clients?:
+          | {
+              bpd_profiles?:
+                | { first_name?: string | null; last_name?: string | null }
+                | Array<{ first_name?: string | null; last_name?: string | null }>
+                | null;
+            }
+          | Array<{
+              bpd_profiles?:
+                | { first_name?: string | null; last_name?: string | null }
+                | Array<{ first_name?: string | null; last_name?: string | null }>
+                | null;
+            }>
+          | null;
+      }
+    | Array<{
+        event_name?: string | null;
+        bpd_clients?:
+          | {
+              bpd_profiles?:
+                | { first_name?: string | null; last_name?: string | null }
+                | Array<{ first_name?: string | null; last_name?: string | null }>
+                | null;
+            }
+          | Array<{
+              bpd_profiles?:
+                | { first_name?: string | null; last_name?: string | null }
+                | Array<{ first_name?: string | null; last_name?: string | null }>
+                | null;
+            }>
+          | null;
+      }>
+    | null;
 };
 
 function clientName(row: ReferenceRow) {
@@ -45,9 +80,15 @@ export default async function AdminHoneyBookPage() {
     <div>
       <div className="dashboard-topbar">
         <div>
-          <span className="eyebrow">HoneyBook</span>
+          <span className="eyebrow">Sales & Billing</span>
           <h1>Reference Review</h1>
-          <p className="mini-meta">HoneyBook remains the financial source of truth. This app stores project-linked references only.</p>
+          <p className="mini-meta">
+            Optional HoneyBook links for the manual CRM workflow. In-app proposals, invoices, and payments remain available.
+          </p>
+        </div>
+        <div className="topbar-actions">
+          <ButtonLink href="/admin/proposals" variant="light">Proposals</ButtonLink>
+          <ButtonLink href="/admin/invoices" variant="light">Invoices</ButtonLink>
         </div>
       </div>
 

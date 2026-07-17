@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminProfile } from "@/lib/auth/require-admin";
-import { toHoneyBookReferenceInsert } from "@/lib/honeybook/references";
+import { getHoneyBookService } from "@/lib/integrations/honeybook";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { honeybookReferenceSchema } from "@/lib/validation/honeybook-schema";
 
@@ -30,10 +30,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, message: "Project does not belong to the selected client." }, { status: 400 });
   }
 
-  const { data: reference, error } = await supabase
-    .from("honeybook_financial_references")
-    .insert(
-      toHoneyBookReferenceInsert({
+  try {
+    const honeybook = getHoneyBookService(supabase);
+    const { referenceId } = await honeybook.upsertFinancialReference(
+      {
         projectId: input.projectId,
         clientId: input.clientId,
         honeybookProjectId: input.honeybookProjectId || null,
@@ -46,31 +46,30 @@ export async function POST(request: Request) {
         dueDate: input.dueDate || null,
         honeybookUrl: input.honeybookUrl || null,
         source: input.source,
-      }),
-    )
-    .select("id")
-    .single();
+      },
+      { actorId: admin.profile.id },
+    );
 
-  if (error || !reference) {
-    return NextResponse.json({ success: false, message: error?.message ?? "Unable to save HoneyBook reference." }, { status: 400 });
+    await supabase.from("notifications").insert({
+      recipient_id: admin.profile.id,
+      project_id: input.projectId,
+      type: "honeybook_reference_imported",
+      title: "HoneyBook reference saved",
+      message: "A HoneyBook financial reference was linked to this project.",
+      action_url: `/admin/projects/${input.projectId}`,
+    });
+
+    await supabase.from("activity_logs").insert({
+      actor_id: admin.profile.id,
+      project_id: input.projectId,
+      action: "honeybook_reference_imported",
+      entity_type: "honeybook_financial_reference",
+      entity_id: referenceId,
+    });
+
+    return NextResponse.json({ success: true, referenceId }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to save HoneyBook reference.";
+    return NextResponse.json({ success: false, message }, { status: 400 });
   }
-
-  await supabase.from("notifications").insert({
-    recipient_id: admin.profile.id,
-    project_id: input.projectId,
-    type: "honeybook_reference_imported",
-    title: "HoneyBook reference saved",
-    message: "A HoneyBook financial reference was linked to this project.",
-    action_url: `/admin/projects/${input.projectId}`,
-  });
-
-  await supabase.from("activity_logs").insert({
-    actor_id: admin.profile.id,
-    project_id: input.projectId,
-    action: "honeybook_reference_imported",
-    entity_type: "honeybook_financial_reference",
-    entity_id: reference.id,
-  });
-
-  return NextResponse.json({ success: true, referenceId: reference.id }, { status: 201 });
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeybookPipelineStages } from "@/lib/integrations/honeybook/types";
 
 const optionalDate = z
   .string()
@@ -36,6 +37,17 @@ export const honeybookIntegrationEventSchema = z.object({
   invoice_status: z.string().trim().max(80).optional().nullable(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   honeybook_url: z.string().trim().url().optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
+  stage: z.enum(honeybookPipelineStages).optional().nullable(),
+});
+
+export const pipelineActionSchema = z.object({
+  action: z.enum(["open_honeybook", "proposal_sent", "proposal_approved", "invoice_paid", "project_started"]),
+  honeybookUrl: z.string().trim().url().optional().or(z.literal("")),
+  proposalId: z.string().uuid().optional(),
+  invoiceId: z.string().uuid().optional(),
+  note: z.string().trim().max(2000).optional().or(z.literal("")),
 });
 
 export type HoneyBookReferenceFormInput = z.infer<typeof honeybookReferenceSchema>;
+export type PipelineActionInput = z.infer<typeof pipelineActionSchema>;

@@ -23,6 +23,9 @@ export default async function AdminDashboardPage() {
     { count: unreadNotifications },
     settingsResult,
     { count: activeClientCount },
+    { count: pendingProposalsCount },
+    { count: awaitingProposalApprovalCount },
+    { count: activeProjectsCount },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -64,6 +67,12 @@ export default async function AdminDashboardPage() {
       .limit(1)
       .maybeSingle(),
     supabase.from("clients").select("id", { count: "exact", head: true }),
+    supabase.from("proposals").select("id", { count: "exact", head: true }).in("status", ["draft", "sent", "viewed"]),
+    supabase.from("projects").select("id", { count: "exact", head: true }).eq("pipeline_stage", "proposal_sent"),
+    supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["booked", "planning", "design_in_progress", "awaiting_client_approval", "finalizing", "ready_for_event"]),
   ]);
 
   const requestRows = newRequests ?? [];
@@ -79,6 +88,9 @@ export default async function AdminDashboardPage() {
     settings?.email_provider_last_error ?? settings?.email_last_error,
   );
   const ownerActionCount = requestRows.length + messageRows.length + designActionRows.length + honeybookRows.length + taskRows.length;
+  const pendingProposals = Number(pendingProposalsCount ?? 0);
+  const awaitingProposalApproval = Number(awaitingProposalApprovalCount ?? 0);
+  const activeProjects = Number(activeProjectsCount ?? 0);
 
   return (
     <div>
@@ -142,6 +154,19 @@ export default async function AdminDashboardPage() {
             <li><span>HoneyBook records needing review</span><span className="status">{honeybookRows.length}</span></li>
             <li><span>Unread notifications</span><span className="status">{unreadNotifications ?? 0}</span></li>
           </ul>
+        </section>
+
+        <section className="panel">
+          <h2>Sales Pipeline</h2>
+          <ul className="list">
+            <li><span>Pending proposals</span><span className="status">{pendingProposals}</span></li>
+            <li><span>Proposal sent · awaiting approval</span><span className="status">{awaitingProposalApproval}</span></li>
+            <li><span>Active projects</span><span className="status">{activeProjects}</span></li>
+          </ul>
+          <div className="topbar-actions" style={{ marginTop: 12 }}>
+            <ButtonLink href="/admin/proposals" variant="light">Proposals</ButtonLink>
+            <ButtonLink href="/admin/honeybook" variant="light">HoneyBook</ButtonLink>
+          </div>
         </section>
 
         <section className="panel">

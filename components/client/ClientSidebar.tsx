@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CheckSquare,
+  CreditCard,
   ExternalLink,
+  FileText,
   FolderOpen,
   ImageIcon,
   LayoutDashboard,
@@ -17,6 +19,9 @@ import {
 const clientLinks = [
   { label: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard },
   { label: "My Event", href: "/client/event", icon: CalendarDays },
+  { label: "Proposals & Contracts", href: "/client/proposals", icon: FileText },
+  { label: "Payments", href: "/client/payments", icon: CreditCard },
+  { label: "Invoices", href: "/client/invoices", icon: CreditCard },
   { label: "Timeline", href: "/client/timeline", icon: CalendarDays },
   { label: "Tasks & Checklist", href: "/client/checklist", icon: CheckSquare },
   { label: "Design Updates", href: "/client/designs", icon: Palette },

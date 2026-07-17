@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
 import { latestHoneyBookReference, loadProjectHoneyBookReferences } from "@/lib/honeybook/references";
@@ -18,7 +19,13 @@ export default async function ClientHoneyBookPage() {
         <div>
           <span className="eyebrow">HoneyBook</span>
           <h1>Financial Reference</h1>
-          <p className="mini-meta">Proposal, contract, invoice, and payment collection are handled in HoneyBook.</p>
+          <p className="mini-meta">
+            Some payment arrangements may be coordinated through HoneyBook. Your in-app invoices and payments remain available in this portal.
+          </p>
+        </div>
+        <div className="topbar-actions">
+          <ButtonLink href="/client/invoices" variant="light">View Invoices</ButtonLink>
+          <ButtonLink href="/client/payments" variant="secondary">Payments</ButtonLink>
         </div>
       </div>
 

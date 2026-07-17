@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { HoneyBookReferenceForm } from "@/components/honeybook/HoneyBookReferenceForm";
+import { ProjectPipelineActions } from "@/components/admin/ProjectPipelineActions";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
@@ -9,6 +10,7 @@ import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { first } from "@/lib/supabase/relations";
 import { projectStatusLabels, projectStatuses } from "@/lib/admin/constants";
+import { pipelineStageLabels } from "@/lib/admin/pipeline-constants";
 import { completeTask, reopenTask } from "@/lib/admin/workflow";
 
 export const dynamic = "force-dynamic";
@@ -47,8 +49,11 @@ export default async function ProjectDetailPage({
 
   if (!project) notFound();
 
-  const [{ data: tasks }, honeybookReferences] = await Promise.all([
+  const [{ data: tasks }, { data: invoices }, { data: proposals }, { data: contracts }, honeybookReferences] = await Promise.all([
     supabase.from("tasks").select("id,title,due_date,priority,status").eq("project_id", projectId).order("due_date", { ascending: true }),
+    supabase.from("invoices").select("id,invoice_number,total,balance_due,status").eq("project_id", projectId).order("created_at", { ascending: false }),
+    supabase.from("proposals").select("id,proposal_number,status,total").eq("project_id", projectId).order("created_at", { ascending: false }),
+    supabase.from("contracts").select("id,contract_number,status").eq("project_id", projectId).order("created_at", { ascending: false }),
     loadProjectHoneyBookReferences(supabase, projectId),
   ]);
 
@@ -56,7 +61,16 @@ export default async function ProjectDetailPage({
   const clientProfile = first(client?.bpd_profiles);
   const clientName = [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || "Client";
   const taskRows = tasks ?? [];
+  const invoiceRows = invoices ?? [];
+  const proposalRows = proposals ?? [];
+  const balance = invoiceRows.reduce((sum, invoice) => sum + Number(invoice.balance_due ?? 0), 0);
   const latestHoneyBook = honeybookReferences[0] ?? null;
+  const latestProposalId = proposalRows[0]?.id ?? null;
+  const latestOpenInvoiceId = invoiceRows.find((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled" && invoice.status !== "refunded")?.id ?? null;
+  const stageLabel =
+    project.pipeline_stage && project.pipeline_stage in pipelineStageLabels
+      ? pipelineStageLabels[project.pipeline_stage as keyof typeof pipelineStageLabels]
+      : project.pipeline_stage ?? "Lead Received";
 
   return (
     <div>
@@ -64,12 +78,13 @@ export default async function ProjectDetailPage({
         <div>
           <span className="eyebrow">Production · {project.project_number}</span>
           <h1>{project.event_name}</h1>
-          <p className="mini-meta">{clientName} · {project.event_type} · {formatDate(project.event_date, "Date pending")} · {project.venue_name || "Venue pending"}</p>
+          <p className="mini-meta">{clientName} · {project.event_type} · {formatDate(project.event_date, "Date pending")} · {project.venue_name || "Venue pending"} · Pipeline: {stageLabel}</p>
         </div>
         <div className="topbar-actions">
           {client ? <ButtonLink href={`/admin/clients/${client.id}`} variant="light">Open Client</ButtonLink> : null}
-          {latestHoneyBook?.honeybook_url ? (
-            <a className="btn btn-light" href={latestHoneyBook.honeybook_url} rel="noreferrer" target="_blank">
+          <ButtonLink href="/admin/invoices" variant="light">Create Invoice</ButtonLink>
+          {(project.honeybook_url || latestHoneyBook?.honeybook_url) ? (
+            <a className="btn btn-light" href={project.honeybook_url || latestHoneyBook?.honeybook_url || "#"} rel="noreferrer" target="_blank">
               <ExternalLink size={16} /> Open in HoneyBook
             </a>
           ) : null}
@@ -105,14 +120,51 @@ export default async function ProjectDetailPage({
         </section>
 
         <section className="panel">
-          <h2>HoneyBook Financial Reference</h2>
+          <h2>HoneyBook Pipeline</h2>
+          <ProjectPipelineActions
+            invoiceId={latestOpenInvoiceId}
+            pipelineStage={project.pipeline_stage}
+            projectId={projectId}
+            proposalId={latestProposalId}
+          />
+          <p className="mini-meta" style={{ marginTop: 12 }}>
+            In-app proposals, invoices, and manual payments stay available. HoneyBook is an optional external workspace link.
+          </p>
+        </section>
+
+        <section className="panel">
+          <h2>Billing Summary</h2>
           <ul className="list">
-            <li><span>References</span><strong>{honeybookReferences.length}</strong></li>
+            <li><span>Invoices</span><strong>{invoiceRows.length}</strong></li>
+            <li><span>Outstanding Balance</span><strong>{currency(balance)}</strong></li>
+            <li><span>HoneyBook Refs</span><strong>{honeybookReferences.length}</strong></li>
             <li><span>Invoice Reference</span><strong>{latestHoneyBook?.honeybook_invoice_number ?? "Not linked"}</strong></li>
-            <li><span>Status</span><span className="status">{latestHoneyBook?.invoice_status ?? "Not linked"}</span></li>
-            <li><span>Balance Reference</span><strong>{latestHoneyBook?.balance_remaining != null ? currency(Number(latestHoneyBook.balance_remaining)) : "Not linked"}</strong></li>
+            <li><span>HoneyBook Status</span><span className="status">{latestHoneyBook?.invoice_status ?? "Not linked"}</span></li>
+            {proposalRows.map((proposal) => (
+              <li key={proposal.id}><span>Proposal {proposal.proposal_number}</span><span className="status">{proposal.status}</span></li>
+            ))}
+            {contracts?.map((contract) => (
+              <li key={contract.id}><span>Contract {contract.contract_number}</span><span className="status">{contract.status}</span></li>
+            ))}
           </ul>
-          <p className="mini-meta">Proposal, contract, invoice, payment, and receipt handling stay inside HoneyBook. This app stores a project-specific reference only.</p>
+        </section>
+
+        <section className="panel span-2">
+          <h2>Invoices</h2>
+          <table className="table">
+            <thead><tr><th>Invoice</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
+            <tbody>
+              {invoiceRows.map((invoice) => (
+                <tr key={invoice.id}>
+                  <td><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoice_number}</a></td>
+                  <td>{currency(Number(invoice.total ?? 0))}</td>
+                  <td>{currency(Number(invoice.balance_due ?? 0))}</td>
+                  <td><span className="status">{invoice.status}</span></td>
+                </tr>
+              ))}
+              {!invoiceRows.length ? <tr><td colSpan={4}>No invoices created for this project yet.</td></tr> : null}
+            </tbody>
+          </table>
         </section>
 
         <section className="panel span-2">
@@ -120,7 +172,7 @@ export default async function ProjectDetailPage({
           {client?.id ? (
             <HoneyBookReferenceForm
               clientId={client.id}
-              initialHoneyBookUrl={latestHoneyBook?.honeybook_url}
+              initialHoneyBookUrl={project.honeybook_url ?? latestHoneyBook?.honeybook_url}
               projectId={projectId}
             />
           ) : (
