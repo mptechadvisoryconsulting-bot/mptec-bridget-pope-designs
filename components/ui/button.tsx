@@ -23,10 +23,13 @@ export function ButtonLink({
   variant?: ButtonVariant;
   className?: string;
 }) {
-  const isProtectedPortalLink = href.startsWith("/admin") || href.startsWith("/client");
+  // Never prefetch auth mutations or protected shells — prefetching /auth/logout
+  // would sign the current session out in the background.
+  const disablePrefetch =
+    href.startsWith("/admin") || href.startsWith("/client") || href.startsWith("/auth/logout") || href.startsWith("/auth/login");
 
   return (
-    <Link className={cn("btn", `btn-${variant}`, className)} href={href} prefetch={isProtectedPortalLink ? false : undefined}>
+    <Link className={cn("btn", `btn-${variant}`, className)} href={href} prefetch={disablePrefetch ? false : undefined}>
       {children}
     </Link>
   );
