@@ -999,7 +999,104 @@ textarea {
 .topbar-actions {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.topbar-actions.compact {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-height: 36px;
+  padding: 0 12px;
+  text-transform: none;
+}
+
+.btn-quiet:hover {
+  background: #faf6f4;
+  transform: none;
+}
+
+.queue-row-actions {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.queue-actions {
+  position: relative;
+}
+
+.queue-actions-trigger {
+  white-space: nowrap;
+}
+
+.queue-actions-menu {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5ddd8);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(40, 24, 20, 0.12);
+  min-width: 200px;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+}
+
+.queue-actions-menu a {
+  border-radius: 8px;
+  color: inherit;
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 8px 10px;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.queue-actions-menu a:hover {
+  background: #faf6f4;
+}
+
+.table td:last-child {
+  text-align: right;
+}
+
+.panel-link {
+  color: var(--rosewood);
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+  text-decoration: none;
+}
+
+.panel-link:hover {
+  text-decoration: underline;
+}
+
+.section-focus {
+  margin-top: 16px;
+}
+
+.client-focus-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1.1fr 0.9fr;
+  margin-top: 16px;
 }
 
 .stats-grid {
@@ -1561,6 +1658,7 @@ textarea {
 
   .dashboard-grid,
   .client-grid,
+  .client-focus-grid,
   .gallery-manager,
   .message-center,
   .placeholder-grid {
@@ -1589,6 +1687,15 @@ textarea {
 }
 
 @media (max-width: 760px) {
+  .queue-row-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .table td:last-child {
+    white-space: normal;
+  }
+
   .container {
     padding: 0 18px;
   }

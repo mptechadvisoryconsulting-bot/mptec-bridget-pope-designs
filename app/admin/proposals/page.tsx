@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/dates";
@@ -118,12 +119,22 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
                   <td>{formatDateTime(sentAt, "Not sent")}</td>
                   <td><span className="status">{statusLabels[proposal.status] ?? proposal.status}</span></td>
                   <td>
-                    <div className="topbar-actions">
-                      <ButtonLink href={`/admin/proposals/${proposal.id}`} variant="light">Preview</ButtonLink>
-                      <ButtonLink href={`/admin/proposals?action=send&id=${proposal.id}`} variant="light">
-                        {proposal.status === "draft" ? "Send" : "Resend"}
-                      </ButtonLink>
-                    </div>
+                    <QueueItemActions
+                      primaryAction={{
+                        label: proposal.status === "draft" ? "Send" : "Preview",
+                        href:
+                          proposal.status === "draft"
+                            ? `/admin/proposals?action=send&id=${proposal.id}`
+                            : `/admin/proposals/${proposal.id}`,
+                      }}
+                      actions={[
+                        { label: "Preview", href: `/admin/proposals/${proposal.id}` },
+                        {
+                          label: proposal.status === "draft" ? "Send" : "Resend",
+                          href: `/admin/proposals?action=send&id=${proposal.id}`,
+                        },
+                      ]}
+                    />
                   </td>
                 </tr>
               );

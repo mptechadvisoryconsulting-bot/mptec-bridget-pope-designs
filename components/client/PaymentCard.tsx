@@ -30,12 +30,14 @@ export function PaymentCard({
           Status: <span className="status">{status.replace(/_/g, " ")}</span>
         </p>
       ) : null}
-      <div className="topbar-actions" style={{ marginTop: 8, flexWrap: "wrap" }}>
-        <ButtonLink href={viewHref}>{invoiceId ? "View Invoice" : "View Invoices"}</ButtonLink>
+      <div className="queue-row-actions" style={{ marginTop: 12 }}>
+        <ButtonLink href={viewHref} variant="quiet">
+          {invoiceId ? "View invoice" : "View invoices"}
+        </ButtonLink>
         {downloadHref ? (
-          <ButtonLink href={downloadHref} variant="light">
+          <a className="panel-link" href={downloadHref} style={{ marginTop: 0 }}>
             Download PDF
-          </ButtonLink>
+          </a>
         ) : null}
       </div>
       <p className="mini-meta" style={{ marginBottom: 0, marginTop: 10 }}>

@@ -2,8 +2,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+type ButtonVariant = "primary" | "secondary" | "light" | "quiet";
+
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "light";
+  variant?: ButtonVariant;
 };
 
 export function Button({ className, variant = "primary", ...props }: ButtonProps) {
@@ -18,7 +20,7 @@ export function ButtonLink({
 }: {
   href: string;
   children: ReactNode;
-  variant?: "primary" | "secondary" | "light";
+  variant?: ButtonVariant;
   className?: string;
 }) {
   const isProtectedPortalLink = href.startsWith("/admin") || href.startsWith("/client");

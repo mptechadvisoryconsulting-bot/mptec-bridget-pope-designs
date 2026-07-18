@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { DesignUpdateCreateForm } from "@/components/admin/DesignUpdateCreateForm";
-import { ButtonLink } from "@/components/ui/button";
+import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -109,19 +109,20 @@ export default async function DesignUpdatesPage({ searchParams }: { searchParams
                   </td>
                   <td>{update.client_visible ? formatDateTime(update.updated_at) : "Not sent"}</td>
                   <td>
-                    <div className="topbar-actions">
-                      <ButtonLink href={`/admin/projects/${update.project_id}`} variant="light">
-                        Open
-                      </ButtonLink>
-                      {!update.client_visible ? (
-                        <ButtonLink href={`/admin/design-updates?action=send&id=${update.id}`} variant="light">
-                          Send
-                        </ButtonLink>
-                      ) : null}
-                      <ButtonLink href="/admin/messages" variant="light">
-                        Message
-                      </ButtonLink>
-                    </div>
+                    <QueueItemActions
+                      primaryAction={
+                        !update.client_visible
+                          ? { label: "Send", href: `/admin/design-updates?action=send&id=${update.id}` }
+                          : { label: "Open", href: `/admin/projects/${update.project_id}` }
+                      }
+                      actions={[
+                        { label: "Open project", href: `/admin/projects/${update.project_id}` },
+                        ...(!update.client_visible
+                          ? [{ label: "Send to client", href: `/admin/design-updates?action=send&id=${update.id}` }]
+                          : []),
+                        { label: "Message client", href: "/admin/messages" },
+                      ]}
+                    />
                   </td>
                 </tr>
               );

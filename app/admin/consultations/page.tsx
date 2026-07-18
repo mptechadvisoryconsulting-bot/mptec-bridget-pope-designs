@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ButtonLink } from "@/components/ui/button";
+import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -83,11 +83,9 @@ export default async function ConsultationsPage({
             <tr>
               <th>Prospect / Client</th>
               <th>Event</th>
-              <th>Date</th>
-              <th>Method</th>
+              <th>When</th>
               <th>Status</th>
-              <th>Notes</th>
-              <th />
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -100,32 +98,56 @@ export default async function ConsultationsPage({
                 ? [lead.first_name, lead.last_name].filter(Boolean).join(" ")
                 : [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || "Client";
               const eventLabel = lead?.event_type || project?.event_name || "Event pending";
+              const secondaryActions = [
+                { label: "Complete", href: `/admin/consultations?action=complete&id=${consultation.id}` },
+                ...(consultation.lead_id
+                  ? [{ label: "Convert to client", href: `/admin/consultations?action=convert&id=${consultation.id}` }]
+                  : []),
+              ];
 
               return (
                 <tr key={consultation.id}>
-                  <td>{name}</td>
-                  <td>{eventLabel}</td>
-                  <td>{formatDateTime(consultation.scheduled_at, "Not scheduled")}</td>
-                  <td>{consultation.meeting_type ? consultation.meeting_type.replace(/_/g, " ") : consultation.location || "Not set"}</td>
-                  <td><span className="status">{statusLabels[consultation.status] ?? consultation.status}</span></td>
-                  <td>{consultation.notes || "—"}</td>
                   <td>
-                    <form action="/admin/consultations" method="get" style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                      <input type="hidden" name="action" value="schedule" />
-                      <input type="hidden" name="id" value={consultation.id} />
-                      <input className="input" defaultValue={toDateTimeInputValue(consultation.scheduled_at)} name="scheduledAt" style={{ padding: "6px 8px" }} type="datetime-local" />
-                      <select className="input" defaultValue={consultation.meeting_type ?? "video"} name="meetingType" style={{ padding: "6px 8px" }}>
-                        <option value="phone">Phone</option>
-                        <option value="video">Video</option>
-                        <option value="in_person">In Person</option>
-                      </select>
-                      <button className="btn btn-light" type="submit">{consultation.status === "requested" ? "Schedule" : "Reschedule"}</button>
-                    </form>
-                    <div className="topbar-actions" style={{ marginTop: 8 }}>
-                      <ButtonLink href={`/admin/consultations?action=complete&id=${consultation.id}`} variant="light">Complete</ButtonLink>
-                      {consultation.lead_id ? (
-                        <ButtonLink href={`/admin/consultations?action=convert&id=${consultation.id}`} variant="light">Convert</ButtonLink>
-                      ) : null}
+                    <strong style={{ fontWeight: 600 }}>{name}</strong>
+                    {consultation.notes ? <div className="mini-meta">{consultation.notes}</div> : null}
+                  </td>
+                  <td>{eventLabel}</td>
+                  <td>
+                    {formatDateTime(consultation.scheduled_at, "Not scheduled")}
+                    <div className="mini-meta">
+                      {consultation.meeting_type ? consultation.meeting_type.replace(/_/g, " ") : consultation.location || "Method pending"}
+                    </div>
+                  </td>
+                  <td><span className="status">{statusLabels[consultation.status] ?? consultation.status}</span></td>
+                  <td>
+                    <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
+                      <form action="/admin/consultations" method="get" className="queue-row-actions">
+                        <input type="hidden" name="action" value="schedule" />
+                        <input type="hidden" name="id" value={consultation.id} />
+                        <input
+                          aria-label="Consultation date and time"
+                          className="input"
+                          defaultValue={toDateTimeInputValue(consultation.scheduled_at)}
+                          name="scheduledAt"
+                          style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
+                          type="datetime-local"
+                        />
+                        <select
+                          aria-label="Meeting type"
+                          className="input"
+                          defaultValue={consultation.meeting_type ?? "video"}
+                          name="meetingType"
+                          style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
+                        >
+                          <option value="phone">Phone</option>
+                          <option value="video">Video</option>
+                          <option value="in_person">In Person</option>
+                        </select>
+                        <button className="btn btn-quiet" type="submit">
+                          {consultation.status === "requested" ? "Schedule" : "Reschedule"}
+                        </button>
+                      </form>
+                      <QueueItemActions actions={secondaryActions} />
                     </div>
                   </td>
                 </tr>
@@ -133,7 +155,7 @@ export default async function ConsultationsPage({
             })}
             {!consultations.length ? (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={5}>
                   <strong>No consultations scheduled</strong>
                   <div className="mini-meta">New inquiry submissions create requested consultations until the owner schedules a time.</div>
                 </td>

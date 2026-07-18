@@ -1,10 +1,8 @@
-import { CalendarDays, FileSignature, FolderOpen, MessageSquare, Palette, ReceiptText } from "lucide-react";
 import { Checklist } from "@/components/client/Checklist";
 import { EventProgress } from "@/components/client/EventProgress";
 import { MessagePanel } from "@/components/client/MessagePanel";
 import { PaymentCard } from "@/components/client/PaymentCard";
 import { Timeline } from "@/components/client/Timeline";
-import { ButtonLink } from "@/components/ui/button";
 import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -110,13 +108,26 @@ export default async function ClientDashboardPage({
     label: item.title,
     done: Boolean(item.completed_at) || item.status === "complete",
   }));
+  const latestDesign = (designUpdates ?? [])[0] ?? null;
+  const nextMeeting = (meetings ?? [])[0] ?? null;
 
   return (
     <div>
       <section className="client-hero">
         <div>
           <h1>Welcome, {clientName}</h1>
-          <p className="mini-meta">Your project progress, invoices, files, and messages in one place.</p>
+          <p className="mini-meta">Follow your event progress, balances, and messages with Bridget Pope Designs.</p>
+          {projects.length > 1 ? (
+            <p className="mini-meta" style={{ marginTop: 8 }}>
+              Projects:{" "}
+              {projects.map((item, index) => (
+                <span key={item.id}>
+                  {index > 0 ? " · " : null}
+                  <a href={`/client/dashboard?project=${item.id}`}>{item.event_name}</a>
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
         <article className="card event-summary">
           <div>
@@ -124,18 +135,7 @@ export default async function ClientDashboardPage({
             <strong style={{ display: "block", fontFamily: "Georgia, serif", fontSize: 22 }}>{eventName}</strong>
             <p className="mini-meta">{eventDate} · {venue}</p>
             <p><span className="status">{status}</span></p>
-            {projects.length > 1 ? (
-              <p className="mini-meta" style={{ marginTop: 8 }}>
-                Projects:{" "}
-                {projects.map((item, index) => (
-                  <span key={item.id}>
-                    {index > 0 ? " · " : null}
-                    <a href={`/client/dashboard?project=${item.id}`}>{item.event_name}</a>
-                  </span>
-                ))}
-              </p>
-            ) : null}
-            <ButtonLink href="/client/event" variant="light">View Event Details</ButtonLink>
+            <a className="panel-link" href="/client/event">View event details</a>
           </div>
           <img src="/images/client-event.png" alt="Client event preview" />
         </article>
@@ -143,7 +143,7 @@ export default async function ClientDashboardPage({
 
       <EventProgress status={project?.status ?? "pending"} />
 
-      <div className="client-grid">
+      <div className="client-focus-grid section-focus">
         <PaymentCard
           balanceDue={Number(openInvoice?.balance_due ?? 0)}
           dueDate={openInvoice?.due_date}
@@ -152,84 +152,47 @@ export default async function ClientDashboardPage({
         />
 
         <section className="panel">
-          <h2>Invoices</h2>
+          <h2>Next Up</h2>
           <ul className="list">
-            {invoiceRows.map((invoice) => (
-              <li key={invoice.id}>
+            {latestDesign ? (
+              <li>
                 <span>
-                  <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
-                  <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
+                  Design update
+                  <span className="mini-meta">{latestDesign.title}</span>
                 </span>
-                <span className="status">{invoice.status}</span>
+                <span className="status">{latestDesign.status}</span>
               </li>
-            ))}
-            {!invoiceRows.length ? <li>No invoices to review yet.</li> : null}
-          </ul>
-          <ButtonLink href="/client/invoices" variant="light"><ReceiptText size={15} /> All Invoices</ButtonLink>
-        </section>
-
-        <section className="panel">
-          <h2>Files</h2>
-          <ul className="list">
-            {(files ?? []).map((file) => (
-              <li key={file.id}>
-                <span>{file.file_name}</span>
-                <span className="mini-meta">{formatDateTime(file.created_at)}</span>
-              </li>
-            ))}
-            {!(files ?? []).length ? <li>No shared files yet.</li> : null}
-          </ul>
-          <ButtonLink href="/client/files" variant="light"><FolderOpen size={15} /> Project Files</ButtonLink>
-        </section>
-
-        <section className="panel">
-          <h2>Design Updates</h2>
-          <ul className="list">
-            {(designUpdates ?? []).map((update) => (
-              <li key={update.id}>
-                <span>{update.title}</span>
-                <span className="status">{update.status}</span>
-              </li>
-            ))}
-            {!(designUpdates ?? []).length ? <li>No design updates shared yet.</li> : null}
-          </ul>
-          <ButtonLink href="/client/designs" variant="light"><Palette size={15} /> View Designs</ButtonLink>
-        </section>
-
-        <section className="panel">
-          <h2>Upcoming Meetings</h2>
-          <ul className="list">
-            {(meetings ?? []).map((meeting) => (
-              <li key={meeting.id}>
+            ) : null}
+            {nextMeeting ? (
+              <li>
                 <span>
-                  {meeting.title}
-                  <span className="mini-meta">{formatDateTime(meeting.starts_at)}</span>
+                  Upcoming meeting
+                  <span className="mini-meta">{nextMeeting.title} · {formatDateTime(nextMeeting.starts_at)}</span>
                 </span>
               </li>
-            ))}
-            {!(meetings ?? []).length ? <li>No upcoming meetings scheduled.</li> : null}
-          </ul>
-          <ButtonLink href="/client/event" variant="light"><CalendarDays size={15} /> Event Details</ButtonLink>
-        </section>
-
-        <section className="panel">
-          <h2>Recent Activity</h2>
-          <ul className="list">
-            {(activity ?? []).map((item) => (
-              <li key={item.id}>
-                <span>{item.action.replace(/_/g, " ")}</span>
-                <span className="mini-meta">{formatDateTime(item.created_at)}</span>
+            ) : null}
+            {(files ?? [])[0] ? (
+              <li>
+                <span>
+                  Latest file
+                  <span className="mini-meta">{(files ?? [])[0].file_name}</span>
+                </span>
               </li>
-            ))}
-            {!(activity ?? []).length ? <li>No recent project activity.</li> : null}
+            ) : null}
+            {!latestDesign && !nextMeeting && !(files ?? []).length ? (
+              <li>Your designer will share updates here as planning moves forward.</li>
+            ) : null}
           </ul>
-          <ButtonLink href="/client/proposals" variant="light"><FileSignature size={15} /> Proposals & Contracts</ButtonLink>
+          <a className="panel-link" href="/client/designs">View designs & files</a>
         </section>
       </div>
 
-      <div className="client-grid" style={{ marginTop: 16 }}>
+      <div className="client-focus-grid" style={{ marginTop: 16 }}>
         <Timeline items={milestoneItems} />
         <Checklist items={checklistItems} />
+      </div>
+
+      <div className="client-focus-grid" style={{ marginTop: 16 }}>
         <section className="panel">
           <h2>Messages</h2>
           {conversation?.id ? (
@@ -245,7 +208,39 @@ export default async function ClientDashboardPage({
           ) : (
             <p className="mini-meta">Messaging will appear once your project conversation is ready.</p>
           )}
-          <ButtonLink href="/client/messages" variant="light"><MessageSquare size={15} /> Open Messages</ButtonLink>
+          <a className="panel-link" href="/client/messages">Open full inbox</a>
+        </section>
+
+        <section className="panel">
+          <h2>Recent Activity</h2>
+          <ul className="list">
+            {(activity ?? []).map((item) => (
+              <li key={item.id}>
+                <span>{item.action.replace(/_/g, " ")}</span>
+                <span className="mini-meta">{formatDateTime(item.created_at)}</span>
+              </li>
+            ))}
+            {!(activity ?? []).length ? <li>No recent project activity.</li> : null}
+          </ul>
+          {invoiceRows.length ? (
+            <>
+              <h2 style={{ marginTop: 22 }}>Invoices</h2>
+              <ul className="list">
+                {invoiceRows.slice(0, 3).map((invoice) => (
+                  <li key={invoice.id}>
+                    <span>
+                      <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
+                      <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
+                    </span>
+                    <span className="status">{invoice.status}</span>
+                  </li>
+                ))}
+              </ul>
+              <a className="panel-link" href="/client/invoices">All invoices</a>
+            </>
+          ) : (
+            <a className="panel-link" href="/client/proposals">Proposals & contracts</a>
+          )}
         </section>
       </div>
     </div>

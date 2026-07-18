@@ -8,10 +8,20 @@ export type QueueAction = {
   href: string;
 };
 
-export function QueueItemActions({ actions }: { actions: QueueAction[] }) {
+export function QueueItemActions({
+  primaryAction,
+  actions,
+}: {
+  primaryAction?: QueueAction | null;
+  actions: QueueAction[];
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+
+  const secondaryActions = actions.filter(
+    (action) => !primaryAction || action.href !== primaryAction.href || action.label !== primaryAction.label,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -29,56 +39,42 @@ export function QueueItemActions({ actions }: { actions: QueueAction[] }) {
     };
   }, [open]);
 
-  if (!actions.length) return null;
+  if (!primaryAction && !secondaryActions.length) return null;
 
   return (
-    <div className="queue-actions" ref={rootRef} style={{ position: "relative" }}>
-      <button
-        aria-controls={menuId}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className="btn btn-light"
-        onClick={() => setOpen((value) => !value)}
-        type="button"
-      >
-        Actions
-        <ChevronDown size={14} />
-      </button>
-      {open ? (
-        <div
-          className="queue-actions-menu"
-          id={menuId}
-          role="menu"
-          style={{
-            position: "absolute",
-            right: 0,
-            top: "calc(100% + 6px)",
-            minWidth: 180,
-            zIndex: 20,
-            background: "var(--surface, #fff)",
-            border: "1px solid var(--border, #e5ddd8)",
-            borderRadius: 10,
-            boxShadow: "0 10px 30px rgba(40, 24, 20, 0.12)",
-            padding: 6,
-          }}
-        >
-          {actions.map((action) => (
-            <a
-              href={action.href}
-              key={`${action.label}-${action.href}`}
-              onClick={() => setOpen(false)}
-              role="menuitem"
-              style={{
-                display: "block",
-                padding: "8px 10px",
-                borderRadius: 8,
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              {action.label}
-            </a>
-          ))}
+    <div className="queue-row-actions" ref={rootRef}>
+      {primaryAction ? (
+        <a className="btn btn-quiet" href={primaryAction.href}>
+          {primaryAction.label}
+        </a>
+      ) : null}
+      {secondaryActions.length ? (
+        <div className="queue-actions">
+          <button
+            aria-controls={menuId}
+            aria-expanded={open}
+            aria-haspopup="menu"
+            className="btn btn-quiet queue-actions-trigger"
+            onClick={() => setOpen((value) => !value)}
+            type="button"
+          >
+            Actions
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+          {open ? (
+            <div className="queue-actions-menu" id={menuId} role="menu">
+              {secondaryActions.map((action) => (
+                <a
+                  href={action.href}
+                  key={`${action.label}-${action.href}`}
+                  onClick={() => setOpen(false)}
+                  role="menuitem"
+                >
+                  {action.label}
+                </a>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

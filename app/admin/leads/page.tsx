@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getLeadQueueActions } from "@/lib/admin/lead-queue-actions";
 import {
   archiveLead,
   convertLeadToClient,
@@ -79,44 +81,37 @@ export default async function LeadsPage({
               <th>Prospect</th>
               <th>Event</th>
               <th>Date</th>
-              <th>Budget</th>
-              <th>Source</th>
-              <th>Submitted</th>
-              <th>Last Contact</th>
               <th>Status</th>
-              <th />
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
             {leads.map((lead) => {
-              const lastContact = lead.status !== "new" ? formatDateTime(lead.updated_at) : "No contact yet";
+              const { primaryAction, actions } = getLeadQueueActions(lead, statusFilter);
               return (
                 <tr key={lead.id}>
                   <td>
                     <a href={`/admin/leads/${lead.id}`}>{lead.first_name} {lead.last_name}</a>
-                    <div className="mini-meta">{lead.email} · {lead.phone}</div>
+                    <div className="mini-meta">{lead.email}</div>
                   </td>
-                  <td>{lead.event_type}</td>
-                  <td>{formatDate(lead.event_date, "Date pending")}</td>
-                  <td>{lead.estimated_budget || "Not set"}</td>
-                  <td>{(lead.source || "public_website").replace(/_/g, " ")}</td>
-                  <td>{formatDateTime(lead.created_at)}</td>
-                  <td>{lastContact}</td>
+                  <td>
+                    {lead.event_type}
+                    <div className="mini-meta">{(lead.source || "public_website").replace(/_/g, " ")}</div>
+                  </td>
+                  <td>
+                    {formatDate(lead.event_date, "Date pending")}
+                    <div className="mini-meta">Submitted {formatDateTime(lead.created_at)}</div>
+                  </td>
                   <td><span className="status">{leadStatusLabels[lead.status] ?? lead.status}</span></td>
                   <td>
-                    <div className="topbar-actions">
-                      <ButtonLink href={`/admin/leads?action=contacted&id=${lead.id}${statusFilter ? `&status=${statusFilter}` : ""}`} variant="light">Mark Contacted</ButtonLink>
-                      <ButtonLink href={`/admin/leads?action=schedule&id=${lead.id}${statusFilter ? `&status=${statusFilter}` : ""}`} variant="light">Schedule</ButtonLink>
-                      <ButtonLink href={`/admin/leads?action=convert&id=${lead.id}${statusFilter ? `&status=${statusFilter}` : ""}`} variant="light">Approve & Create</ButtonLink>
-                      <ButtonLink href={`/admin/leads?action=archive&id=${lead.id}${statusFilter ? `&status=${statusFilter}` : ""}`} variant="light">Archive</ButtonLink>
-                    </div>
+                    <QueueItemActions primaryAction={primaryAction} actions={actions} />
                   </td>
                 </tr>
               );
             })}
             {!leads.length ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={5}>
                   <strong>No consultation requests yet</strong>
                   <div className="mini-meta">New landing-page inquiries will appear here as soon as the public form is submitted.</div>
                 </td>

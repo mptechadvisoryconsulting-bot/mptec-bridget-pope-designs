@@ -163,11 +163,13 @@ export default async function AdminDashboardPage() {
                   <div className="mini-meta">{lead.email} · {lead.phone}</div>
                 </div>
                 <QueueItemActions
+                  primaryAction={{ label: "Review", href: `/admin/leads/${lead.id}` }}
                   actions={[
-                    { label: "View", href: `/admin/leads/${lead.id}` },
-                    { label: "Convert", href: `/admin/leads/${lead.id}?action=convert` },
+                    { label: "View details", href: `/admin/leads/${lead.id}` },
+                    { label: "Mark contacted", href: `/admin/leads/${lead.id}?action=contacted` },
                     { label: "Schedule", href: `/admin/leads/${lead.id}?action=schedule` },
-                    { label: "Create Proposal", href: `/admin/proposals/new?leadId=${lead.id}` },
+                    { label: "Approve & create client", href: `/admin/leads/${lead.id}?action=convert` },
+                    { label: "Create proposal", href: `/admin/proposals/new?leadId=${lead.id}` },
                   ]}
                 />
               </article>
@@ -221,11 +223,12 @@ export default async function AdminDashboardPage() {
                   <span className="status">{invoice.status}</span>
                 </div>
                 <QueueItemActions
+                  primaryAction={{ label: "Open", href: `/admin/invoices/${invoice.id}` }}
                   actions={[
-                    { label: "View", href: `/admin/invoices/${invoice.id}` },
-                    { label: "Record Payment", href: `/admin/invoices/${invoice.id}#record-payment` },
+                    { label: "View invoice", href: `/admin/invoices/${invoice.id}` },
+                    { label: "Record payment", href: `/admin/invoices/${invoice.id}#record-payment` },
                     ...(invoice.project_id
-                      ? [{ label: "Create Proposal", href: `/admin/proposals/new?projectId=${invoice.project_id}` }]
+                      ? [{ label: "Create proposal", href: `/admin/proposals/new?projectId=${invoice.project_id}` }]
                       : []),
                   ]}
                 />
@@ -268,10 +271,11 @@ export default async function AdminDashboardPage() {
                   <span className="status">{project.status}</span>
                 </div>
                 <QueueItemActions
+                  primaryAction={{ label: "Open", href: `/admin/projects/${project.id}` }}
                   actions={[
-                    { label: "View", href: `/admin/projects/${project.id}` },
-                    { label: "Create Proposal", href: `/admin/proposals/new?projectId=${project.id}` },
-                    { label: "Record Payment", href: `/admin/payments` },
+                    { label: "View project", href: `/admin/projects/${project.id}` },
+                    { label: "Create proposal", href: `/admin/proposals/new?projectId=${project.id}` },
+                    { label: "Record payment", href: `/admin/payments` },
                   ]}
                 />
               </article>
