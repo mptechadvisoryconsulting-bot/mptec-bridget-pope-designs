@@ -6,6 +6,7 @@ declare module "next/dist/lib/metadata/types/metadata-interface.js" {
 declare module "next/server.js" {
   type NextMiddlewareResponse = Response & {
     cookies: {
+      getAll(): Array<{ name: string; value: string }>;
       set(name: string, value: string, options?: Record<string, unknown>): void;
     };
   };
@@ -20,7 +21,7 @@ declare module "next/server.js" {
 
   export const NextResponse: {
     json: typeof Response.json;
-    redirect(input: string | URL, init?: ResponseInit): Response;
+    redirect(input: string | URL, init?: ResponseInit): NextMiddlewareResponse;
     next(init?: ResponseInit & { request?: Request }): NextMiddlewareResponse;
   };
 }
@@ -28,6 +29,7 @@ declare module "next/server.js" {
 declare module "next/server" {
   type NextMiddlewareResponse = Response & {
     cookies: {
+      getAll(): Array<{ name: string; value: string }>;
       set(name: string, value: string, options?: Record<string, unknown>): void;
     };
   };
@@ -42,7 +44,7 @@ declare module "next/server" {
 
   export const NextResponse: {
     json: typeof Response.json;
-    redirect(input: string | URL, init?: ResponseInit): Response;
+    redirect(input: string | URL, init?: ResponseInit): NextMiddlewareResponse;
     next(init?: ResponseInit & { request?: Request }): NextMiddlewareResponse;
   };
 }
