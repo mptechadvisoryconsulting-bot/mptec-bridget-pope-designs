@@ -17,7 +17,7 @@ function withNoStore<T extends { headers: Headers }>(response: T): T {
   return response;
 }
 
-function redirectPath(request: NextRequest, pathname: string, fromResponse?: NextResponse) {
+function redirectPath(request: NextRequest, pathname: string, fromResponse?: ReturnType<typeof NextResponse.next>) {
   const url = (request.nextUrl as URL & { clone: () => URL }).clone();
   url.pathname = pathname;
   url.search = "";
