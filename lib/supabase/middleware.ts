@@ -75,8 +75,13 @@ export async function updateSession(request: NextRequest) {
     return redirectPath(request, "/client/dashboard");
   }
 
-  if (request.nextUrl.pathname === "/client" || request.nextUrl.pathname === "/client/") {
-    return redirectPath(request, adminRoles.has(profile.role) ? "/admin" : "/client/dashboard");
+  // Exact /client root: clients go to their dashboard. Owners/admins continue to the
+  // OwnerClientPortalGate page (do not silently bounce them into /admin).
+  if (
+    (request.nextUrl.pathname === "/client" || request.nextUrl.pathname === "/client/") &&
+    profile.role === "client"
+  ) {
+    return redirectPath(request, "/client/dashboard");
   }
 
   return withNoStore(response);
