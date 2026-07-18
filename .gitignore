@@ -20,5 +20,6 @@ supabase/.temp/
 *-out.txt
 *-out.json
 test-results/
+.e2e-artifacts/
 playwright-report/
 .tmp/
