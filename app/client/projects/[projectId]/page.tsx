@@ -8,12 +8,14 @@ export const dynamic = "force-dynamic";
 export default async function ClientProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const { profile, client } = await requireClientPortalContext(`/client/projects/${projectId}`);
+  if (!client?.id) notFound();
+
   const supabase = createAdminClient();
   const { data: project } = await supabase
     .from("projects")
     .select("id,client_id,event_name,event_type,event_date,venue_name,city,status,budget")
     .eq("id", projectId)
-    .eq("client_id", client?.id)
+    .eq("client_id", client.id)
     .maybeSingle();
 
   if (!project) notFound();

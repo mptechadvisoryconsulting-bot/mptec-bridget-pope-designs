@@ -14,7 +14,14 @@ export async function POST(request: Request) {
   const admin = await requireAdminProfile();
   if (admin.error) return admin.error;
 
-  const input = invoiceSchema.parse(await request.json());
+  const parsed = invoiceSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, message: parsed.error.issues[0]?.message ?? "Invalid invoice payload." },
+      { status: 400 },
+    );
+  }
+  const input = parsed.data;
   const supabase = createAdminClient();
 
   const { data: project } = await supabase

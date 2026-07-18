@@ -36,12 +36,18 @@ export function fallbackGalleryItems(): PublicGalleryItem[] {
   }));
 }
 
+type GalleryOptions = {
+  /** When true (default), use curated static images if no public_gallery uploads exist. */
+  allowFallback?: boolean;
+};
+
 /** Public landing/gallery photos only — excludes invoice template assets and other public files. */
-export async function getPublicGalleryItems(limit = 24): Promise<PublicGalleryItem[]> {
+export async function getPublicGalleryItems(limit = 24, options: GalleryOptions = {}): Promise<PublicGalleryItem[]> {
   noStore();
+  const allowFallback = options.allowFallback ?? true;
 
   if (!hasSupabaseAdminEnv()) {
-    return fallbackGalleryItems();
+    return allowFallback ? fallbackGalleryItems().slice(0, limit) : [];
   }
 
   const { data, error } = await createAdminClient()
@@ -54,7 +60,8 @@ export async function getPublicGalleryItems(limit = 24): Promise<PublicGalleryIt
     .limit(limit);
 
   if (error || !data?.length) {
-    return [];
+    // Public marketing surfaces stay populated; admin managers opt out so fallbacks are not deletable.
+    return allowFallback ? fallbackGalleryItems().slice(0, limit) : [];
   }
 
   return data.map((file) => ({
