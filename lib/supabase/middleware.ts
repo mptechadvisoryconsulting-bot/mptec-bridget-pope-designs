@@ -17,11 +17,19 @@ function withNoStore<T extends { headers: Headers }>(response: T): T {
   return response;
 }
 
-function redirectPath(request: NextRequest, pathname: string) {
+function redirectPath(request: NextRequest, pathname: string, fromResponse?: NextResponse) {
   const url = (request.nextUrl as URL & { clone: () => URL }).clone();
   url.pathname = pathname;
   url.search = "";
-  return withNoStore(NextResponse.redirect(url));
+  const redirectResponse = withNoStore(NextResponse.redirect(url));
+  // Preserve auth cookies refreshed on the middleware response. A bare redirect()
+  // from a Server Component can drop those Set-Cookie headers and sign the user out.
+  if (fromResponse) {
+    fromResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    });
+  }
+  return redirectResponse;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -72,13 +80,21 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (request.nextUrl.pathname.startsWith("/admin") && !adminRoles.has(profile.role)) {
-    return redirectPath(request, "/client/dashboard");
+    return redirectPath(request, "/client/dashboard", response);
   }
 
-  // Exact /client root: clients go to their dashboard; owners/admins get the
-  // explicit client-portal access page (never a silent bounce into /admin).
-  if (request.nextUrl.pathname === "/client" || request.nextUrl.pathname === "/client/") {
-    return redirectPath(request, adminRoles.has(profile.role) ? "/auth/client-portal" : "/client/dashboard");
+  // Owners/admins never enter /client/* — send them to the explicit access page
+  // (keeps refreshed auth cookies on the redirect response).
+  if (request.nextUrl.pathname.startsWith("/client") && adminRoles.has(profile.role)) {
+    return redirectPath(request, "/auth/client-portal", response);
+  }
+
+  // Exact /client root for clients → dashboard.
+  if (
+    (request.nextUrl.pathname === "/client" || request.nextUrl.pathname === "/client/") &&
+    profile.role === "client"
+  ) {
+    return redirectPath(request, "/client/dashboard", response);
   }
 
   return withNoStore(response);
