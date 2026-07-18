@@ -47,7 +47,7 @@ const navGroups: AdminNavGroup[] = [
     items: [
       { label: "Consultation Requests", href: "/admin/leads?status=new", icon: Users },
       { label: "Leads", href: "/admin/leads", icon: CalendarDays },
-      { label: "Clients", href: "/admin/clients", icon: Users },
+      { label: "Clients / Invite", href: "/admin/clients#invite-client", icon: Users },
     ],
   },
   {

@@ -172,7 +172,8 @@ test("owner and client sessions preserve the internal billing project workflow",
     await login(page, adminUsername!, adminPassword!, "/admin");
     await expect(page.getByRole("heading", { name: /bridget pope designs/i })).toBeVisible();
     await page.goto("/client", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/admin/);
+    await expect(page.getByRole("heading", { name: /client portal requires a client login/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /invite client/i })).toBeVisible();
 
     const adminRoutes = [
       "/admin",
@@ -215,7 +216,7 @@ test("owner and client sessions preserve the internal billing project workflow",
       await clearSession(page);
       await login(page, ownerUsername, ownerPassword, "/admin");
       await page.goto("/client/", { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/admin/);
+      await expect(page.getByRole("heading", { name: /client portal requires a client login/i })).toBeVisible();
       await clearSession(page);
       await login(page, adminUsername!, adminPassword!, "/admin");
     }

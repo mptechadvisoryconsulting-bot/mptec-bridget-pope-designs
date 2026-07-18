@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { OwnerClientPortalGate } from "@/components/client/OwnerClientPortalGate";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export default async function ClientRootPage() {
   }
 
   if (adminRoles.has(profile.role)) {
-    redirect("/admin");
+    return <OwnerClientPortalGate role={profile.role} />;
   }
 
   if (profile.role === "client") {

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
 import { DownloadInvoicePdfButton } from "@/components/invoices/DownloadInvoicePdfButton";
+import { InvoiceDocumentActions } from "@/components/invoices/InvoiceDocumentActions";
 import { InvoicePaymentHistory } from "@/components/invoices/InvoicePaymentHistory";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
 import { RecordManualPaymentForm } from "@/components/invoices/RecordManualPaymentForm";
@@ -35,6 +36,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
   const profile = Array.isArray(client?.bpd_profiles) ? client?.bpd_profiles[0] : client?.bpd_profiles;
   const project = Array.isArray(invoice.bpd_projects) ? invoice.bpd_projects[0] : invoice.bpd_projects;
   const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.email || "Client";
+  const canEdit = !["paid", "cancelled", "void", "refunded", "partially_refunded"].includes(invoice.status);
 
   return (
     <div>
@@ -44,7 +46,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           <h1>{invoice.invoice_number}</h1>
         </div>
         <div className="topbar-actions">
-          {!["paid", "cancelled", "refunded", "partially_refunded"].includes(invoice.status) ? (
+          {canEdit ? (
             <ButtonLink href={`/admin/invoices/${invoice.id}/edit`} variant="light">
               <Pencil size={16} /> Edit Invoice
             </ButtonLink>
@@ -52,6 +54,12 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           <SendInvoiceButton invoiceId={invoice.id} />
           <DownloadInvoicePdfButton invoiceId={invoice.id} />
           <PrintInvoiceButton />
+          <InvoiceDocumentActions
+            amountPaid={Number(invoice.amount_paid ?? 0)}
+            extraActions={[{ label: "Upload PDF", href: "#upload-invoice-pdf" }]}
+            invoiceId={invoice.id}
+            status={invoice.status}
+          />
         </div>
       </div>
       {Number(invoice.active_version ?? 1) > 1 ? (

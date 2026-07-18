@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { QueueItemActions } from "@/components/admin/QueueItemActions";
+import { ImportProposalPdfForm } from "@/components/proposals/ImportProposalPdfForm";
+import { ProposalDocumentActions } from "@/components/proposals/ProposalDocumentActions";
+import { ListPageActions } from "@/components/admin/ListPageActions";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/dates";
@@ -33,6 +35,7 @@ const statusLabels: Record<string, string> = {
   approved: "Approved",
   rejected: "Rejected",
   expired: "Expired",
+  cancelled: "Cancelled",
 };
 
 export default async function ProposalsPage({ searchParams }: { searchParams: Promise<{ action?: string; id?: string }> }) {
@@ -45,19 +48,20 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
     redirect("/admin/proposals");
   }
 
-  const { data } = await supabase
-    .from("proposals")
-    .select("id,proposal_number,title,total,status,created_at,updated_at,project_id")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data }, { data: allProjects }] = await Promise.all([
+    supabase
+      .from("proposals")
+      .select("id,proposal_number,title,total,status,created_at,updated_at,project_id")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase.from("projects").select("id,event_name,client_id").order("created_at", { ascending: false }),
+  ]);
 
   const proposalRows = data ?? [];
   const projectIds = [...new Set(proposalRows.map((row) => row.project_id).filter(Boolean))];
-  const { data: projects } = projectIds.length
-    ? await supabase.from("projects").select("id,event_name,client_id").in("id", projectIds)
-    : { data: [] as { id: string; event_name: string | null; client_id: string | null }[] };
-  const projectById = new Map((projects ?? []).map((project) => [project.id, project]));
-  const clientIds = [...new Set([...(projects ?? [])].map((project) => project.client_id).filter(Boolean))] as string[];
+  const projectsForRows = (allProjects ?? []).filter((project) => projectIds.includes(project.id));
+  const projectById = new Map((allProjects ?? []).map((project) => [project.id, project]));
+  const clientIds = [...new Set(projectsForRows.map((project) => project.client_id).filter(Boolean))] as string[];
   const { data: clients } = clientIds.length
     ? await supabase.from("clients").select("id,bpd_profiles(first_name,last_name)").in("id", clientIds)
     : { data: [] as { id: string; bpd_profiles: unknown }[] };
@@ -77,6 +81,11 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
     };
   }) as ProposalRow[];
 
+  const importProjects = ((allProjects ?? []) as { id: string; event_name: string | null }[]).map((project) => ({
+    id: project.id,
+    name: project.event_name || "Project",
+  }));
+
   return (
     <div>
       <div className="dashboard-topbar">
@@ -85,7 +94,14 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
           <h1>Proposals</h1>
           <p className="mini-meta">Draft, sent, viewed, and approved proposals tied to project workspaces.</p>
         </div>
-        <ButtonLink href="/admin/proposals/new">New Proposal</ButtonLink>
+        <div className="topbar-actions">
+          <ButtonLink href="/admin/proposals/new">New Proposal</ButtonLink>
+          <ListPageActions importHref="#import-proposal-pdf" importLabel="Import PDF" />
+        </div>
+      </div>
+
+      <div className="dashboard-grid" style={{ marginBottom: 16 }}>
+        <ImportProposalPdfForm projects={importProjects} />
       </div>
 
       <section className="panel">
@@ -108,7 +124,7 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
               const client = first(project?.bpd_clients);
               const clientProfile = first(client?.bpd_profiles);
               const clientName = [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || "Client";
-              const sentAt = proposal.status !== "draft" ? proposal.updated_at : null;
+              const sentAt = proposal.status !== "draft" && proposal.status !== "cancelled" ? proposal.updated_at : null;
 
               return (
                 <tr key={proposal.id}>
@@ -119,21 +135,23 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
                   <td>{formatDateTime(sentAt, "Not sent")}</td>
                   <td><span className="status">{statusLabels[proposal.status] ?? proposal.status}</span></td>
                   <td>
-                    <QueueItemActions
-                      primaryAction={{
-                        label: proposal.status === "draft" ? "Send" : "Preview",
-                        href:
-                          proposal.status === "draft"
-                            ? `/admin/proposals?action=send&id=${proposal.id}`
-                            : `/admin/proposals/${proposal.id}`,
-                      }}
-                      actions={[
+                    <ProposalDocumentActions
+                      extraActions={[
                         { label: "Preview", href: `/admin/proposals/${proposal.id}` },
                         {
                           label: proposal.status === "draft" ? "Send" : "Resend",
                           href: `/admin/proposals?action=send&id=${proposal.id}`,
                         },
                       ]}
+                      primaryHref={
+                        proposal.status === "draft"
+                          ? `/admin/proposals?action=send&id=${proposal.id}`
+                          : `/admin/proposals/${proposal.id}`
+                      }
+                      primaryLabel={proposal.status === "draft" ? "Send" : "Preview"}
+                      proposalId={proposal.id}
+                      redirectOnDelete={null}
+                      status={proposal.status}
                     />
                   </td>
                 </tr>

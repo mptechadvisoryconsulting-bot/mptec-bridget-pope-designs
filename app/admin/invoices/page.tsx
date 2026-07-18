@@ -1,4 +1,7 @@
 import { InvoiceCreateForm } from "@/components/invoices/InvoiceCreateForm";
+import { ImportInvoicePdfForm } from "@/components/invoices/ImportInvoicePdfForm";
+import { InvoiceDocumentActions } from "@/components/invoices/InvoiceDocumentActions";
+import { ListPageActions } from "@/components/admin/ListPageActions";
 import { currency } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -40,6 +43,7 @@ type InvoiceRow = {
   invoice_type: string;
   total: number;
   balance_due: number;
+  amount_paid?: number | null;
   status: string;
   due_date?: string | null;
   bpd_clients?: ClientRow | ClientRow[] | null;
@@ -70,9 +74,9 @@ export default async function InvoicesPage() {
     supabase.from("invoice_templates").select("id,name,is_default").order("is_default", { ascending: false }),
     supabase
       .from("invoices")
-      .select("id,invoice_number,invoice_type,total,balance_due,status,due_date,bpd_clients!client_id(bpd_profiles(first_name,last_name,username,email)),bpd_projects!project_id(event_name)")
+      .select("id,invoice_number,invoice_type,total,balance_due,amount_paid,status,due_date,bpd_clients!client_id(bpd_profiles(first_name,last_name,username,email)),bpd_projects!project_id(event_name)")
       .order("created_at", { ascending: false })
-      .limit(10),
+      .limit(50),
   ]);
 
   const clientOptions = ((clients ?? []) as ClientRow[]).map((client) => {
@@ -107,10 +111,18 @@ export default async function InvoicesPage() {
           <span className="eyebrow">Billing</span>
           <h1>Invoices</h1>
         </div>
+        <ListPageActions
+          importHref="#import-invoice-pdf"
+          importLabel="Import PDF"
+          primaryAction={{ label: "New invoice", href: "#create-invoice" }}
+        />
       </div>
 
       <div className="dashboard-grid">
-        <InvoiceCreateForm clients={clientOptions} projects={projectOptions} proposals={proposalOptions} templates={templateOptions} />
+        <div id="create-invoice">
+          <InvoiceCreateForm clients={clientOptions} projects={projectOptions} proposals={proposalOptions} templates={templateOptions} />
+        </div>
+        <ImportInvoicePdfForm clients={clientOptions} projects={projectOptions} />
 
         <section className="panel span-2">
           <h2>Recent Invoices</h2>
@@ -123,6 +135,7 @@ export default async function InvoicesPage() {
                 <th>Status</th>
                 <th>Total</th>
                 <th>Balance</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -138,12 +151,23 @@ export default async function InvoicesPage() {
                     <td><span className="status">{invoice.status}</span></td>
                     <td>{currency(Number(invoice.total ?? 0))}</td>
                     <td>{currency(Number(invoice.balance_due ?? 0))}</td>
+                    <td>
+                      <InvoiceDocumentActions
+                        amountPaid={Number(invoice.amount_paid ?? 0)}
+                        extraActions={[{ label: "Preview", href: `/admin/invoices/${invoice.id}` }]}
+                        invoiceId={invoice.id}
+                        primaryHref={`/admin/invoices/${invoice.id}`}
+                        primaryLabel="Open"
+                        redirectOnDelete={null}
+                        status={invoice.status}
+                      />
+                    </td>
                   </tr>
                 );
               })}
               {!invoices?.length ? (
                 <tr>
-                  <td colSpan={6}>No invoices yet.</td>
+                  <td colSpan={7}>No invoices yet.</td>
                 </tr>
               ) : null}
             </tbody>

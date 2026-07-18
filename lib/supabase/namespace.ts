@@ -42,6 +42,7 @@ const bucketAliases = {
   "inquiry-pdfs": "bpd-inquiry-pdfs",
   "invoice-template-assets": "bpd-invoice-template-assets",
   "invoice-uploads": "bpd-invoice-uploads",
+  "proposal-uploads": "bpd-proposal-uploads",
   "project-files": "bpd-project-files",
 } as const;
 

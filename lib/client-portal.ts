@@ -39,7 +39,9 @@ export async function requireClientPortalContext(
   }
 
   if (!profile.active || profile.role !== "client") {
-    redirect(profile.role === "owner" || profile.role === "admin" ? "/admin" : "/auth/login?error=profile");
+    // Owner/admin hits are handled by app/client/layout.tsx (OwnerClientPortalGate).
+    // Keep a safe fallback for any direct helper use outside that layout.
+    redirect(profile.role === "owner" || profile.role === "admin" ? "/client" : "/auth/login?error=profile");
   }
 
   const supabase = createAdminClient();

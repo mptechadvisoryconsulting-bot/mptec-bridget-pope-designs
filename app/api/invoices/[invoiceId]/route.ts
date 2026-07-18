@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canDeleteInvoice } from "@/lib/billing/document-actions";
 import { calculateInvoiceTotals } from "@/lib/billing/invoice-calculations";
 import { resolveInvoiceTemplate } from "@/lib/invoices/templates";
 import { invoiceEditSchema } from "@/lib/validation/invoice-edit-schema";
@@ -184,4 +185,62 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ in
   }
 
   return NextResponse.json({ success: true, invoice: updatedInvoice, versionNumber: nextVersion });
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ invoiceId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
+  const { invoiceId } = await params;
+  const supabase = createAdminClient();
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("id,status,amount_paid,project_id,invoice_number")
+    .eq("id", invoiceId)
+    .maybeSingle();
+
+  if (!invoice) return notFound();
+
+  if (!canDeleteInvoice(String(invoice.status), Number(invoice.amount_paid ?? 0))) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          invoice.status === "draft"
+            ? "Draft invoices with recorded payments cannot be deleted. Cancel/void instead."
+            : "Only draft invoices with no payments can be deleted. Cancel/void sent invoices instead.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { count: paymentCount } = await supabase
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("invoice_id", invoiceId);
+
+  if ((paymentCount ?? 0) > 0) {
+    return NextResponse.json(
+      { success: false, message: "This invoice has payment history and cannot be deleted. Cancel/void it instead." },
+      { status: 400 },
+    );
+  }
+
+  await supabase.from("invoice_items").delete().eq("invoice_id", invoiceId);
+  await supabase.from("invoice_versions").delete().eq("invoice_id", invoiceId);
+  const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+  if (error) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  }
+
+  await supabase.from("activity_logs").insert({
+    actor_id: admin.profile.id,
+    project_id: invoice.project_id,
+    action: "invoice_deleted",
+    entity_type: "invoice",
+    entity_id: invoiceId,
+    metadata: { invoice_number: invoice.invoice_number },
+  });
+
+  return NextResponse.json({ success: true, message: "Invoice deleted." });
 }

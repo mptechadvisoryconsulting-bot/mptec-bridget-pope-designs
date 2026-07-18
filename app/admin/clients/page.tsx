@@ -56,9 +56,16 @@ export default async function ClientsPage() {
         <div>
           <span className="eyebrow">Client Management</span>
           <h1>Clients</h1>
+          <p className="mini-meta">
+            Use <strong>Invite Client</strong> below to create a client portal login for testing. The owner dashboard
+            cannot open the client portal while you are logged in as owner — log out, then sign in with the invited
+            client credentials at <code>/auth/login?next=/client/dashboard</code>.
+          </p>
         </div>
       </div>
-      <ClientAccountManager projects={projects} />
+      <div id="invite-client">
+        <ClientAccountManager projects={projects} />
+      </div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { ProposalDocumentActions } from "@/components/proposals/ProposalDocumentActions";
+import { UploadProposalPdfForm } from "@/components/proposals/UploadProposalPdfForm";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
@@ -16,6 +18,7 @@ const statusLabels: Record<string, string> = {
   approved: "Approved",
   rejected: "Rejected",
   expired: "Expired",
+  cancelled: "Cancelled",
 };
 
 export default async function ProposalDetailPage({
@@ -64,7 +67,9 @@ export default async function ProposalDetailPage({
 
   const items = proposal.bpd_proposal_items ?? [];
   const project = projectRow;
-  const sentAt = proposal.status !== "draft" ? proposal.updated_at : null;
+  const sentAt =
+    proposal.sent_at ??
+    (proposal.status !== "draft" && proposal.status !== "cancelled" ? proposal.updated_at : null);
 
   return (
     <div>
@@ -75,14 +80,22 @@ export default async function ProposalDetailPage({
           <p className="mini-meta">{project?.event_name ?? "Project"} for {clientName}</p>
         </div>
         <div className="topbar-actions">
-          <ButtonLink href={`/admin/proposals/${proposalId}?action=send`} variant="secondary">
-            {proposal.status === "draft" ? "Send Proposal" : "Resend Proposal"}
-          </ButtonLink>
+          {proposal.status !== "cancelled" ? (
+            <ButtonLink href={`/admin/proposals/${proposalId}?action=send`} variant="secondary">
+              {proposal.status === "draft" ? "Send Proposal" : "Resend Proposal"}
+            </ButtonLink>
+          ) : null}
           <ButtonLink href="/admin/invoices" variant="light">Create Invoice</ButtonLink>
+          <ProposalDocumentActions
+            extraActions={[{ label: "Upload PDF", href: "#upload-proposal-pdf" }]}
+            proposalId={proposal.id}
+            status={proposal.status}
+          />
         </div>
       </div>
 
       <div className="dashboard-grid">
+        <UploadProposalPdfForm proposalId={proposal.id} />
         <section className="panel span-2">
           <h2>Proposal Items</h2>
           {proposal.introduction ? <p className="mini-meta">{proposal.introduction}</p> : null}
@@ -124,6 +137,12 @@ export default async function ProposalDetailPage({
             <li><span>Expires</span><span>{formatDate(proposal.expiration_date, "No expiration set")}</span></li>
             <li><span>Approved</span><span>{formatDateTime(proposal.approved_at, "Not approved")}</span></li>
           </ul>
+          {proposal.uploaded_pdf_path ? (
+            <p className="mini-meta" style={{ marginTop: 12 }}>
+              Uploaded PDF: {proposal.uploaded_pdf_original_name ?? "proposal.pdf"}
+              {proposal.uploaded_pdf_uploaded_at ? ` · ${formatDateTime(proposal.uploaded_pdf_uploaded_at)}` : ""}
+            </p>
+          ) : null}
         </section>
       </div>
     </div>

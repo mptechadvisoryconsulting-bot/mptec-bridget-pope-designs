@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { canDeleteProposal } from "@/lib/billing/document-actions";
 import { requireAdminProfile } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -19,7 +20,7 @@ const proposalPatchSchema = z.object({
   discountAmount: z.coerce.number().min(0).optional(),
   taxAmount: z.coerce.number().min(0).optional(),
   depositAmount: z.coerce.number().min(0).optional(),
-  status: z.enum(["draft", "sent", "viewed", "approved", "rejected", "expired"]).optional(),
+  status: z.enum(["draft", "sent", "viewed", "approved", "rejected", "expired", "cancelled"]).optional(),
   items: z.array(proposalItemSchema).optional(),
 });
 
@@ -101,4 +102,57 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   if (!data) return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
 
   return NextResponse.json({ success: true, proposal: data });
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ proposalId: string }> }) {
+  const admin = await requireAdminProfile();
+  if (admin.error) return admin.error;
+
+  const { proposalId } = await params;
+  const supabase = createAdminClient();
+  const { data: proposal } = await supabase
+    .from("proposals")
+    .select("id,status,project_id,proposal_number")
+    .eq("id", proposalId)
+    .maybeSingle();
+
+  if (!proposal) {
+    return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
+  }
+
+  if (!canDeleteProposal(String(proposal.status))) {
+    return NextResponse.json(
+      { success: false, message: "Only draft proposals can be deleted. Cancel sent proposals instead." },
+      { status: 400 },
+    );
+  }
+
+  const { count: invoiceCount } = await supabase
+    .from("invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("proposal_id", proposalId);
+
+  if ((invoiceCount ?? 0) > 0) {
+    return NextResponse.json(
+      { success: false, message: "This proposal has linked invoices and cannot be deleted. Cancel it instead." },
+      { status: 400 },
+    );
+  }
+
+  await supabase.from("proposal_items").delete().eq("proposal_id", proposalId);
+  const { error } = await supabase.from("proposals").delete().eq("id", proposalId);
+  if (error) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  }
+
+  await supabase.from("activity_logs").insert({
+    actor_id: admin.profile.id,
+    project_id: proposal.project_id,
+    action: "proposal_deleted",
+    entity_type: "proposal",
+    entity_id: proposalId,
+    metadata: { proposal_number: proposal.proposal_number },
+  });
+
+  return NextResponse.json({ success: true, message: "Proposal deleted." });
 }
