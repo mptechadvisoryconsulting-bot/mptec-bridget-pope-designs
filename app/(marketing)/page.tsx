@@ -4,6 +4,8 @@ import { Gallery } from "@/components/marketing/Gallery";
 import { Hero } from "@/components/marketing/Hero";
 import { Services } from "@/components/marketing/Services";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <div className="page-shell">

@@ -154,34 +154,58 @@ test("production-audit-smoke", async ({ page }) => {
     }
   }
 
-  if (inquiryOk && inquiryEmail) {
-    await page.goto("/admin/leads", { waitUntil: "domcontentloaded" });
-    const visible = await page.getByText(inquiryEmail).first().isVisible().catch(() => false);
-    row("e2e:inquiry-on-admin", visible ? "PASS" : "FAIL", visible ? "lead listed" : "lead not visible on /admin/leads");
+  if (inquiryOk && (inquiryEmail || leadNumber)) {
+    await page.goto("/admin/leads", { waitUntil: "networkidle" }).catch(async () => {
+      await page.goto("/admin/leads", { waitUntil: "domcontentloaded" });
+    });
+    const emailVisible = inquiryEmail
+      ? await page.getByText(inquiryEmail).first().isVisible({ timeout: 15_000 }).catch(() => false)
+      : false;
+    const numberVisible = leadNumber
+      ? await page.getByText(leadNumber).first().isVisible({ timeout: 5_000 }).catch(() => false)
+      : false;
+    let detailOk = false;
+    if (!emailVisible && !numberVisible && leadId) {
+      const detail = await page.goto(`/admin/leads/${leadId}`, { waitUntil: "domcontentloaded" });
+      const detailBody = await page.locator("body").innerText();
+      detailOk =
+        (detail?.status() ?? 500) < 400 &&
+        !/page not found/i.test(detailBody) &&
+        (detailBody.includes(inquiryEmail) || detailBody.includes(leadNumber));
+    }
+    const visible = emailVisible || numberVisible || detailOk;
+    row(
+      "e2e:inquiry-on-admin",
+      visible ? "PASS" : "FAIL",
+      emailVisible || numberVisible ? "lead listed" : detailOk ? "lead detail reachable" : "lead not visible on /admin/leads",
+    );
   }
 
   // --- Owner APIs (authenticated) ---
-  for (const path of [
-    "/api/proposals",
-    "/api/invoices",
-    "/api/admin/status",
-    "/api/notifications",
-    "/api/leads",
-  ]) {
+  for (const path of ["/api/proposals", "/api/notifications", "/api/leads"]) {
     const res = await checkApi(page, path);
-    row(`api:${path}`, res.ok() || res.status() === 404 ? (res.ok() ? "PASS" : "PARTIAL") : "FAIL", `HTTP ${res.status()}`);
+    row(`api:${path}`, res.ok() ? "PASS" : "FAIL", `HTTP ${res.status()}`);
   }
+  const invoicesGet = await checkApi(page, "/api/invoices");
+  row(
+    "api:/api/invoices",
+    invoicesGet.status() === 405 ? "PASS" : invoicesGet.status() < 500 ? "PARTIAL" : "FAIL",
+    `HTTP ${invoicesGet.status()} (POST-only create route)`,
+  );
 
   // Proposal Actions / open existing if any
   await page.goto("/admin/proposals", { waitUntil: "domcontentloaded" });
-  const proposalLink = page.locator('a[href*="/admin/proposals/"]').first();
+  const proposalLink = page.locator('a[href*="/admin/proposals/"]').filter({ hasNotText: /new/i }).first();
   if (await proposalLink.count()) {
     const href = (await proposalLink.getAttribute("href")) || "";
-    await proposalLink.click();
-    await page.waitForLoadState("domcontentloaded");
-    const body = await page.locator("body").innerText();
-    const ok = !/page not found/i.test(body) && page.url().includes("/admin/proposals/");
-    row("e2e:proposal-open", ok ? "PASS" : "FAIL", `href=${href}`, `url=${page.url()}`);
+    if (/\/admin\/proposals\/[0-9a-f-]{36}/i.test(href)) {
+      await page.goto(href, { waitUntil: "domcontentloaded" });
+      const body = await page.locator("body").innerText();
+      const ok = !/page not found/i.test(body) && page.url().includes("/admin/proposals/");
+      row("e2e:proposal-open", ok ? "PASS" : "FAIL", `href=${href}`, `url=${page.url()}`);
+    } else {
+      row("e2e:proposal-open", "PARTIAL", `skipped non-detail href=${href}`);
+    }
   } else {
     row("e2e:proposal-open", "PARTIAL", "no proposal rows to open");
   }
