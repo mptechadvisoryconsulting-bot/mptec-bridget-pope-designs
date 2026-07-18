@@ -1,9 +1,10 @@
-import { redirect } from "next/navigation";
+import { OwnerClientPortalGate } from "@/components/client/OwnerClientPortalGate";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientRootPage() {
+export default async function ClientPortalAccessPage() {
   const { profile } = await getCurrentProfile();
 
   if (!profile) {
@@ -14,13 +15,13 @@ export default async function ClientRootPage() {
     redirect("/auth/login?error=profile");
   }
 
-  if (adminRoles.has(profile.role)) {
-    redirect("/auth/client-portal");
-  }
-
   if (profile.role === "client") {
     redirect("/client/dashboard");
   }
 
-  redirect("/auth/login?error=profile");
+  if (!adminRoles.has(profile.role)) {
+    redirect("/auth/login?error=profile");
+  }
+
+  return <OwnerClientPortalGate role={profile.role} />;
 }

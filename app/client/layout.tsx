@@ -1,5 +1,4 @@
 import { ClientSidebar } from "@/components/client/ClientSidebar";
-import { OwnerClientPortalGate } from "@/components/client/OwnerClientPortalGate";
 import { RealtimeRefresh } from "@/components/realtime/RealtimeRefresh";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
 import { requireClientPortalContext } from "@/lib/client-portal";
@@ -18,8 +17,10 @@ export default async function ClientLayout({ children }: { children: React.React
     redirect("/auth/login?error=profile");
   }
 
+  // redirect() skips rendering child /client pages, so owner sessions are not
+  // forced through requireClientPortalContext in dashboard/etc.
   if (adminRoles.has(profile.role)) {
-    return <OwnerClientPortalGate role={profile.role} />;
+    redirect("/auth/client-portal");
   }
 
   if (profile.role !== "client") {
