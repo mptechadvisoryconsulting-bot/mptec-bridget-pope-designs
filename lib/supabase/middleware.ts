@@ -17,24 +17,19 @@ function withNoStore<T extends { headers: Headers }>(response: T): T {
   return response;
 }
 
-type CookieCarrier = {
-  cookies: {
-    getAll: () => Array<{ name: string; value: string }>;
-    set: (name: string, value: string, options?: Record<string, unknown>) => void;
-  };
-};
-
-function redirectPath(request: NextRequest, pathname: string, fromResponse?: CookieCarrier) {
+function redirectPath(request: NextRequest, pathname: string, fromResponse?: Response) {
   const url = (request.nextUrl as URL & { clone: () => URL }).clone();
   url.pathname = pathname;
   url.search = "";
-  const redirectResponse = withNoStore(NextResponse.redirect(url)) as Response & CookieCarrier;
-  // Preserve auth cookies refreshed on the middleware response. A bare redirect()
-  // from a Server Component can drop those Set-Cookie headers and sign the user out.
+  const redirectResponse = withNoStore(NextResponse.redirect(url));
+  // Copy full Set-Cookie headers (including path/httpOnly/sameSite) from the
+  // middleware response. Re-setting name/value alone can drop options and log the user out.
   if (fromResponse) {
-    fromResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
-    });
+    const getSetCookie = (fromResponse.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+    const setCookies = typeof getSetCookie === "function" ? getSetCookie.call(fromResponse.headers) : [];
+    for (const cookie of setCookies) {
+      redirectResponse.headers.append("Set-Cookie", cookie);
+    }
   }
   return redirectResponse;
 }
