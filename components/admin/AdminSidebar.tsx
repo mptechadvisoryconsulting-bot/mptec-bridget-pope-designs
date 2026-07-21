@@ -34,57 +34,55 @@ type AdminNavGroup = {
 
 const navGroups: AdminNavGroup[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
+    id: "today",
+    label: "Today",
     items: [
-      { label: "Overview", href: "/admin", icon: LayoutDashboard },
-      { label: "Today", href: "/admin/today", icon: CalendarDays },
+      { label: "Action center", href: "/admin", icon: LayoutDashboard },
+      { label: "Today board", href: "/admin/today", icon: CalendarDays },
     ],
   },
   {
-    id: "crm",
-    label: "CRM",
+    id: "pipeline",
+    label: "Pipeline",
     items: [
-      { label: "Consultation Requests", href: "/admin/leads?status=new", icon: Users },
-      { label: "Leads", href: "/admin/leads", icon: CalendarDays },
-      { label: "Clients / Invite", href: "/admin/clients#invite-client", icon: Users },
+      { label: "New requests", href: "/admin/leads?status=new", icon: Users },
+      { label: "All leads", href: "/admin/leads", icon: CalendarDays },
+      { label: "Consultations", href: "/admin/consultations", icon: CalendarDays },
     ],
   },
   {
-    id: "projects",
-    label: "Projects",
+    id: "clients-events",
+    label: "Clients & Events",
     items: [
+      { label: "Clients", href: "/admin/clients", icon: Users },
       { label: "Projects", href: "/admin/projects", icon: FolderKanban },
       { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
       { label: "Tasks", href: "/admin/tasks", icon: ListChecks },
     ],
   },
   {
-    id: "client-experience",
-    label: "Client Experience",
-    items: [
-      { label: "Messages", href: "/admin/messages", icon: MessageSquare },
-      { label: "Design Updates", href: "/admin/design-updates", icon: GalleryHorizontalEnd },
-      { label: "Files", href: "/admin/files", icon: FolderKanban },
-    ],
+    id: "messages",
+    label: "Messages",
+    items: [{ label: "Inbox", href: "/admin/messages", icon: MessageSquare }],
   },
   {
-    id: "sales-billing",
-    label: "Sales & Billing",
+    id: "billing",
+    label: "Billing",
     items: [
       { label: "Proposals", href: "/admin/proposals", icon: FileSignature },
       { label: "Contracts", href: "/admin/contracts", icon: FileSignature },
       { label: "Invoices", href: "/admin/invoices", icon: ReceiptText },
-      { label: "Invoice Templates", href: "/admin/invoice-templates", icon: ReceiptText },
-      { label: "Payment records", href: "/admin/payments", icon: CreditCard },
+      { label: "Payments", href: "/admin/payments", icon: CreditCard },
     ],
   },
   {
-    id: "business",
-    label: "Business",
+    id: "studio",
+    label: "Studio",
     items: [
-      { label: "Inventory", href: "/admin/inventory", icon: Package },
+      { label: "Design updates", href: "/admin/design-updates", icon: GalleryHorizontalEnd },
+      { label: "Files", href: "/admin/files", icon: FolderKanban },
       { label: "Gallery", href: "/admin/gallery", icon: GalleryHorizontalEnd },
+      { label: "Inventory", href: "/admin/inventory", icon: Package },
       { label: "Reports", href: "/admin/reports", icon: LayoutDashboard },
       { label: "Team", href: "/admin/team", icon: Users },
     ],
@@ -92,7 +90,10 @@ const navGroups: AdminNavGroup[] = [
   {
     id: "settings",
     label: "Settings",
-    items: [{ label: "Settings", href: "/admin/settings", icon: Settings }],
+    items: [
+      { label: "Business settings", href: "/admin/settings", icon: Settings },
+      { label: "Invoice templates", href: "/admin/invoice-templates", icon: ReceiptText },
+    ],
   },
 ];
 
@@ -114,7 +115,7 @@ export function AdminSidebar() {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("bpd-admin-nav-open");
+      const saved = window.localStorage.getItem("bpd-admin-nav-open-v2");
       const parsed = saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
       setOpenGroups({ ...parsed, ...activeGroups });
     } catch {
@@ -125,7 +126,7 @@ export function AdminSidebar() {
   function toggleGroup(groupId: string) {
     setOpenGroups((current) => {
       const next = { ...current, [groupId]: !current[groupId] };
-      window.localStorage.setItem("bpd-admin-nav-open", JSON.stringify(next));
+      window.localStorage.setItem("bpd-admin-nav-open-v2", JSON.stringify(next));
       return next;
     });
   }
@@ -136,39 +137,57 @@ export function AdminSidebar() {
         Bridget Pope
         <span>Designs</span>
       </Link>
+      <p className="side-nav-mobile-note">Tap a section to expand</p>
       <nav className="side-nav" aria-label="Admin navigation">
         {navGroups.map((group) => {
           const isOpen = Boolean(openGroups[group.id]);
+          const singleItem = group.items.length === 1 ? group.items[0] : null;
           return (
-            <section className="side-section" key={group.id}>
-              <button
-                aria-expanded={isOpen}
-                className="side-group-trigger"
-                onClick={() => toggleGroup(group.id)}
-                type="button"
-              >
-                <span>{group.label}</span>
-                <ChevronDown aria-hidden="true" className={isOpen ? "chevron open" : "chevron"} size={15} />
-              </button>
-              {isOpen ? (
-                <div className="side-group-items">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = itemIsActive(pathname, item.href);
-                    return (
-                      <Link
-                        className={isActive ? "side-link active" : "side-link"}
-                        href={item.href}
-                        key={item.href}
-                        prefetch={false}
-                      >
-                        <Icon size={16} />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              ) : null}
+            <section className={singleItem ? "side-section side-section-single" : "side-section"} key={group.id}>
+              {singleItem ? (
+                <Link
+                  className={itemIsActive(pathname, singleItem.href) ? "side-link active" : "side-link"}
+                  href={singleItem.href}
+                  prefetch={false}
+                >
+                  {(() => {
+                    const Icon = singleItem.icon;
+                    return <Icon size={16} />;
+                  })()}
+                  {group.label}
+                </Link>
+              ) : (
+                <>
+                  <button
+                    aria-expanded={isOpen}
+                    className="side-group-trigger"
+                    onClick={() => toggleGroup(group.id)}
+                    type="button"
+                  >
+                    <span>{group.label}</span>
+                    <ChevronDown aria-hidden="true" className={isOpen ? "chevron open" : "chevron"} size={15} />
+                  </button>
+                  {isOpen ? (
+                    <div className="side-group-items">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = itemIsActive(pathname, item.href);
+                        return (
+                          <Link
+                            className={isActive ? "side-link active" : "side-link"}
+                            href={item.href}
+                            key={`${item.href}-${item.label}`}
+                            prefetch={false}
+                          >
+                            <Icon size={16} />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </>
+              )}
             </section>
           );
         })}

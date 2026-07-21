@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, MailCheck, MessageSquare } from "lucide-react";
+import { CalendarDays, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ButtonLink } from "@/components/ui/button";
@@ -23,70 +23,55 @@ export default async function AdminDashboardPage() {
     { data: designActions },
     { data: openInvoices },
     { data: tasks },
-    { data: activityLogs },
     { count: unreadNotifications },
     settingsResult,
-    { count: activeClientCount },
     { count: pendingProposalsCount },
     { count: awaitingProposalApprovalCount },
-    { count: activeProjectsCount },
   ] = await Promise.all([
     supabase
       .from("leads")
       .select("id,lead_number,first_name,last_name,email,phone,event_type,event_date,venue,city,estimated_budget,services_needed,preferred_consultation_method,created_at,status")
       .eq("status", "new")
       .order("created_at", { ascending: false })
-      .limit(8),
+      .limit(6),
     supabase
       .from("messages")
-      // Use bpd_ conversation/project embeds with FK hints; bare `conversations/projects/clients`
-      // names 400, and projects↔clients is ambiguous without !client_id / !project_id.
       .select(
         "id,body,created_at,read_at,bpd_conversations(project_id,bpd_projects!project_id(event_name,bpd_clients!client_id(bpd_profiles(first_name,last_name))))",
       )
       .is("read_at", null)
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(4),
     supabase
       .from("projects")
       .select("id,event_name,event_type,event_date,venue_name,status,client_id")
       .gte("event_date", today)
       .lte("event_date", next20Date)
       .order("event_date", { ascending: true })
-      .limit(6),
+      .limit(4),
     supabase
       .from("design_updates")
       .select("id,project_id,title,client_action_status,client_action_due_date")
       .eq("requires_client_action", true)
       .in("client_action_status", ["pending", "overdue"])
       .order("client_action_due_date", { ascending: true })
-      .limit(6),
+      .limit(4),
     supabase
       .from("invoices")
       .select("id,invoice_number,balance_due,due_date,status,project_id")
       .gt("balance_due", 0)
       .not("status", "eq", "draft")
       .order("due_date", { ascending: true })
-      .limit(6),
-    supabase.from("tasks").select("id,title,due_date,status,project_id").neq("status", "complete").order("due_date", { ascending: true }).limit(5),
-    supabase
-      .from("activity_logs")
-      .select("id,action,entity_type,created_at,project_id,lead_id")
-      .order("created_at", { ascending: false })
-      .limit(15),
+      .limit(4),
+    supabase.from("tasks").select("id,title,due_date,status,project_id").neq("status", "complete").order("due_date", { ascending: true }).limit(4),
     supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
     supabase
       .from("business_settings")
       .select("business_email,inquiry_recipient_email,email_readiness_status,email_provider_last_error,email_last_test_sent_at,email_last_error")
       .limit(1)
       .maybeSingle(),
-    supabase.from("clients").select("id", { count: "exact", head: true }),
     supabase.from("proposals").select("id", { count: "exact", head: true }).in("status", ["draft", "sent", "viewed"]),
     supabase.from("projects").select("id", { count: "exact", head: true }).eq("pipeline_stage", "proposal_sent"),
-    supabase
-      .from("projects")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["booked", "planning", "design_in_progress", "awaiting_client_approval", "finalizing", "ready_for_event"]),
   ]);
 
   const requestRows = newRequests ?? [];
@@ -95,9 +80,7 @@ export default async function AdminDashboardPage() {
   const designActionRows = designActions ?? [];
   const invoiceRows = openInvoices ?? [];
   const taskRows = tasks ?? [];
-  const activityRows = activityLogs ?? [];
   const { data: settings } = settingsResult;
-  const emailRecipient = settings?.inquiry_recipient_email ?? settings?.business_email;
   const emailReadinessStatus = mapEmailReadinessStatus(
     settings?.email_readiness_status,
     settings?.email_provider_last_error ?? settings?.email_last_error,
@@ -105,37 +88,34 @@ export default async function AdminDashboardPage() {
   const ownerActionCount = requestRows.length + messageRows.length + designActionRows.length + invoiceRows.length + taskRows.length;
   const pendingProposals = Number(pendingProposalsCount ?? 0);
   const awaitingProposalApproval = Number(awaitingProposalApprovalCount ?? 0);
-  const activeProjects = Number(activeProjectsCount ?? 0);
 
   return (
     <div>
       <div className="dashboard-topbar">
         <div>
-          <span className="eyebrow">Owner Operating Dashboard</span>
-          <h1>Bridget Pope Designs</h1>
-          <p className="mini-meta">Leads, proposals, invoices, and project actions in one operating queue.</p>
+          <span className="eyebrow">Action center</span>
+          <h1>Today</h1>
+          <p className="mini-meta">What needs a decision now — leads, messages, invoices, and events.</p>
         </div>
         <div className="topbar-actions">
-          <button className="icon-btn" aria-label="Notifications"><Bell size={17} /></button>
-          <ButtonLink href="/admin/today" variant="secondary">Open Today</ButtonLink>
+          <ButtonLink href="/admin/today" variant="secondary">Today board</ButtonLink>
+          <ButtonLink href="/admin/leads?status=new">Review leads</ButtonLink>
         </div>
       </div>
 
       <section className="stats-grid" aria-label="Owner dashboard statistics">
-        <article className="stat-card"><span>New Leads</span><strong>{requestRows.length}</strong><small>Consultation requests</small></article>
-        <article className="stat-card"><span>Active Clients</span><strong>{activeClientCount ?? 0}</strong><small>Portal records</small></article>
-        <article className="stat-card"><span>Events Next 20 Days</span><strong>{projectRows.length}</strong><small>Project countdowns</small></article>
-        <article className="stat-card"><span>Needs Attention</span><strong>{ownerActionCount}</strong><small>Messages, tasks, invoices</small></article>
-        <article className="stat-card"><span>Pending Proposals</span><strong>{pendingProposals}</strong><small>Draft / sent / viewed</small></article>
-        <article className="stat-card"><span>Active Projects</span><strong>{activeProjects}</strong><small>In production</small></article>
+        <article className="stat-card"><span>Needs attention</span><strong>{ownerActionCount}</strong><small>Open actions</small></article>
+        <article className="stat-card"><span>New leads</span><strong>{requestRows.length}</strong><small>Consultation queue</small></article>
+        <article className="stat-card"><span>Open invoices</span><strong>{invoiceRows.length}</strong><small>Balances due</small></article>
+        <article className="stat-card"><span>Events · 20 days</span><strong>{projectRows.length}</strong><small>Upcoming</small></article>
       </section>
 
       <div className="dashboard-grid" style={{ marginTop: 16 }}>
         <section className="panel span-2">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Primary Queue</span>
-              <h2>New Consultation Requests</h2>
+              <span className="eyebrow">Primary queue</span>
+              <h2>New consultation requests</h2>
             </div>
             <span className="status">{requestRows.length} new</span>
           </div>
@@ -161,14 +141,12 @@ export default async function AdminDashboardPage() {
                   </div>
                   <div className="mini-meta">Submitted {formatDateTime(lead.created_at)}</div>
                   <div className="mini-meta">{lead.event_type} · {formatDate(lead.event_date, "Date pending")} · {lead.venue || lead.city || "Venue pending"}</div>
-                  <div className="mini-meta">{lead.email} · {lead.phone}</div>
                 </div>
                 <QueueItemActions
                   primaryAction={{ label: "Review", href: `/admin/leads/${lead.id}` }}
                   actions={[
                     { label: "View details", href: `/admin/leads/${lead.id}` },
                     { label: "Mark contacted", href: `/admin/leads/${lead.id}?action=contacted` },
-                    { label: "Schedule", href: `/admin/leads/${lead.id}?action=schedule` },
                     { label: "Approve & create client", href: `/admin/leads/${lead.id}?action=convert` },
                     { label: "Create proposal", href: `/admin/proposals/new?leadId=${lead.id}` },
                   ]}
@@ -180,37 +158,22 @@ export default async function AdminDashboardPage() {
         </section>
 
         <section className="panel">
-          <h2>Activity Timeline</h2>
-          <ul className="list">
-            {activityRows.map((item) => (
-              <li key={item.id}>
-                <span>
-                  {item.action.replace(/_/g, " ")}
-                  <span className="mini-meta">{formatDateTime(item.created_at)} · {item.entity_type ?? "system"}</span>
-                </span>
-              </li>
-            ))}
-            {!activityRows.length ? <li>No recent activity yet.</li> : null}
-          </ul>
-        </section>
-
-        <section className="panel">
-          <h2>Sales Pipeline</h2>
+          <h2>Pipeline snapshot</h2>
           <ul className="list">
             <li><span>Pending proposals</span><span className="status">{pendingProposals}</span></li>
-            <li><span>Proposal sent · awaiting approval</span><span className="status">{awaitingProposalApproval}</span></li>
-            <li><span>Open invoices</span><span className="status">{invoiceRows.length}</span></li>
+            <li><span>Awaiting approval</span><span className="status">{awaitingProposalApproval}</span></li>
             <li><span>Unread notifications</span><span className="status">{unreadNotifications ?? 0}</span></li>
+            <li><span>Email readiness</span><span className="status">{readinessLabel(emailReadinessStatus)}</span></li>
           </ul>
           <div className="topbar-actions" style={{ marginTop: 12 }}>
-            <ButtonLink href="/admin/proposals" variant="light">Proposals</ButtonLink>
-            <ButtonLink href="/admin/invoices" variant="light">Invoices</ButtonLink>
+            <ButtonLink href="/admin/proposals" variant="light">Billing</ButtonLink>
+            <ButtonLink href="/admin/settings" variant="light">Settings</ButtonLink>
           </div>
         </section>
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Open Invoices</h2>
+            <h2>Open invoices</h2>
           </div>
           <div style={{ display: "grid", gap: 10 }}>
             {invoiceRows.map((invoice) => (
@@ -225,16 +188,12 @@ export default async function AdminDashboardPage() {
                     </Link>
                   </strong>
                   <div className="mini-meta">{currency(Number(invoice.balance_due ?? 0))} · due {formatDate(invoice.due_date, "n/a")}</div>
-                  <span className="status">{invoice.status}</span>
                 </div>
                 <QueueItemActions
                   primaryAction={{ label: "Open", href: `/admin/invoices/${invoice.id}` }}
                   actions={[
                     { label: "View invoice", href: `/admin/invoices/${invoice.id}` },
                     { label: "Record payment", href: `/admin/invoices/${invoice.id}#record-payment` },
-                    ...(invoice.project_id
-                      ? [{ label: "Create proposal", href: `/admin/proposals/new?projectId=${invoice.project_id}` }]
-                      : []),
                   ]}
                 />
               </article>
@@ -245,7 +204,7 @@ export default async function AdminDashboardPage() {
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Unread Client Messages</h2>
+            <h2>Messages</h2>
             <MessageSquare size={18} />
           </div>
           <ul className="list">
@@ -261,7 +220,7 @@ export default async function AdminDashboardPage() {
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Upcoming Events</h2>
+            <h2>Upcoming events</h2>
             <CalendarDays size={18} />
           </div>
           <div style={{ display: "grid", gap: 10 }}>
@@ -273,14 +232,12 @@ export default async function AdminDashboardPage() {
                 <div>
                   <strong>{project.event_name}</strong>
                   <div className="mini-meta">{formatDate(project.event_date, "Date pending")} · {project.venue_name || project.event_type}</div>
-                  <span className="status">{project.status}</span>
                 </div>
                 <QueueItemActions
                   primaryAction={{ label: "Open", href: `/admin/projects/${project.id}` }}
                   actions={[
                     { label: "View project", href: `/admin/projects/${project.id}` },
                     { label: "Create proposal", href: `/admin/proposals/new?projectId=${project.id}` },
-                    { label: "Record payment", href: `/admin/payments` },
                   ]}
                 />
               </article>
@@ -290,42 +247,21 @@ export default async function AdminDashboardPage() {
         </section>
 
         <section className="panel">
-          <h2>Client Action Required</h2>
+          <h2>Client actions & tasks</h2>
           <ul className="list">
             {designActionRows.map((action) => (
               <li key={action.id}>
-                <span>{action.title}<span className="mini-meta">{action.client_action_status} · due {formatDate(action.client_action_due_date, "not set")}</span></span>
+                <span>{action.title}<span className="mini-meta">Design · due {formatDate(action.client_action_due_date, "not set")}</span></span>
                 <ButtonLink href={`/admin/projects/${action.project_id}`} variant="light">Open</ButtonLink>
               </li>
             ))}
-            {!designActionRows.length ? <li>No client design actions are pending.</li> : null}
-          </ul>
-        </section>
-
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Email Status</h2>
-            <MailCheck size={18} />
-          </div>
-          <ul className="list">
-            <li><span>Readiness</span><span className="status">{readinessLabel(emailReadinessStatus)}</span></li>
-            <li><span>Inquiry recipient</span><span className="status">{emailRecipient ?? "Not configured"}</span></li>
-            <li><span>Last test</span><span className="status">{settings?.email_last_test_sent_at ? formatDateTime(settings.email_last_test_sent_at) : "None"}</span></li>
-          </ul>
-          {settings?.email_provider_last_error || settings?.email_last_error ? <p className="form-error">{settings.email_provider_last_error ?? settings.email_last_error}</p> : null}
-          <ButtonLink href="/admin/settings" variant="light">Open Email Settings</ButtonLink>
-        </section>
-
-        <section className="panel">
-          <h2>Tasks</h2>
-          <ul className="list">
             {taskRows.map((task) => (
               <li key={task.id}>
-                <span>{task.title}<span className="mini-meta">{task.due_date ? formatDateTime(task.due_date) : task.status}</span></span>
+                <span>{task.title}<span className="mini-meta">Task · {task.due_date ? formatDateTime(task.due_date) : task.status}</span></span>
                 <ButtonLink href="/admin/tasks" variant="light">Open</ButtonLink>
               </li>
             ))}
-            {!taskRows.length ? <li>No open tasks.</li> : null}
+            {!designActionRows.length && !taskRows.length ? <li>Nothing waiting on you or the client.</li> : null}
           </ul>
         </section>
       </div>

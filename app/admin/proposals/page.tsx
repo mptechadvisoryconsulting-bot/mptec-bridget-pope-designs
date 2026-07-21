@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ImportProposalPdfForm } from "@/components/proposals/ImportProposalPdfForm";
 import { ProposalDocumentActions } from "@/components/proposals/ProposalDocumentActions";
+import { CollapsibleImportPanel } from "@/components/admin/CollapsibleImportPanel";
 import { ListPageActions } from "@/components/admin/ListPageActions";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
@@ -100,8 +101,14 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
 
-      <div className="dashboard-grid" style={{ marginBottom: 16 }}>
-        <ImportProposalPdfForm projects={importProjects} />
+      <div className="stack-page" style={{ marginBottom: 16 }}>
+        <CollapsibleImportPanel
+          description="Upload an existing proposal PDF. Opens from Actions → Import PDF."
+          id="import-proposal-pdf"
+          title="Import Proposal PDF"
+        >
+          <ImportProposalPdfForm framed={false} projects={importProjects} />
+        </CollapsibleImportPanel>
       </div>
 
       <section className="panel">

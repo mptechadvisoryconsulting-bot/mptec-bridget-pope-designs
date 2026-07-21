@@ -10,9 +10,12 @@ type ProjectOption = { id: string; clientId: string; name: string };
 export function ImportInvoicePdfForm({
   clients,
   projects,
+  framed = true,
 }: {
   clients: ClientOption[];
   projects: ProjectOption[];
+  /** When false, render form fields only (parent supplies the panel chrome). */
+  framed?: boolean;
 }) {
   const router = useRouter();
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
@@ -54,40 +57,39 @@ export function ImportInvoicePdfForm({
     }
   }
 
-  return (
-    <section className="panel" id="import-invoice-pdf">
-      <h2>Import Invoice PDF</h2>
-      <p className="mini-meta">Upload an existing PDF to create an invoice record with optional total and due date.</p>
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-        <label className="field">
-          <span>Client</span>
-          <select className="input" onChange={(event) => setClientId(event.target.value)} required value={clientId}>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Project</span>
-          <select
-            className="input"
-            onChange={(event) => setProjectId(event.target.value)}
-            required
-            value={effectiveProjectId}
-          >
-            {filteredProjects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Description</span>
-          <input className="input" defaultValue="Imported invoice PDF" name="description" />
-        </label>
+  const form = (
+    <form className="import-pdf-form" onSubmit={onSubmit}>
+      {framed ? <p className="mini-meta">Upload an existing PDF to create an invoice record with optional total and due date.</p> : null}
+      <label className="field">
+        <span>Client</span>
+        <select className="input" onChange={(event) => setClientId(event.target.value)} required value={clientId}>
+          {clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Project</span>
+        <select
+          className="input"
+          onChange={(event) => setProjectId(event.target.value)}
+          required
+          value={effectiveProjectId}
+        >
+          {filteredProjects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Description</span>
+        <input className="input" defaultValue="Imported invoice PDF" name="description" />
+      </label>
+      <div className="form-grid">
         <label className="field">
           <span>Total (optional)</span>
           <input className="input" defaultValue="0" min="0" name="total" step="0.01" type="number" />
@@ -96,18 +98,27 @@ export function ImportInvoicePdfForm({
           <span>Due date (optional)</span>
           <input className="input" name="dueDate" type="date" />
         </label>
-        <input accept="application/pdf,.pdf" className="input" name="file" required type="file" />
-        <label className="mini-meta" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input name="markSent" type="checkbox" value="true" />
-          Mark as sent (visible in client portal)
-        </label>
-        <Button disabled={busy || !clientId || !effectiveProjectId} type="submit" variant="secondary">
-          {busy ? "Importing..." : "Import PDF"}
-        </Button>
-        {message ? (
-          <p className={message.toLowerCase().includes("unable") ? "form-error" : "form-success"}>{message}</p>
-        ) : null}
-      </form>
+      </div>
+      <input accept="application/pdf,.pdf" className="input" name="file" required type="file" />
+      <label className="mini-meta" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input name="markSent" type="checkbox" value="true" />
+        Mark as sent (visible in client portal)
+      </label>
+      <Button disabled={busy || !clientId || !effectiveProjectId} type="submit" variant="secondary">
+        {busy ? "Importing..." : "Import PDF"}
+      </Button>
+      {message ? (
+        <p className={message.toLowerCase().includes("unable") ? "form-error" : "form-success"}>{message}</p>
+      ) : null}
+    </form>
+  );
+
+  if (!framed) return form;
+
+  return (
+    <section className="panel" id="import-invoice-pdf">
+      <h2>Import Invoice PDF</h2>
+      {form}
     </section>
   );
 }

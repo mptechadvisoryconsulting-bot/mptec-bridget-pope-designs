@@ -1,6 +1,7 @@
 import { InvoiceCreateForm } from "@/components/invoices/InvoiceCreateForm";
 import { ImportInvoicePdfForm } from "@/components/invoices/ImportInvoicePdfForm";
 import { InvoiceDocumentActions } from "@/components/invoices/InvoiceDocumentActions";
+import { CollapsibleImportPanel } from "@/components/admin/CollapsibleImportPanel";
 import { ListPageActions } from "@/components/admin/ListPageActions";
 import { currency } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -118,13 +119,20 @@ export default async function InvoicesPage() {
         />
       </div>
 
-      <div className="dashboard-grid">
+      <div className="stack-page">
         <div id="create-invoice">
           <InvoiceCreateForm clients={clientOptions} projects={projectOptions} proposals={proposalOptions} templates={templateOptions} />
         </div>
-        <ImportInvoicePdfForm clients={clientOptions} projects={projectOptions} />
 
-        <section className="panel span-2">
+        <CollapsibleImportPanel
+          description="Upload an existing PDF to create an invoice record. Opens from Actions → Import PDF."
+          id="import-invoice-pdf"
+          title="Import Invoice PDF"
+        >
+          <ImportInvoicePdfForm clients={clientOptions} framed={false} projects={projectOptions} />
+        </CollapsibleImportPanel>
+
+        <section className="panel">
           <h2>Recent Invoices</h2>
           <table className="table">
             <thead>

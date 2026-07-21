@@ -137,7 +137,7 @@ export function InvoiceCreateForm({
   }
 
   return (
-    <form className="panel invoice-builder span-2" onSubmit={submitInvoice}>
+    <form className="panel invoice-builder" onSubmit={submitInvoice}>
       <h2>Create Invoice</h2>
       <div className="form-grid">
         <label className="field">

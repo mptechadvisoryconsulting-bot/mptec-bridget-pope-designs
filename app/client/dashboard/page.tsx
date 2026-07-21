@@ -1,8 +1,6 @@
 import { Checklist } from "@/components/client/Checklist";
 import { EventProgress } from "@/components/client/EventProgress";
-import { MessagePanel } from "@/components/client/MessagePanel";
 import { PaymentCard } from "@/components/client/PaymentCard";
-import { Timeline } from "@/components/client/Timeline";
 import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,7 +29,7 @@ export default async function ClientDashboardPage({
       )
     : null;
 
-  const [{ data: invoices }, { data: milestones }, { data: conversation }, { data: files }, { data: designUpdates }, { data: meetings }, { data: activity }] =
+  const [{ data: invoices }, { data: milestones }, { data: conversation }, { data: files }, { data: designUpdates }, { data: meetings }] =
     await Promise.all([
       invoiceQuery ? invoiceQuery : Promise.resolve({ data: [] as Array<{ id: string; balance_due: number; due_date?: string | null; status: string; invoice_number: string }> }),
       project?.id
@@ -41,6 +39,7 @@ export default async function ClientDashboardPage({
             .eq("project_id", project.id)
             .eq("client_visible", true)
             .order("sort_order", { ascending: true })
+            .limit(5)
         : Promise.resolve({ data: [] }),
       project?.id
         ? admin.from("conversations").select("id").eq("project_id", project.id).maybeSingle()
@@ -52,7 +51,7 @@ export default async function ClientDashboardPage({
             .eq("project_id", project.id)
             .eq("visibility", "client_visible")
             .order("created_at", { ascending: false })
-            .limit(5)
+            .limit(3)
         : Promise.resolve({ data: [] }),
       project?.id
         ? admin
@@ -61,7 +60,7 @@ export default async function ClientDashboardPage({
             .eq("project_id", project.id)
             .eq("client_visible", true)
             .order("created_at", { ascending: false })
-            .limit(4)
+            .limit(3)
         : Promise.resolve({ data: [] }),
       project?.id
         ? admin
@@ -70,26 +69,18 @@ export default async function ClientDashboardPage({
             .eq("project_id", project.id)
             .gte("starts_at", new Date().toISOString())
             .order("starts_at", { ascending: true })
-            .limit(4)
-        : Promise.resolve({ data: [] }),
-      project?.id
-        ? admin
-            .from("activity_logs")
-            .select("id,action,created_at")
-            .eq("project_id", project.id)
-            .order("created_at", { ascending: false })
-            .limit(8)
+            .limit(2)
         : Promise.resolve({ data: [] }),
     ]);
 
-  const { data: messages } = conversation?.id
+  const { count: unreadCount } = conversation?.id
     ? await admin
         .from("messages")
-        .select("id,body,sender_id,created_at,read_at")
+        .select("id", { count: "exact", head: true })
         .eq("conversation_id", conversation.id)
-        .order("created_at", { ascending: true })
-        .limit(10)
-    : { data: [] };
+        .neq("sender_id", profile.id)
+        .is("read_at", null)
+    : { count: 0 };
 
   const invoiceRows = invoices ?? [];
   const openInvoice =
@@ -99,15 +90,13 @@ export default async function ClientDashboardPage({
   const eventDate = project?.event_date ?? "Date pending";
   const venue = [project?.venue_name, project?.city].filter(Boolean).join(" · ") || "Venue pending";
   const status = project?.status?.replace(/_/g, " ") ?? "setup pending";
-  const milestoneItems = (milestones ?? []).map((item) => ({
-    title: item.title,
-    date: item.due_date ?? "No date set",
-    status: item.status,
-  }));
-  const checklistItems = (milestones ?? []).map((item) => ({
-    label: item.title,
-    done: Boolean(item.completed_at) || item.status === "complete",
-  }));
+  const checklistItems = (milestones ?? [])
+    .filter((item) => !(Boolean(item.completed_at) || item.status === "complete"))
+    .slice(0, 4)
+    .map((item) => ({
+      label: item.title,
+      done: false,
+    }));
   const latestDesign = (designUpdates ?? [])[0] ?? null;
   const nextMeeting = (meetings ?? [])[0] ?? null;
 
@@ -116,7 +105,7 @@ export default async function ClientDashboardPage({
       <section className="client-hero">
         <div>
           <h1>Welcome, {clientName}</h1>
-          <p className="mini-meta">Follow your event progress, balances, and messages with Bridget Pope Designs.</p>
+          <p className="mini-meta">Your next steps for {eventName} — payments, designs, and messages.</p>
           {projects.length > 1 ? (
             <p className="mini-meta" style={{ marginTop: 8 }}>
               Projects:{" "}
@@ -131,7 +120,7 @@ export default async function ClientDashboardPage({
         </div>
         <article className="card event-summary">
           <div>
-            <span className="mini-meta">Your Event</span>
+            <span className="mini-meta">My Event</span>
             <strong style={{ display: "block", fontFamily: "Georgia, serif", fontSize: 22 }}>{eventName}</strong>
             <p className="mini-meta">{eventDate} · {venue}</p>
             <p><span className="status">{status}</span></p>
@@ -152,7 +141,7 @@ export default async function ClientDashboardPage({
         />
 
         <section className="panel">
-          <h2>Next Up</h2>
+          <h2>Next up</h2>
           <ul className="list">
             {latestDesign ? (
               <li>
@@ -179,70 +168,67 @@ export default async function ClientDashboardPage({
                 </span>
               </li>
             ) : null}
-            {!latestDesign && !nextMeeting && !(files ?? []).length ? (
+            {Number(unreadCount ?? 0) > 0 ? (
+              <li>
+                <span>
+                  Unread messages
+                  <span className="mini-meta">{unreadCount} waiting</span>
+                </span>
+                <a className="panel-link" href="/client/messages">Open</a>
+              </li>
+            ) : null}
+            {!latestDesign && !nextMeeting && !(files ?? []).length && !unreadCount ? (
               <li>Your designer will share updates here as planning moves forward.</li>
             ) : null}
           </ul>
-          <a className="panel-link" href="/client/designs">View designs & files</a>
+          <div className="topbar-actions" style={{ marginTop: 12 }}>
+            <a className="panel-link" href="/client/designs">Designs</a>
+            <a className="panel-link" href="/client/documents">Documents</a>
+            <a className="panel-link" href="/client/messages">Messages</a>
+          </div>
         </section>
       </div>
 
-      <div className="client-focus-grid" style={{ marginTop: 16 }}>
-        <Timeline items={milestoneItems} />
-        <Checklist items={checklistItems} />
-      </div>
-
-      <div className="client-focus-grid" style={{ marginTop: 16 }}>
-        <section className="panel">
-          <h2>Messages</h2>
-          {conversation?.id ? (
-            <MessagePanel
-              conversationId={conversation.id}
-              messages={(messages ?? []).map((message) => ({
-                id: message.id,
-                body: message.body,
-                fromAdmin: message.sender_id !== profile.id,
-                readAt: message.read_at,
-              }))}
-            />
-          ) : (
-            <p className="mini-meta">Messaging will appear once your project conversation is ready.</p>
-          )}
-          <a className="panel-link" href="/client/messages">Open full inbox</a>
-        </section>
-
-        <section className="panel">
-          <h2>Recent Activity</h2>
-          <ul className="list">
-            {(activity ?? []).map((item) => (
-              <li key={item.id}>
-                <span>{item.action.replace(/_/g, " ")}</span>
-                <span className="mini-meta">{formatDateTime(item.created_at)}</span>
-              </li>
-            ))}
-            {!(activity ?? []).length ? <li>No recent project activity.</li> : null}
-          </ul>
-          {invoiceRows.length ? (
-            <>
-              <h2 style={{ marginTop: 22 }}>Invoices</h2>
-              <ul className="list">
-                {invoiceRows.slice(0, 3).map((invoice) => (
-                  <li key={invoice.id}>
-                    <span>
-                      <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
-                      <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
-                    </span>
-                    <span className="status">{invoice.status}</span>
-                  </li>
-                ))}
-              </ul>
-              <a className="panel-link" href="/client/invoices">All invoices</a>
-            </>
-          ) : (
-            <a className="panel-link" href="/client/proposals">Proposals & contracts</a>
-          )}
-        </section>
-      </div>
+      {checklistItems.length ? (
+        <div className="client-focus-grid" style={{ marginTop: 16 }}>
+          <Checklist items={checklistItems} />
+          <section className="panel">
+            <h2>Open invoices</h2>
+            <ul className="list">
+              {invoiceRows.slice(0, 3).map((invoice) => (
+                <li key={invoice.id}>
+                  <span>
+                    <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
+                    <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
+                  </span>
+                  <span className="status">{invoice.status}</span>
+                </li>
+              ))}
+              {!invoiceRows.length ? <li>No invoices to review.</li> : null}
+            </ul>
+            <a className="panel-link" href="/client/payments">Payments & invoices</a>
+          </section>
+        </div>
+      ) : (
+        <div className="client-focus-grid" style={{ marginTop: 16 }}>
+          <section className="panel">
+            <h2>Open invoices</h2>
+            <ul className="list">
+              {invoiceRows.slice(0, 3).map((invoice) => (
+                <li key={invoice.id}>
+                  <span>
+                    <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
+                    <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
+                  </span>
+                  <span className="status">{invoice.status}</span>
+                </li>
+              ))}
+              {!invoiceRows.length ? <li>No invoices to review.</li> : null}
+            </ul>
+            <a className="panel-link" href="/client/payments">Payments & invoices</a>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
