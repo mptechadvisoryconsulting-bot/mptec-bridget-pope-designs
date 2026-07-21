@@ -4,6 +4,7 @@ import { ProposalDocumentActions } from "@/components/proposals/ProposalDocument
 import { CollapsibleImportPanel } from "@/components/admin/CollapsibleImportPanel";
 import { ListPageActions } from "@/components/admin/ListPageActions";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -27,16 +28,6 @@ type ProposalRow = {
   updated_at: string;
   project_id: string;
   bpd_projects?: ProjectRef | ProjectRef[] | null;
-};
-
-const statusLabels: Record<string, string> = {
-  draft: "Draft",
-  sent: "Sent",
-  viewed: "Viewed",
-  approved: "Approved",
-  rejected: "Rejected",
-  expired: "Expired",
-  cancelled: "Cancelled",
 };
 
 export default async function ProposalsPage({ searchParams }: { searchParams: Promise<{ action?: string; id?: string }> }) {
@@ -140,7 +131,7 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Pr
                   <td>{project?.event_name ?? "Project"}</td>
                   <td>{currency(Number(proposal.total ?? 0))}</td>
                   <td>{formatDateTime(sentAt, "Not sent")}</td>
-                  <td><span className="status">{statusLabels[proposal.status] ?? proposal.status}</span></td>
+                  <td><StatusBadge status={proposal.status} /></td>
                   <td>
                     <ProposalDocumentActions
                       extraActions={[

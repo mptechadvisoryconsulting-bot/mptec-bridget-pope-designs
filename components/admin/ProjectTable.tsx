@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { shortDate } from "@/lib/dates";
 
 type ProjectRow = {
@@ -30,7 +31,7 @@ export function ProjectTable({ rows = [] }: { rows?: ProjectRow[] }) {
               <td>{booking.client}</td>
               <td>{booking.eventType}</td>
               <td>{booking.eventDate ? shortDate(booking.eventDate) : "Not set"}</td>
-              <td><span className="status">{booking.status}</span></td>
+              <td><StatusBadge status={booking.status} /></td>
               <td>{booking.payment}</td>
               <td>{booking.total}</td>
             </tr>

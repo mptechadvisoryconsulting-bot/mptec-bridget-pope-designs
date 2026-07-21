@@ -1,4 +1,5 @@
 import { PaymentCard } from "@/components/client/PaymentCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
@@ -41,7 +42,7 @@ export default async function PaymentsPage() {
             {(invoices ?? []).map((invoice) => (
               <tr key={invoice.id}>
                 <td><a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a></td>
-                <td><span className="status">{invoice.status}</span></td>
+                <td><StatusBadge status={invoice.status} /></td>
                 <td>{currency(Number(invoice.total ?? 0))}</td>
                 <td>{currency(Number(invoice.amount_paid ?? 0))}</td>
                 <td>{currency(Number(invoice.balance_due ?? 0))}</td>

@@ -1,6 +1,7 @@
 import { Checklist } from "@/components/client/Checklist";
 import { EventProgress } from "@/components/client/EventProgress";
 import { PaymentCard } from "@/components/client/PaymentCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -123,7 +124,7 @@ export default async function ClientDashboardPage({
             <span className="mini-meta">My Event</span>
             <strong style={{ display: "block", fontFamily: "Georgia, serif", fontSize: 22 }}>{eventName}</strong>
             <p className="mini-meta">{eventDate} · {venue}</p>
-            <p><span className="status">{status}</span></p>
+            <p><StatusBadge status={project?.status ?? "pending"} label={status} /></p>
             <a className="panel-link" href="/client/event">View event details</a>
           </div>
           <img src="/images/client-event.png" alt="Client event preview" />
@@ -149,7 +150,7 @@ export default async function ClientDashboardPage({
                   Design update
                   <span className="mini-meta">{latestDesign.title}</span>
                 </span>
-                <span className="status">{latestDesign.status}</span>
+                <StatusBadge status={latestDesign.status} />
               </li>
             ) : null}
             {nextMeeting ? (
@@ -201,7 +202,7 @@ export default async function ClientDashboardPage({
                     <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
                     <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
                   </span>
-                  <span className="status">{invoice.status}</span>
+                  <StatusBadge status={invoice.status} />
                 </li>
               ))}
               {!invoiceRows.length ? <li>No invoices to review.</li> : null}
@@ -220,7 +221,7 @@ export default async function ClientDashboardPage({
                     <a href={`/client/invoices/${invoice.id}`}>{invoice.invoice_number}</a>
                     <span className="mini-meta">{formatDate(invoice.due_date, "No due date")}</span>
                   </span>
-                  <span className="status">{invoice.status}</span>
+                  <StatusBadge status={invoice.status} />
                 </li>
               ))}
               {!invoiceRows.length ? <li>No invoices to review.</li> : null}

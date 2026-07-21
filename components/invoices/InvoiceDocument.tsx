@@ -1,4 +1,5 @@
 import { currency } from "@/lib/currency";
+import { formatStatusLabel } from "@/lib/status-display";
 import { buildInvoiceRenderModel, type InvoiceRenderItemInput, type InvoiceRenderModel } from "@/lib/invoices/render-model";
 
 export type InvoiceDocumentItem = InvoiceRenderItemInput & { id: string };
@@ -106,7 +107,7 @@ export function InvoiceDocumentFromModel({ model, previewBadge }: { model: Invoi
             ) : null}
           </div>
           <span className="invoice-status">
-            {model.status}
+            {formatStatusLabel(model.status)}
             {model.isUpdatedVersion ? <em> &middot; v{model.versionNumber}</em> : null}
           </span>
         </header>

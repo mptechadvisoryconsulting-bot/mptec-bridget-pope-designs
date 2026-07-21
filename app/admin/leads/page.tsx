@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,7 +9,6 @@ import { getLeadQueueActions } from "@/lib/admin/lead-queue-actions";
 import {
   archiveLead,
   convertLeadToClient,
-  leadStatusLabels,
   markLeadContacted,
   scheduleLeadConsultation,
 } from "@/lib/admin/workflow";
@@ -102,7 +102,7 @@ export default async function LeadsPage({
                     {formatDate(lead.event_date, "Date pending")}
                     <div className="mini-meta">Submitted {formatDateTime(lead.created_at)}</div>
                   </td>
-                  <td><span className="status">{leadStatusLabels[lead.status] ?? lead.status}</span></td>
+                  <td><StatusBadge status={lead.status} /></td>
                   <td>
                     <QueueItemActions primaryAction={primaryAction} actions={actions} />
                   </td>

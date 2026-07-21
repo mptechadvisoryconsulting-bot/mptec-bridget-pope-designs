@@ -1,4 +1,5 @@
 ﻿import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 
 export function PaymentCard({
@@ -27,7 +28,7 @@ export function PaymentCard({
       <p className="mini-meta">Due by {dueDate ?? "No open invoice"}</p>
       {status ? (
         <p className="mini-meta" style={{ marginTop: 0 }}>
-          Status: <span className="status">{status.replace(/_/g, " ")}</span>
+          Status: <StatusBadge status={status} />
         </p>
       ) : null}
       <div className="queue-row-actions" style={{ marginTop: 12 }}>

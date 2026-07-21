@@ -119,16 +119,25 @@ textarea {
   min-height: 44px;
   padding: 0 22px;
   text-transform: uppercase;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
 .btn:hover {
   transform: translateY(-1px);
 }
 
+.btn:focus-visible {
+  outline: 2px solid rgba(214, 117, 142, 0.85);
+  outline-offset: 2px;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #d97f96, #bd5e75);
   color: #fff;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #e08aa0, #c96a80);
 }
 
 .btn-secondary {
@@ -137,9 +146,20 @@ textarea {
   color: #fff;
 }
 
+.btn-secondary:hover {
+  border-color: rgba(215, 170, 95, 0.9);
+  color: #fff;
+}
+
 .btn-light {
   background: #fff;
   border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn-light:hover {
+  background: #fff8f5;
+  border-color: #ddc8ce;
   color: var(--ink);
 }
 
@@ -218,6 +238,26 @@ textarea {
 .nav-links a:hover {
   border-color: var(--blush);
   color: #ffd4df;
+}
+
+.marketing-nav .btn-primary {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.marketing-nav .btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(215, 170, 95, 0.75);
+  color: #fffaf7;
+}
+
+.marketing-nav .btn-secondary:hover {
+  background: rgba(215, 170, 95, 0.16);
+  border-color: rgba(215, 170, 95, 0.95);
+  color: #fff;
+}
+
+.cta-band .btn-primary {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
 .hero {
@@ -611,6 +651,69 @@ textarea {
   color: #f7f4f2;
 }
 
+/* Readable controls on dark admin chrome (topbars, shell actions). */
+.admin-shell .btn-quiet,
+.admin-shell .btn-light {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: #fffaf7;
+}
+
+.admin-shell .btn-quiet:hover,
+.admin-shell .btn-light:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(215, 170, 95, 0.75);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.admin-shell .btn-secondary {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(215, 170, 95, 0.75);
+  color: #fffaf7;
+}
+
+.admin-shell .btn-secondary:hover {
+  background: rgba(215, 170, 95, 0.18);
+  border-color: rgba(215, 170, 95, 0.95);
+  color: #fff;
+}
+
+.admin-shell .btn:focus-visible {
+  outline-color: rgba(215, 170, 95, 0.9);
+}
+
+/* Keep panel / dropdown controls on light surfaces. */
+.admin-shell .panel .btn-quiet,
+.admin-shell .panel .btn-light,
+.admin-shell .stat-card .btn-quiet,
+.admin-shell .stat-card .btn-light,
+.admin-shell .queue-actions-menu .btn-quiet,
+.admin-shell .queue-actions-menu .btn-light {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.admin-shell .panel .btn-quiet:hover,
+.admin-shell .panel .btn-light:hover,
+.admin-shell .stat-card .btn-quiet:hover,
+.admin-shell .stat-card .btn-light:hover {
+  background: #faf6f4;
+  border-color: #ddc8ce;
+  color: var(--ink);
+  transform: none;
+}
+
+.admin-shell .panel .btn-quiet:hover {
+  transform: none;
+}
+
+.admin-shell .dashboard-topbar .mini-meta,
+.admin-shell .dashboard-topbar .eyebrow {
+  color: rgba(247, 244, 242, 0.72);
+}
+
 .client-shell {
   background: #faf7f5;
   color: var(--ink);
@@ -751,6 +854,15 @@ textarea {
   text-transform: uppercase;
   top: 24px;
   z-index: 2;
+}
+
+.panel.invoice-shell {
+  background: #fff;
+  color: #111;
+}
+
+.admin-shell .panel.invoice-shell {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
 .invoice-artwork {
@@ -1373,12 +1485,54 @@ textarea {
 }
 
 .status {
+  align-items: center;
   background: #f8e8ec;
+  border: 1px solid transparent;
   border-radius: 999px;
   color: var(--rosewood);
   display: inline-flex;
   font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
   padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.status-neutral {
+  background: #f3ece8;
+  border-color: #e4d6cf;
+  color: #5c4e48;
+}
+
+.status-info {
+  background: #eef4fb;
+  border-color: #d3e2f4;
+  color: #2f5f8f;
+}
+
+.status-success {
+  background: #eaf6ef;
+  border-color: #c9e6d4;
+  color: #1f6b45;
+}
+
+.status-warning {
+  background: #fff4e8;
+  border-color: #f0d4b0;
+  color: #8a5a1a;
+}
+
+.status-danger {
+  background: #fdecee;
+  border-color: #f0c5cb;
+  color: #9b2f3d;
+}
+
+.status-muted {
+  background: #f1efef;
+  border-color: #ddd7d7;
+  color: #6a6363;
 }
 
 .template-swatches {
@@ -1733,14 +1887,40 @@ textarea {
   min-height: 100vh;
   padding: 24px;
   place-items: center;
+  transition: background 220ms ease;
+}
+
+.auth-page:has(.login-skin--studio) {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(215, 170, 95, 0.22), transparent 42%),
+    linear-gradient(145deg, #090806 0%, #1a1410 48%, #3a2418 100%);
+}
+
+.auth-page:has(.login-skin--client) {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(214, 117, 142, 0.28), transparent 40%),
+    linear-gradient(145deg, #2a171d 0%, #5a3140 46%, #fff2f5 100%);
 }
 
 .auth-card {
   background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: var(--radius);
+  box-shadow: 0 22px 50px rgba(20, 10, 14, 0.22);
   max-width: 430px;
   padding: 32px;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
   width: 100%;
+}
+
+.auth-card:has(.login-skin--studio) {
+  border-color: rgba(215, 170, 95, 0.45);
+  box-shadow: 0 22px 50px rgba(20, 12, 8, 0.3);
+}
+
+.auth-card:has(.login-skin--client) {
+  border-color: rgba(214, 117, 142, 0.4);
+  box-shadow: 0 22px 50px rgba(70, 28, 42, 0.22);
 }
 
 .auth-card h1 {
@@ -1748,6 +1928,14 @@ textarea {
   font-size: 34px;
   font-weight: 400;
   margin: 18px 0 8px;
+}
+
+.login-skin--studio .login-path-hint {
+  color: #6b5346;
+}
+
+.login-skin--client .login-path-hint {
+  color: #7a4f5c;
 }
 
 .login-path-tabs {
@@ -1765,12 +1953,46 @@ textarea {
   font-size: 13px;
   font-weight: 700;
   padding: 10px 12px;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.login-path-tab:hover {
+  border-color: rgba(128, 56, 72, 0.35);
+}
+
+.login-path-tab:focus-visible {
+  outline: 2px solid rgba(214, 117, 142, 0.75);
+  outline-offset: 2px;
 }
 
 .login-path-tab.is-active {
   background: #2a171d;
   border-color: #2a171d;
   color: #fff;
+}
+
+.login-skin--studio .login-path-tab.is-active {
+  background: #1a1410;
+  border-color: rgba(215, 170, 95, 0.85);
+  color: #fff8ef;
+}
+
+.login-skin--client .login-path-tab.is-active {
+  background: linear-gradient(135deg, #d97f96, #bd5e75);
+  border-color: #bd5e75;
+  color: #fff;
+}
+
+.login-skin--studio .btn-primary {
+  background: linear-gradient(135deg, #c9a05a, #a67b3a);
+}
+
+.login-skin--studio .btn-primary:hover {
+  background: linear-gradient(135deg, #d4ad68, #b48945);
+}
+
+.login-skin--client .btn-primary {
+  background: linear-gradient(135deg, #d97f96, #bd5e75);
 }
 
 @media (max-width: 1100px) {
@@ -1994,18 +2216,22 @@ textarea {
 @media print {
   body {
     background: #fff;
+    color: #111;
   }
 
   .sidebar,
   .dashboard-topbar,
   .invoice-actions-print,
-  .invoice-scroll-hint {
+  .invoice-scroll-hint,
+  .invoice-preview-badge {
     display: none !important;
   }
 
   .app-shell,
   .admin-shell,
   .client-shell {
+    background: #fff;
+    color: #111;
     display: block;
   }
 
@@ -2015,20 +2241,37 @@ textarea {
   }
 
   .panel.invoice-shell {
+    background: transparent;
     border: 0;
     box-shadow: none;
     padding: 0;
   }
 
   .invoice-document {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
     max-width: none;
     min-height: 100vh;
     overflow: hidden;
     padding: 54px 64px;
+    print-color-adjust: exact;
+  }
+
+  .invoice-artwork {
+    -webkit-print-color-adjust: exact;
+    opacity: var(--invoice-art-opacity, 0.06);
+    print-color-adjust: exact;
   }
 
   .invoice-doc-header h1 {
     font-size: var(--invoice-title-size, 76px);
+  }
+
+  .invoice-status {
+    -webkit-print-color-adjust: exact;
+    border-color: var(--invoice-accent, #d7a0ad);
+    color: var(--invoice-accent, #9c5266);
+    print-color-adjust: exact;
   }
 
   .invoice-thanks {
@@ -2038,5 +2281,11 @@ textarea {
   .invoice-doc-summary {
     background: transparent;
     position: static;
+  }
+
+  .invoice-doc-meta h2,
+  .invoice-doc-table th,
+  .invoice-terms h2 {
+    color: var(--invoice-accent, #073763);
   }
 }

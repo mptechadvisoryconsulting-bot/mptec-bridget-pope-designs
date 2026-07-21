@@ -3,6 +3,7 @@ import { emailSubjects } from "@/lib/email/templates";
 import { sendTrackedEmail } from "@/lib/email/delivery";
 import { emailFrom } from "@/lib/email/resend";
 import { appUrl } from "@/lib/env";
+import { formatStatusLabel } from "@/lib/status-display";
 import { first } from "@/lib/supabase/relations";
 
 type AnyClient = SupabaseClient<any>;
@@ -41,17 +42,18 @@ async function businessSettings(supabase: AnyClient) {
 
 export type WorkflowResult = { success: boolean; message?: string; id?: string | null };
 
+/** Display labels for lead statuses (DB values unchanged). */
 export const leadStatusLabels: Record<string, string> = {
-  new: "New",
-  contacted: "Contacted",
-  consultation_scheduled: "Consultation Scheduled",
-  consultation_completed: "Consultation Completed",
-  awaiting_business_approval: "Awaiting Business Approval",
-  approved: "Approved",
-  converted: "Client Created",
-  declined: "Declined",
-  lost: "Lost",
-  archived: "Archived",
+  new: formatStatusLabel("new"),
+  contacted: formatStatusLabel("contacted"),
+  consultation_scheduled: formatStatusLabel("consultation_scheduled"),
+  consultation_completed: formatStatusLabel("consultation_completed"),
+  awaiting_business_approval: formatStatusLabel("awaiting_business_approval"),
+  approved: formatStatusLabel("approved"),
+  converted: formatStatusLabel("converted"),
+  declined: formatStatusLabel("declined"),
+  lost: formatStatusLabel("lost"),
+  archived: formatStatusLabel("archived"),
 };
 
 export async function markLeadContacted(supabase: AnyClient, leadId: string, actorId?: string | null): Promise<WorkflowResult> {

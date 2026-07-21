@@ -1,5 +1,6 @@
 import { FileSignature } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,7 +28,7 @@ export default async function ClientProposalsPage() {
             {(proposals ?? []).map((proposal) => (
               <tr key={proposal.id}>
                 <td>{proposal.title || proposal.proposal_number}</td>
-                <td><span className="status">{proposal.status}</span></td>
+                <td><StatusBadge status={proposal.status} /></td>
                 <td>{currency(Number(proposal.total ?? 0))}</td>
                 <td>{currency(Number(proposal.deposit_amount ?? 0))}</td>
                 <td>{proposal.expiration_date ?? "Not set"}</td>

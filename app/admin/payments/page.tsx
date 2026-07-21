@@ -1,4 +1,5 @@
-﻿import { currency } from "@/lib/currency";
+﻿import { StatusBadge } from "@/components/ui/StatusBadge";
+import { currency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { first } from "@/lib/supabase/relations";
@@ -98,7 +99,7 @@ export default async function AdminPaymentsPage() {
                   <td>{payment.payment_method || "manual"}</td>
                   <td>{currency(Number(payment.gross_amount ?? payment.amount ?? 0))}</td>
                   <td>
-                    <span className="status">{payment.status}</span>
+                    <StatusBadge status={payment.status} />
                   </td>
                   <td>{formatDateTime(payment.paid_at ?? payment.created_at)}</td>
                 </tr>

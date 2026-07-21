@@ -68,7 +68,7 @@ export function LoginForm() {
   }
 
   return (
-    <div style={{ marginTop: 20 }}>
+    <div className={`login-skin login-skin--${path}`} data-login-path={path} style={{ marginTop: 20 }}>
       <div aria-label="Sign-in path" className="login-path-tabs" role="tablist">
         <button
           aria-selected={path === "studio"}
@@ -89,7 +89,7 @@ export function LoginForm() {
           Client access
         </button>
       </div>
-      <p className="mini-meta" style={{ marginTop: 14 }}>
+      <p className="mini-meta login-path-hint" style={{ marginTop: 14 }}>
         {copy.hint}
       </p>
       <form onSubmit={signIn} className="form-grid" style={{ gridTemplateColumns: "1fr", marginTop: 16 }}>

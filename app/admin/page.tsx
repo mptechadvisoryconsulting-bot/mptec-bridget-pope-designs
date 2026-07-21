@@ -1,6 +1,7 @@
 import { CalendarDays, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
@@ -137,7 +138,7 @@ export default async function AdminDashboardPage() {
                 <div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <strong>{lead.first_name} {lead.last_name}</strong>
-                    <span className="status">{lead.status}</span>
+                    <StatusBadge status={lead.status} />
                   </div>
                   <div className="mini-meta">Submitted {formatDateTime(lead.created_at)}</div>
                   <div className="mini-meta">{lead.event_type} · {formatDate(lead.event_date, "Date pending")} · {lead.venue || lead.city || "Venue pending"}</div>

@@ -3,6 +3,7 @@ import { ImportInvoicePdfForm } from "@/components/invoices/ImportInvoicePdfForm
 import { InvoiceDocumentActions } from "@/components/invoices/InvoiceDocumentActions";
 import { CollapsibleImportPanel } from "@/components/admin/CollapsibleImportPanel";
 import { ListPageActions } from "@/components/admin/ListPageActions";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -156,7 +157,7 @@ export default async function InvoicesPage() {
                     <td><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoice_number}</a></td>
                     <td>{clientName(client)}</td>
                     <td>{project?.event_name ?? "Project"}</td>
-                    <td><span className="status">{invoice.status}</span></td>
+                    <td><StatusBadge status={invoice.status} /></td>
                     <td>{currency(Number(invoice.total ?? 0))}</td>
                     <td>{currency(Number(invoice.balance_due ?? 0))}</td>
                     <td>

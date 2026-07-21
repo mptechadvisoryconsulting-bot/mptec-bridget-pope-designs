@@ -9,7 +9,7 @@ export default function LoginPage() {
           Bridget Pope<span>Designs</span>
         </div>
         <h1>Welcome Back</h1>
-        <p className="mini-meta">Choose Studio login or Client access, then sign in with your account.</p>
+        <p className="mini-meta">Studio is for Bridget&apos;s team. Client access is for event guests and hosts.</p>
         <Suspense fallback={null}>
           <LoginForm />
         </Suspense>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,14 +24,6 @@ type ContractRow = {
   updated_at: string;
   project_id: string;
   bpd_projects?: ProjectRef | ProjectRef[] | null;
-};
-
-const statusLabels: Record<string, string> = {
-  draft: "Draft",
-  sent: "Sent",
-  viewed: "Viewed",
-  signed: "Signed",
-  voided: "Voided",
 };
 
 export default async function ContractsPage({ searchParams }: { searchParams: Promise<{ action?: string; id?: string }> }) {
@@ -88,7 +81,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
                   <td><ButtonLink href={`/admin/projects/${contract.project_id}`} variant="light">{contract.contract_number}</ButtonLink></td>
                   <td>{clientName}</td>
                   <td>{project?.event_name ?? "Project"}</td>
-                  <td><span className="status">{statusLabels[contract.status] ?? contract.status}</span></td>
+                  <td><StatusBadge status={contract.status} /></td>
                   <td>{formatDateTime(sentAt, "Not sent")}</td>
                   <td>{contract.client_signed_at ? `Signed ${formatDateTime(contract.client_signed_at)}` : contract.owner_signed_at ? "Awaiting client" : "Unsigned"}</td>
                   <td>

@@ -77,12 +77,12 @@ export function QueueItemActions({
     <div className="queue-row-actions" ref={rootRef}>
       {primaryAction ? (
         primaryAction.href && !primaryAction.onSelect ? (
-          <a className="btn btn-quiet" href={primaryAction.href}>
+          <a className="btn btn-primary" href={primaryAction.href}>
             {primaryAction.label}
           </a>
         ) : (
           <button
-            className="btn btn-quiet"
+            className="btn btn-primary"
             disabled={primaryAction.disabled || Boolean(busyLabel)}
             onClick={() => void runAction(primaryAction)}
             type="button"

@@ -1,5 +1,6 @@
 import { ReceiptText } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 import { applyClientInvoiceVisibilityFilter } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
@@ -66,7 +67,7 @@ export default async function ClientInvoicesPage() {
                 <tr key={invoice.id}>
                   <td>{invoice.invoice_number}</td>
                   <td>{project?.event_name ?? "Project"}</td>
-                  <td><span className="status">{invoice.status}</span></td>
+                  <td><StatusBadge status={invoice.status} /></td>
                   <td>{currency(Number(invoice.total ?? 0))}</td>
                   <td>{currency(Number(invoice.balance_due ?? 0))}</td>
                   <td>{invoice.due_date ?? "Not set"}</td>

@@ -1,5 +1,6 @@
 import { FileSignature } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -26,7 +27,7 @@ export default async function ContractsPage() {
             {(contracts ?? []).map((contract) => (
               <tr key={contract.id}>
                 <td>{contract.contract_number ?? contract.id.slice(0, 8)}</td>
-                <td><span className="status">{contract.status}</span></td>
+                <td><StatusBadge status={contract.status} /></td>
                 <td>{contract.client_signed_at ?? "Not signed"}</td>
                 <td><ButtonLink href={`/client/contracts/${contract.id}`} variant="light"><FileSignature size={16} /> Open</ButtonLink></td>
               </tr>
