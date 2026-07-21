@@ -1269,6 +1269,23 @@ textarea {
   padding: 22px;
 }
 
+.action-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+a.stat-card-link {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  display: block;
+  text-decoration: none;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+a.stat-card-link:hover {
+  border-color: rgba(181, 94, 115, 0.35);
+  box-shadow: 0 8px 24px rgba(27, 27, 27, 0.06);
+  transform: translateY(-1px);
+}
+
 .stat-card span {
   color: var(--muted);
   display: block;
@@ -1286,6 +1303,36 @@ textarea {
 
 .stat-card small {
   color: var(--rosewood);
+}
+
+.today-queues {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.list li:has(.queue-row) {
+  display: block;
+  padding: 0;
+}
+
+.queue-row {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 0 0 12px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.queue-row:hover strong {
+  color: var(--rosewood);
+}
+
+.queue-row > span:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .dashboard-grid {
@@ -2014,6 +2061,7 @@ textarea {
   }
 
   .dashboard-grid,
+  .today-queues,
   .client-grid,
   .client-focus-grid,
   .gallery-manager,

@@ -54,7 +54,11 @@ export default async function LeadsPage({
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (statusFilter) query = query.eq("status", statusFilter);
+  if (statusFilter === "follow_up") {
+    query = query.in("status", ["contacted", "consultation_scheduled"]);
+  } else if (statusFilter) {
+    query = query.eq("status", statusFilter);
+  }
 
   const { data } = await query;
   const leads = (data ?? []) as LeadRow[];
@@ -70,6 +74,7 @@ export default async function LeadsPage({
         <div className="topbar-actions">
           <ButtonLink href="/admin/leads" variant={statusFilter ? "light" : "primary"}>All</ButtonLink>
           <ButtonLink href="/admin/leads?status=new" variant={statusFilter === "new" ? "primary" : "light"}>New</ButtonLink>
+          <ButtonLink href="/admin/leads?status=follow_up" variant={statusFilter === "follow_up" ? "primary" : "light"}>Follow-up</ButtonLink>
         </div>
       </div>
 

@@ -1,94 +1,104 @@
-import { CalendarDays, MessageSquare } from "lucide-react";
 import Link from "next/link";
-import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
-import { mapEmailReadinessStatus, readinessLabel } from "@/lib/email/delivery";
+import { first } from "@/lib/supabase/relations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
+const FOLLOW_UP_STATUSES = ["contacted", "consultation_scheduled"] as const;
+const QUEUE_LIMIT = 5;
+
+type ProfileRef = { first_name?: string | null; last_name?: string | null };
+type ClientRef = { bpd_profiles?: ProfileRef | ProfileRef[] | null };
+type ProjectRef = { event_name?: string | null; bpd_clients?: ClientRef | ClientRef[] | null };
+type ConversationRef = {
+  id?: string | null;
+  bpd_projects?: ProjectRef | ProjectRef[] | null;
+};
+
+function personName(profile?: ProfileRef | null) {
+  return [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Client";
+}
+
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
-  const today = new Date().toISOString().slice(0, 10);
-  const next20 = new Date();
-  next20.setDate(next20.getDate() + 20);
-  const next20Date = next20.toISOString().slice(0, 10);
-
   const [
-    { data: newRequests },
-    { data: messages },
-    { data: projects },
-    { data: designActions },
-    { data: openInvoices },
-    { data: tasks },
-    { count: unreadNotifications },
-    settingsResult,
-    { count: pendingProposalsCount },
-    { count: awaitingProposalApprovalCount },
+    { count: newInquiryCount },
+    { data: newInquiries },
+    { count: followUpCount },
+    { data: followUps },
+    { count: unpaidCount },
+    { data: unpaidInvoices },
+    { count: unreadCount },
+    { data: unreadMessages },
   ] = await Promise.all([
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase
       .from("leads")
-      .select("id,lead_number,first_name,last_name,email,phone,event_type,event_date,venue,city,estimated_budget,services_needed,preferred_consultation_method,created_at,status")
+      .select("id,first_name,last_name,event_type,event_date,venue,city,created_at,status")
       .eq("status", "new")
       .order("created_at", { ascending: false })
-      .limit(6),
+      .limit(QUEUE_LIMIT),
+    supabase.from("leads").select("id", { count: "exact", head: true }).in("status", [...FOLLOW_UP_STATUSES]),
     supabase
-      .from("messages")
-      .select(
-        "id,body,created_at,read_at,bpd_conversations(project_id,bpd_projects!project_id(event_name,bpd_clients!client_id(bpd_profiles(first_name,last_name))))",
-      )
-      .is("read_at", null)
-      .order("created_at", { ascending: false })
-      .limit(4),
-    supabase
-      .from("projects")
-      .select("id,event_name,event_type,event_date,venue_name,status,client_id")
-      .gte("event_date", today)
-      .lte("event_date", next20Date)
-      .order("event_date", { ascending: true })
-      .limit(4),
-    supabase
-      .from("design_updates")
-      .select("id,project_id,title,client_action_status,client_action_due_date")
-      .eq("requires_client_action", true)
-      .in("client_action_status", ["pending", "overdue"])
-      .order("client_action_due_date", { ascending: true })
-      .limit(4),
+      .from("leads")
+      .select("id,first_name,last_name,event_type,event_date,status,updated_at")
+      .in("status", [...FOLLOW_UP_STATUSES])
+      .order("updated_at", { ascending: true })
+      .limit(QUEUE_LIMIT),
+    supabase.from("invoices").select("id", { count: "exact", head: true }).gt("balance_due", 0).not("status", "eq", "draft"),
     supabase
       .from("invoices")
-      .select("id,invoice_number,balance_due,due_date,status,project_id")
+      .select("id,invoice_number,balance_due,due_date,status,bpd_clients!client_id(bpd_profiles(first_name,last_name))")
       .gt("balance_due", 0)
       .not("status", "eq", "draft")
       .order("due_date", { ascending: true })
-      .limit(4),
-    supabase.from("tasks").select("id,title,due_date,status,project_id").neq("status", "complete").order("due_date", { ascending: true }).limit(4),
-    supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
+      .limit(QUEUE_LIMIT),
+    supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null),
     supabase
-      .from("business_settings")
-      .select("business_email,inquiry_recipient_email,email_readiness_status,email_provider_last_error,email_last_test_sent_at,email_last_error")
-      .limit(1)
-      .maybeSingle(),
-    supabase.from("proposals").select("id", { count: "exact", head: true }).in("status", ["draft", "sent", "viewed"]),
-    supabase.from("projects").select("id", { count: "exact", head: true }).eq("pipeline_stage", "proposal_sent"),
+      .from("messages")
+      .select(
+        "id,body,created_at,conversation_id,bpd_conversations(id,bpd_projects!project_id(event_name,bpd_clients!client_id(bpd_profiles(first_name,last_name))))",
+      )
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(QUEUE_LIMIT),
   ]);
 
-  const requestRows = newRequests ?? [];
-  const messageRows = messages ?? [];
-  const projectRows = projects ?? [];
-  const designActionRows = designActions ?? [];
-  const invoiceRows = openInvoices ?? [];
-  const taskRows = tasks ?? [];
-  const { data: settings } = settingsResult;
-  const emailReadinessStatus = mapEmailReadinessStatus(
-    settings?.email_readiness_status,
-    settings?.email_provider_last_error ?? settings?.email_last_error,
-  );
-  const ownerActionCount = requestRows.length + messageRows.length + designActionRows.length + invoiceRows.length + taskRows.length;
-  const pendingProposals = Number(pendingProposalsCount ?? 0);
-  const awaitingProposalApproval = Number(awaitingProposalApprovalCount ?? 0);
+  const inquiryRows = newInquiries ?? [];
+  const followUpRows = followUps ?? [];
+  const invoiceRows = unpaidInvoices ?? [];
+  const messageRows = unreadMessages ?? [];
+
+  const summaryCards = [
+    {
+      label: "New inquiries",
+      value: newInquiryCount ?? 0,
+      note: "Consultation requests",
+      href: "/admin/leads?status=new",
+    },
+    {
+      label: "Needs follow-up",
+      value: followUpCount ?? 0,
+      note: "Contacted or scheduled",
+      href: "/admin/leads?status=follow_up",
+    },
+    {
+      label: "Unpaid invoices",
+      value: unpaidCount ?? 0,
+      note: "Balances still due",
+      href: "/admin/invoices?status=unpaid",
+    },
+    {
+      label: "Unread messages",
+      value: unreadCount ?? 0,
+      note: "Client conversations",
+      href: "/admin/messages",
+    },
+  ].filter((card) => card.value > 0);
 
   return (
     <div>
@@ -96,175 +106,164 @@ export default async function AdminDashboardPage() {
         <div>
           <span className="eyebrow">Action center</span>
           <h1>Today</h1>
-          <p className="mini-meta">What needs a decision now — leads, messages, invoices, and events.</p>
+          <p className="mini-meta">What needs attention — inquiries, follow-ups, invoices, and messages.</p>
         </div>
         <div className="topbar-actions">
-          <ButtonLink href="/admin/today" variant="secondary">Today board</ButtonLink>
+          <ButtonLink href="/admin/today" variant="secondary">
+            Today board
+          </ButtonLink>
           <ButtonLink href="/admin/leads?status=new">Review leads</ButtonLink>
         </div>
       </div>
 
-      <section className="stats-grid" aria-label="Owner dashboard statistics">
-        <article className="stat-card"><span>Needs attention</span><strong>{ownerActionCount}</strong><small>Open actions</small></article>
-        <article className="stat-card"><span>New leads</span><strong>{requestRows.length}</strong><small>Consultation queue</small></article>
-        <article className="stat-card"><span>Open invoices</span><strong>{invoiceRows.length}</strong><small>Balances due</small></article>
-        <article className="stat-card"><span>Events · 20 days</span><strong>{projectRows.length}</strong><small>Upcoming</small></article>
-      </section>
+      {summaryCards.length ? (
+        <section className="stats-grid action-summary-grid" aria-label="Action summary">
+          {summaryCards.map((card) => (
+            <Link className="stat-card stat-card-link" href={card.href} key={card.label} prefetch={false}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.note}</small>
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <section className="panel" style={{ marginTop: 16 }}>
+          <h2>All clear</h2>
+          <p className="mini-meta" style={{ margin: 0 }}>
+            No new inquiries, follow-ups, unpaid invoices, or unread messages.
+          </p>
+        </section>
+      )}
 
-      <div className="dashboard-grid" style={{ marginTop: 16 }}>
-        <section className="panel span-2">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Primary queue</span>
-              <h2>New consultation requests</h2>
+      <div className="dashboard-grid today-queues">
+        {inquiryRows.length ? (
+          <section className="panel">
+            <div className="section-heading">
+              <h2>New inquiries</h2>
+              <Link className="mini-meta" href="/admin/leads?status=new" prefetch={false}>
+                View all
+              </Link>
             </div>
-            <span className="status">{requestRows.length} new</span>
-          </div>
-          <div className="queue-card-list" style={{ display: "grid", gap: 12 }}>
-            {requestRows.map((lead) => (
-              <article
-                className="queue-card"
-                key={lead.id}
-                style={{
-                  border: "1px solid var(--border, #e5ddd8)",
-                  borderRadius: 14,
-                  padding: "14px 16px",
-                  display: "grid",
-                  gap: 10,
-                  gridTemplateColumns: "1fr auto",
-                  alignItems: "start",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <strong>{lead.first_name} {lead.last_name}</strong>
+            <ul className="list">
+              {inquiryRows.map((lead) => (
+                <li key={lead.id}>
+                  <Link className="queue-row" href={`/admin/leads/${lead.id}`} prefetch={false}>
+                    <span>
+                      <strong>
+                        {lead.first_name} {lead.last_name}
+                      </strong>
+                      <span className="mini-meta">
+                        {lead.event_type} · {formatDate(lead.event_date, "Date pending")} ·{" "}
+                        {lead.venue || lead.city || "Venue pending"}
+                      </span>
+                      <span className="mini-meta">Submitted {formatDateTime(lead.created_at)}</span>
+                    </span>
                     <StatusBadge status={lead.status} />
-                  </div>
-                  <div className="mini-meta">Submitted {formatDateTime(lead.created_at)}</div>
-                  <div className="mini-meta">{lead.event_type} · {formatDate(lead.event_date, "Date pending")} · {lead.venue || lead.city || "Venue pending"}</div>
-                </div>
-                <QueueItemActions
-                  primaryAction={{ label: "Review", href: `/admin/leads/${lead.id}` }}
-                  actions={[
-                    { label: "View details", href: `/admin/leads/${lead.id}` },
-                    { label: "Mark contacted", href: `/admin/leads/${lead.id}?action=contacted` },
-                    { label: "Approve & create client", href: `/admin/leads/${lead.id}?action=convert` },
-                    { label: "Create proposal", href: `/admin/proposals/new?leadId=${lead.id}` },
-                  ]}
-                />
-              </article>
-            ))}
-            {!requestRows.length ? <p className="mini-meta">No new consultation requests are waiting.</p> : null}
-          </div>
-        </section>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
-        <section className="panel">
-          <h2>Pipeline snapshot</h2>
-          <ul className="list">
-            <li><span>Pending proposals</span><span className="status">{pendingProposals}</span></li>
-            <li><span>Awaiting approval</span><span className="status">{awaitingProposalApproval}</span></li>
-            <li><span>Unread notifications</span><span className="status">{unreadNotifications ?? 0}</span></li>
-            <li><span>Email readiness</span><span className="status">{readinessLabel(emailReadinessStatus)}</span></li>
-          </ul>
-          <div className="topbar-actions" style={{ marginTop: 12 }}>
-            <ButtonLink href="/admin/proposals" variant="light">Billing</ButtonLink>
-            <ButtonLink href="/admin/settings" variant="light">Settings</ButtonLink>
-          </div>
-        </section>
+        {followUpRows.length ? (
+          <section className="panel">
+            <div className="section-heading">
+              <h2>Needs follow-up</h2>
+              <Link className="mini-meta" href="/admin/leads?status=follow_up" prefetch={false}>
+                View all
+              </Link>
+            </div>
+            <ul className="list">
+              {followUpRows.map((lead) => (
+                <li key={lead.id}>
+                  <Link className="queue-row" href={`/admin/leads/${lead.id}`} prefetch={false}>
+                    <span>
+                      <strong>
+                        {lead.first_name} {lead.last_name}
+                      </strong>
+                      <span className="mini-meta">
+                        {lead.event_type} · {formatDate(lead.event_date, "Date pending")} · Updated{" "}
+                        {formatDateTime(lead.updated_at)}
+                      </span>
+                    </span>
+                    <StatusBadge status={lead.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Open invoices</h2>
-          </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {invoiceRows.map((invoice) => (
-              <article
-                key={invoice.id}
-                style={{ border: "1px solid var(--border, #e5ddd8)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}
-              >
-                <div>
-                  <strong>
-                    <Link href={`/admin/invoices/${invoice.id}`} prefetch={false}>
-                      {invoice.invoice_number}
+        {invoiceRows.length ? (
+          <section className="panel">
+            <div className="section-heading">
+              <h2>Unpaid invoices</h2>
+              <Link className="mini-meta" href="/admin/invoices?status=unpaid" prefetch={false}>
+                View all
+              </Link>
+            </div>
+            <ul className="list">
+              {invoiceRows.map((invoice) => {
+                const client = first(invoice.bpd_clients as ClientRef | ClientRef[] | null);
+                const profile = first(client?.bpd_profiles);
+                return (
+                  <li key={invoice.id}>
+                    <Link className="queue-row" href={`/admin/invoices/${invoice.id}`} prefetch={false}>
+                      <span>
+                        <strong>{invoice.invoice_number}</strong>
+                        <span className="mini-meta">
+                          {personName(profile)} · Due {formatDate(invoice.due_date, "n/a")}
+                        </span>
+                      </span>
+                      <strong>{currency(Number(invoice.balance_due ?? 0))}</strong>
                     </Link>
-                  </strong>
-                  <div className="mini-meta">{currency(Number(invoice.balance_due ?? 0))} · due {formatDate(invoice.due_date, "n/a")}</div>
-                </div>
-                <QueueItemActions
-                  primaryAction={{ label: "Open", href: `/admin/invoices/${invoice.id}` }}
-                  actions={[
-                    { label: "View invoice", href: `/admin/invoices/${invoice.id}` },
-                    { label: "Record payment", href: `/admin/invoices/${invoice.id}#record-payment` },
-                  ]}
-                />
-              </article>
-            ))}
-            {!invoiceRows.length ? <p className="mini-meta">No open invoice balances.</p> : null}
-          </div>
-        </section>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
 
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Messages</h2>
-            <MessageSquare size={18} />
-          </div>
-          <ul className="list">
-            {messageRows.map((message) => (
-              <li key={message.id}>
-                <span>{message.body?.slice(0, 72) || "Message"}<span className="mini-meta">{formatDateTime(message.created_at)}</span></span>
-                <ButtonLink href="/admin/messages" variant="light">Open</ButtonLink>
-              </li>
-            ))}
-            {!messageRows.length ? <li>No unread client messages.</li> : null}
-          </ul>
-        </section>
-
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Upcoming events</h2>
-            <CalendarDays size={18} />
-          </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {projectRows.map((project) => (
-              <article
-                key={project.id}
-                style={{ border: "1px solid var(--border, #e5ddd8)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}
-              >
-                <div>
-                  <strong>{project.event_name}</strong>
-                  <div className="mini-meta">{formatDate(project.event_date, "Date pending")} · {project.venue_name || project.event_type}</div>
-                </div>
-                <QueueItemActions
-                  primaryAction={{ label: "Open", href: `/admin/projects/${project.id}` }}
-                  actions={[
-                    { label: "View project", href: `/admin/projects/${project.id}` },
-                    { label: "Create proposal", href: `/admin/proposals/new?projectId=${project.id}` },
-                  ]}
-                />
-              </article>
-            ))}
-            {!projectRows.length ? <p className="mini-meta">No events in the next 20 days.</p> : null}
-          </div>
-        </section>
-
-        <section className="panel">
-          <h2>Client actions & tasks</h2>
-          <ul className="list">
-            {designActionRows.map((action) => (
-              <li key={action.id}>
-                <span>{action.title}<span className="mini-meta">Design · due {formatDate(action.client_action_due_date, "not set")}</span></span>
-                <ButtonLink href={`/admin/projects/${action.project_id}`} variant="light">Open</ButtonLink>
-              </li>
-            ))}
-            {taskRows.map((task) => (
-              <li key={task.id}>
-                <span>{task.title}<span className="mini-meta">Task · {task.due_date ? formatDateTime(task.due_date) : task.status}</span></span>
-                <ButtonLink href="/admin/tasks" variant="light">Open</ButtonLink>
-              </li>
-            ))}
-            {!designActionRows.length && !taskRows.length ? <li>Nothing waiting on you or the client.</li> : null}
-          </ul>
-        </section>
+        {messageRows.length ? (
+          <section className="panel">
+            <div className="section-heading">
+              <h2>Unread messages</h2>
+              <Link className="mini-meta" href="/admin/messages" prefetch={false}>
+                View all
+              </Link>
+            </div>
+            <ul className="list">
+              {messageRows.map((message) => {
+                const conversation = first(
+                  (message as { bpd_conversations?: ConversationRef | ConversationRef[] | null }).bpd_conversations,
+                );
+                const project = first(conversation?.bpd_projects);
+                const client = first(project?.bpd_clients);
+                const profile = first(client?.bpd_profiles);
+                const conversationId = message.conversation_id || conversation?.id;
+                return (
+                  <li key={message.id}>
+                    <Link
+                      className="queue-row"
+                      href={conversationId ? `/admin/messages?conversation=${conversationId}` : "/admin/messages"}
+                      prefetch={false}
+                    >
+                      <span>
+                        <strong>{personName(profile)}</strong>
+                        <span className="mini-meta">
+                          {project?.event_name || "Conversation"} · {formatDateTime(message.created_at)}
+                        </span>
+                        <span className="mini-meta">{message.body?.slice(0, 72) || "Message"}</span>
+                      </span>
+                      <StatusBadge status="unread" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </div>
   );
