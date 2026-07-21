@@ -79,6 +79,7 @@ export function InvoiceDocumentFromModel({ model, previewBadge }: { model: Invoi
         background: template.paperColor ?? "#ffffff",
       }}
     >
+      <p className="invoice-scroll-hint">Scroll for full invoice</p>
       {previewBadge ? <div className="invoice-preview-badge">{previewBadge}</div> : null}
       {template.backgroundArtworkUrl ? (
         <div

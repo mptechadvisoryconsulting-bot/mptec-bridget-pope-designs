@@ -1,4 +1,5 @@
 import { Bell, CalendarDays, MailCheck, MessageSquare } from "lucide-react";
+import Link from "next/link";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
@@ -218,7 +219,11 @@ export default async function AdminDashboardPage() {
                 style={{ border: "1px solid var(--border, #e5ddd8)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}
               >
                 <div>
-                  <strong>{invoice.invoice_number}</strong>
+                  <strong>
+                    <Link href={`/admin/invoices/${invoice.id}`} prefetch={false}>
+                      {invoice.invoice_number}
+                    </Link>
+                  </strong>
                   <div className="mini-meta">{currency(Number(invoice.balance_due ?? 0))} · due {formatDate(invoice.due_date, "n/a")}</div>
                   <span className="status">{invoice.status}</span>
                 </div>

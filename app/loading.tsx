@@ -6,7 +6,7 @@ export default function Loading() {
           Bridget Pope
           <span>Designs</span>
         </div>
-        <p>Loading your event workspace...</p>
+        <p>Loading Bridget Pope Designs...</p>
       </div>
     </div>
   );
