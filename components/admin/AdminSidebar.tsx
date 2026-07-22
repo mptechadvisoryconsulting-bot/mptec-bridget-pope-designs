@@ -117,9 +117,23 @@ export function AdminSidebar() {
     try {
       const saved = window.localStorage.getItem("bpd-admin-nav-open-v2");
       const parsed = saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
-      setOpenGroups({ ...parsed, ...activeGroups });
+      // Only force-open groups that contain the current page; preserve user's
+      // saved open/closed state for every other group (activeGroups false must not win).
+      setOpenGroups((current) => {
+        const merged = { ...current, ...parsed };
+        for (const [groupId, isActive] of Object.entries(activeGroups)) {
+          if (isActive) merged[groupId] = true;
+        }
+        return merged;
+      });
     } catch {
-      setOpenGroups(activeGroups);
+      setOpenGroups((current) => {
+        const merged = { ...current };
+        for (const [groupId, isActive] of Object.entries(activeGroups)) {
+          if (isActive) merged[groupId] = true;
+        }
+        return merged;
+      });
     }
   }, [activeGroups]);
 

@@ -1,7 +1,10 @@
 import { Instagram, Mail, Phone } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { getPublicContactEmail } from "@/lib/business/public-contact";
 
-export function Footer({ showCta = true }: { showCta?: boolean }) {
+export async function Footer({ showCta = true }: { showCta?: boolean }) {
+  const contactEmail = await getPublicContactEmail();
+
   return (
     <>
       {showCta ? (
@@ -25,7 +28,9 @@ export function Footer({ showCta = true }: { showCta?: boolean }) {
           </div>
           <div style={{ display: "flex", gap: 18 }}>
             <span style={{ display: "inline-flex", gap: 8 }}><Phone size={16} /> (629) 295-4210</span>
-            <span style={{ display: "inline-flex", gap: 8 }}><Mail size={16} /> hello@bridgetpopedesigns.com</span>
+            <a href={`mailto:${contactEmail}`} style={{ display: "inline-flex", gap: 8, color: "inherit" }}>
+              <Mail size={16} /> {contactEmail}
+            </a>
           </div>
           <div className="footer-links">
             <Instagram size={18} />

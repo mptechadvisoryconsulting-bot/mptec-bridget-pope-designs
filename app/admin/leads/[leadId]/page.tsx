@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ProjectPipelineActions } from "@/components/admin/ProjectPipelineActions";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
+import { ScheduleAvailability } from "@/components/admin/ScheduleAvailability";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -20,21 +21,34 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function toDateTimeInputValue(value?: string | null) {
+  if (!value) {
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + 2);
+    fallback.setHours(10, 0, 0, 0);
+    const offsetMs = fallback.getTimezoneOffset() * 60000;
+    return new Date(fallback.getTime() - offsetMs).toISOString().slice(0, 16);
+  }
+  const date = new Date(value);
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
 export default async function LeadDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ leadId: string }>;
-  searchParams: Promise<{ action?: string }>;
+  searchParams: Promise<{ action?: string; scheduledAt?: string; meetingType?: string }>;
 }) {
   const { leadId } = await params;
-  const { action } = await searchParams;
+  const { action, scheduledAt, meetingType } = await searchParams;
   const { profile } = await getCurrentProfile();
   const supabase = createAdminClient();
 
   if (action) {
     if (action === "contacted") await markLeadContacted(supabase, leadId, profile?.id);
-    if (action === "schedule") await scheduleLeadConsultation(supabase, leadId, profile?.id);
+    if (action === "schedule") await scheduleLeadConsultation(supabase, leadId, profile?.id, { scheduledAt, meetingType });
     if (action === "complete-consultation") await completeLeadConsultation(supabase, leadId, profile?.id);
     if (action === "awaiting-approval") await markLeadAwaitingApproval(supabase, leadId, profile?.id);
     if (action === "convert") await convertLeadToClient(supabase, leadId, profile?.id);
@@ -44,7 +58,7 @@ export default async function LeadDetailPage({
     redirect(`/admin/leads/${leadId}`);
   }
 
-  const [{ data: lead }, { data: client }, { data: project }, { data: consultation }] = await Promise.all([
+  const [{ data: lead }, { data: client }, { data: project }, { data: consultation }, busyResult] = await Promise.all([
     supabase.from("leads").select("*").eq("id", leadId).maybeSingle(),
     supabase.from("clients").select("id").eq("lead_id", leadId).maybeSingle(),
     supabase.from("projects").select("id,event_name,status,pipeline_stage").eq("lead_id", leadId).maybeSingle(),
@@ -55,11 +69,24 @@ export default async function LeadDetailPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("consultations")
+      .select("scheduled_at")
+      .not("scheduled_at", "is", null)
+      .in("status", ["requested", "scheduled"])
+      .limit(200),
   ]);
 
   if (!lead) notFound();
 
+  if (busyResult.error) {
+    console.error("lead_detail_busy_query_failed", busyResult.error);
+  }
+
   const { primaryAction, actions } = getLeadDetailActions(leadId, lead.status);
+  const busyDates = (busyResult.data ?? [])
+    .map((row) => row.scheduled_at)
+    .filter((value): value is string => Boolean(value));
 
   return (
     <div>
@@ -84,8 +111,20 @@ export default async function LeadDetailPage({
           <h2>Consultation Request</h2>
           <dl className="resource-details">
             <div><dt>Submitted</dt><dd>{formatDateTime(lead.created_at)}</dd></div>
-            <div><dt>Email</dt><dd>{lead.email}</dd></div>
-            <div><dt>Phone</dt><dd>{lead.phone}</dd></div>
+            <div>
+              <dt>Email</dt>
+              <dd>{lead.email ? <a href={`mailto:${lead.email}`}>{lead.email}</a> : "Not set"}</dd>
+            </div>
+            <div>
+              <dt>Phone</dt>
+              <dd>
+                {lead.phone ? (
+                  <a href={`tel:${String(lead.phone).replace(/[^\d+]/g, "")}`}>{lead.phone}</a>
+                ) : (
+                  "Not set"
+                )}
+              </dd>
+            </div>
             <div><dt>Event Type</dt><dd>{lead.event_type}</dd></div>
             <div><dt>Event Date</dt><dd>{formatDate(lead.event_date, "Date pending")}</dd></div>
             <div><dt>Venue</dt><dd>{lead.venue || "Not set"}</dd></div>
@@ -119,6 +158,39 @@ export default async function LeadDetailPage({
           {consultation?.scheduled_at ? (
             <p className="mini-meta">Next consultation: {formatDateTime(consultation.scheduled_at)} ({consultation.meeting_type ?? "method pending"})</p>
           ) : null}
+        </section>
+
+        <ScheduleAvailability busyDates={busyDates} />
+
+        <section className="panel span-2" id="schedule">
+          <h2>Schedule consultation</h2>
+          <p className="mini-meta">Pick a date and time using the availability calendar above. This updates the Consultations page and the lead status together.</p>
+          <form action={`/admin/leads/${leadId}`} method="get" className="queue-row-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
+            <input type="hidden" name="action" value="schedule" />
+            <input
+              aria-label="Consultation date and time"
+              className="input"
+              defaultValue={toDateTimeInputValue(consultation?.scheduled_at)}
+              name="scheduledAt"
+              required
+              style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
+              type="datetime-local"
+            />
+            <select
+              aria-label="Meeting type"
+              className="input"
+              defaultValue={consultation?.meeting_type ?? lead.preferred_consultation_method ?? "video"}
+              name="meetingType"
+              style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
+            >
+              <option value="phone">Phone</option>
+              <option value="video">Video</option>
+              <option value="in_person">In Person</option>
+            </select>
+            <button className="btn btn-primary" type="submit">
+              {consultation ? "Save consultation time" : "Schedule consultation"}
+            </button>
+          </form>
         </section>
 
         <section className="panel span-2">

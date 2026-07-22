@@ -193,10 +193,13 @@ export function AdminSettingsForm({
           <Input
             disabled={!canManageOwnerSettings}
             onChange={(event) => update("inquiryRecipientEmail", event.target.value)}
-            placeholder="inquiries@bridgetpopedesigns.com"
+            placeholder="bpeventsanddesigns@gmail.com"
             type="email"
             value={form.inquiryRecipientEmail}
           />
+          <p className="mini-meta" style={{ marginTop: 6 }}>
+            Inquiry form notifications go here. The Contact page and Footer display this same address.
+          </p>
         </Field>
         <Field label="Project Reply-To Email">
           <Input

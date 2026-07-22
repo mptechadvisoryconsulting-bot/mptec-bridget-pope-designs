@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ContactLinks } from "@/components/admin/ContactLinks";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ButtonLink } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -34,15 +35,15 @@ type LeadRow = {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string; id?: string; status?: string }>;
+  searchParams: Promise<{ action?: string; id?: string; status?: string; scheduledAt?: string; meetingType?: string }>;
 }) {
-  const { action, id, status: statusFilter } = await searchParams;
+  const { action, id, status: statusFilter, scheduledAt, meetingType } = await searchParams;
   const { profile } = await getCurrentProfile();
   const supabase = createAdminClient();
 
   if (action && id) {
     if (action === "contacted") await markLeadContacted(supabase, id, profile?.id);
-    if (action === "schedule") await scheduleLeadConsultation(supabase, id, profile?.id);
+    if (action === "schedule") await scheduleLeadConsultation(supabase, id, profile?.id, { scheduledAt, meetingType });
     if (action === "convert") await convertLeadToClient(supabase, id, profile?.id);
     if (action === "archive") await archiveLead(supabase, id, profile?.id);
     redirect(statusFilter ? `/admin/leads?status=${statusFilter}` : "/admin/leads");
@@ -97,7 +98,7 @@ export default async function LeadsPage({
                 <tr key={lead.id}>
                   <td>
                     <a href={`/admin/leads/${lead.id}`}>{lead.first_name} {lead.last_name}</a>
-                    <div className="mini-meta">{lead.email}</div>
+                    <ContactLinks email={lead.email} phone={lead.phone} />
                   </td>
                   <td>
                     {lead.event_type}

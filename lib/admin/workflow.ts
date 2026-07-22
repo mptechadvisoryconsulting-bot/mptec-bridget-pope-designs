@@ -78,7 +78,12 @@ export async function archiveLead(supabase: AnyClient, leadId: string, actorId?:
   return { success: true };
 }
 
-export async function scheduleLeadConsultation(supabase: AnyClient, leadId: string, actorId?: string | null): Promise<WorkflowResult> {
+export async function scheduleLeadConsultation(
+  supabase: AnyClient,
+  leadId: string,
+  actorId?: string | null,
+  input?: { scheduledAt?: string; meetingType?: string },
+): Promise<WorkflowResult> {
   const { data: existing } = await supabase
     .from("consultations")
     .select("id")
@@ -87,38 +92,62 @@ export async function scheduleLeadConsultation(supabase: AnyClient, leadId: stri
     .limit(1)
     .maybeSingle();
 
-  const scheduledAt = new Date();
-  scheduledAt.setDate(scheduledAt.getDate() + 2);
-  scheduledAt.setHours(10, 0, 0, 0);
+  let scheduledAt: Date;
+  if (input?.scheduledAt) {
+    scheduledAt = new Date(input.scheduledAt);
+  } else {
+    scheduledAt = new Date();
+    scheduledAt.setDate(scheduledAt.getDate() + 2);
+    scheduledAt.setHours(10, 0, 0, 0);
+  }
 
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return { success: false, message: "Invalid consultation date/time." };
+  }
+
+  const meetingType = input?.meetingType || "video";
   let consultationId: string | null = existing?.id ?? null;
 
   if (consultationId) {
-    await supabase
+    const { error } = await supabase
       .from("consultations")
-      .update({ status: "scheduled", scheduled_at: scheduledAt.toISOString(), updated_at: new Date().toISOString() })
+      .update({
+        status: "scheduled",
+        scheduled_at: scheduledAt.toISOString(),
+        meeting_type: meetingType,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", consultationId);
+    if (error) return { success: false, message: error.message };
   } else {
     const { data: created, error } = await supabase
       .from("consultations")
       .insert({
         lead_id: leadId,
         scheduled_at: scheduledAt.toISOString(),
-        meeting_type: "video",
+        meeting_type: meetingType,
         status: "scheduled",
         created_by: actorId ?? null,
       })
       .select("id")
       .single();
 
-    if (error) return { success: false, message: error.message };
+    if (error) {
+      console.error("schedule_lead_consultation_insert_failed", { leadId, error });
+      return { success: false, message: error.message };
+    }
     consultationId = created?.id ?? null;
   }
 
-  await supabase
+  const { error: leadError } = await supabase
     .from("leads")
     .update({ status: "consultation_scheduled", updated_at: new Date().toISOString() })
     .eq("id", leadId);
+
+  if (leadError) {
+    console.error("schedule_lead_consultation_lead_update_failed", { leadId, consultationId, error: leadError });
+    return { success: false, message: leadError.message };
+  }
 
   await logActivity(supabase, { actorId, leadId, action: "consultation_scheduled", entityType: "consultation", entityId: consultationId });
   return { success: true, id: consultationId };

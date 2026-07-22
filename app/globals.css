@@ -2337,3 +2337,119 @@ a.stat-card-link:hover {
     color: var(--invoice-accent, #073763);
   }
 }
+
+.month-calendar {
+  display: grid;
+  gap: 14px;
+}
+
+.month-calendar-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.month-calendar-weekdays,
+.month-calendar-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.month-calendar-weekdays span {
+  color: var(--muted, #6b645c);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.month-calendar-day {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(20, 16, 14, 0.08);
+  border-radius: 10px;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 96px;
+  padding: 8px;
+  text-align: left;
+}
+
+.month-calendar-compact .month-calendar-day {
+  align-items: center;
+  min-height: 44px;
+  padding: 6px;
+}
+
+.month-calendar-day.outside {
+  opacity: 0.45;
+}
+
+.month-calendar-day.busy {
+  background: rgba(214, 117, 142, 0.12);
+}
+
+.month-calendar-day.today {
+  box-shadow: inset 0 0 0 1px rgba(214, 117, 142, 0.55);
+}
+
+.month-calendar-day.selected,
+.month-calendar-day:hover {
+  border-color: rgba(214, 117, 142, 0.55);
+}
+
+.month-calendar-day-number {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.month-calendar-day-items {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.month-calendar-day-items li {
+  background: rgba(255, 255, 255, 0.75);
+  border-left: 3px solid var(--blush, #d6758e);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow: hidden;
+  padding: 3px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-calendar-day-items li.more {
+  background: transparent;
+  border: 0;
+  color: var(--muted, #6b645c);
+  padding-left: 0;
+}
+
+.month-calendar-dot {
+  background: var(--blush, #d6758e);
+  border-radius: 999px;
+  height: 6px;
+  width: 6px;
+}
+
+.month-calendar-day-detail h3 {
+  margin: 0 0 8px;
+}
+
+@media (max-width: 900px) {
+  .month-calendar-day {
+    min-height: 64px;
+  }
+
+  .month-calendar-day-items {
+    display: none;
+  }
+}

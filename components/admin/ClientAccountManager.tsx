@@ -106,10 +106,10 @@ export function ClientAccountManager({ projects }: { projects: ClientProject[] }
   return (
     <div className="dashboard-grid">
       <form action={createClient} className="panel form-grid span-2" id="invite-client-form">
-        <h2 className="wide">Invite Client</h2>
+        <h2 className="wide">Invite a client (portal login)</h2>
         <p className="mini-meta wide">
-          Sends a portal invitation email. After the client sets a password, they sign in at the client login — not
-          while you remain logged in as owner.
+          Secondary action: sends a portal invitation email. After the client sets a password, they sign in at the
+          client login — not while you remain logged in as owner.
         </p>
         <Field label="First Name"><Input name="firstName" placeholder="First name" required /></Field>
         <Field label="Last Name"><Input name="lastName" placeholder="Johnson" required /></Field>

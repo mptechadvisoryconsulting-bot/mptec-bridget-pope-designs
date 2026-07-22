@@ -23,7 +23,7 @@ export function getLeadQueueActions(lead: LeadLike, statusFilter?: string): {
   };
   const schedule: QueueAction = {
     label: "Schedule",
-    href: withStatus(`/admin/leads?action=schedule&id=${lead.id}`, statusFilter),
+    href: `/admin/leads/${lead.id}#schedule`,
   };
   const convert: QueueAction = {
     label: "Approve & create client",
@@ -56,7 +56,7 @@ export function getLeadDetailActions(leadId: string, status: string): {
   actions: QueueAction[];
 } {
   const contacted: QueueAction = { label: "Mark contacted", href: `/admin/leads/${leadId}?action=contacted` };
-  const schedule: QueueAction = { label: "Schedule consultation", href: `/admin/leads/${leadId}?action=schedule` };
+  const schedule: QueueAction = { label: "Schedule consultation", href: `/admin/leads/${leadId}#schedule` };
   const complete: QueueAction = {
     label: "Mark consultation complete",
     href: `/admin/leads/${leadId}?action=complete-consultation`,

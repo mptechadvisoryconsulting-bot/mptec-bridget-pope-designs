@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { ContactLinks } from "@/components/admin/ContactLinks";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
+import { ScheduleAvailability } from "@/components/admin/ScheduleAvailability";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,8 +10,14 @@ import { completeConsultation, convertConsultationLead, scheduleConsultation } f
 
 export const dynamic = "force-dynamic";
 
-type LeadRef = { first_name?: string | null; last_name?: string | null; event_type?: string | null };
-type ProfileRef = { first_name?: string | null; last_name?: string | null };
+type LeadRef = {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  event_type?: string | null;
+};
+type ProfileRef = { first_name?: string | null; last_name?: string | null; email?: string | null; phone?: string | null };
 type ClientRef = { bpd_profiles?: ProfileRef | ProfileRef[] | null };
 type ProjectRef = { event_name?: string | null; bpd_clients?: ClientRef | ClientRef[] | null };
 
@@ -34,11 +42,46 @@ const statusLabels: Record<string, string> = {
   no_show: "No Show",
 };
 
+const consultationSelect =
+  "id,scheduled_at,meeting_type,location,status,notes,lead_id,project_id,created_at,bpd_leads(first_name,last_name,email,phone,event_type),bpd_projects(event_name,bpd_clients(bpd_profiles(first_name,last_name,email,phone)))";
+
 function toDateTimeInputValue(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
   const offsetMs = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+async function loadConsultations(supabase: ReturnType<typeof createAdminClient>) {
+  const embedded = await supabase
+    .from("consultations")
+    .select(consultationSelect)
+    .order("scheduled_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (!embedded.error) {
+    return { consultations: (embedded.data ?? []) as ConsultationRow[], queryError: null as string | null };
+  }
+
+  console.error("consultations_query_failed", embedded.error);
+
+  const fallback = await supabase
+    .from("consultations")
+    .select("id,scheduled_at,meeting_type,location,status,notes,lead_id,project_id,created_at")
+    .order("scheduled_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (fallback.error) {
+    console.error("consultations_fallback_query_failed", fallback.error);
+    return { consultations: [] as ConsultationRow[], queryError: fallback.error.message };
+  }
+
+  return {
+    consultations: (fallback.data ?? []) as ConsultationRow[],
+    queryError: `Could not load related contact details (${embedded.error.message}). Showing consultation rows only.`,
+  };
 }
 
 export default async function ConsultationsPage({
@@ -57,14 +100,23 @@ export default async function ConsultationsPage({
     redirect("/admin/consultations");
   }
 
-  const { data } = await supabase
-    .from("consultations")
-    .select("id,scheduled_at,meeting_type,location,status,notes,lead_id,project_id,bpd_leads(first_name,last_name,event_type),bpd_projects(event_name,bpd_clients(bpd_profiles(first_name,last_name)))")
-    .order("scheduled_at", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ consultations, queryError }, busyResult] = await Promise.all([
+    loadConsultations(supabase),
+    supabase
+      .from("consultations")
+      .select("scheduled_at")
+      .not("scheduled_at", "is", null)
+      .in("status", ["requested", "scheduled"])
+      .limit(200),
+  ]);
 
-  const consultations = (data ?? []) as ConsultationRow[];
+  if (busyResult.error) {
+    console.error("consultations_busy_query_failed", busyResult.error);
+  }
+
+  const busyDates = (busyResult.data ?? [])
+    .map((row) => row.scheduled_at)
+    .filter((value): value is string => Boolean(value));
 
   return (
     <div>
@@ -74,6 +126,17 @@ export default async function ConsultationsPage({
           <h1>Consultations</h1>
           <p className="mini-meta">Requested and scheduled consultations created from landing-page inquiries.</p>
         </div>
+      </div>
+
+      {queryError ? (
+        <section className="panel" style={{ marginBottom: 16, borderColor: "var(--danger, #b42318)" }}>
+          <strong>Consultations query warning</strong>
+          <div className="mini-meta">{queryError}</div>
+        </section>
+      ) : null}
+
+      <div className="dashboard-grid" style={{ marginBottom: 16 }}>
+        <ScheduleAvailability busyDates={busyDates} />
       </div>
 
       <section className="panel">
@@ -98,6 +161,8 @@ export default async function ConsultationsPage({
                 ? [lead.first_name, lead.last_name].filter(Boolean).join(" ")
                 : [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || "Client";
               const eventLabel = lead?.event_type || project?.event_name || "Event pending";
+              const email = lead?.email || clientProfile?.email;
+              const phone = lead?.phone || clientProfile?.phone;
               const secondaryActions = [
                 { label: "Complete", href: `/admin/consultations?action=complete&id=${consultation.id}` },
                 ...(consultation.lead_id
@@ -109,6 +174,7 @@ export default async function ConsultationsPage({
                 <tr key={consultation.id}>
                   <td>
                     <strong style={{ fontWeight: 600 }}>{name}</strong>
+                    <ContactLinks email={email} phone={phone} />
                     {consultation.notes ? <div className="mini-meta">{consultation.notes}</div> : null}
                   </td>
                   <td>{eventLabel}</td>
@@ -129,6 +195,7 @@ export default async function ConsultationsPage({
                           className="input"
                           defaultValue={toDateTimeInputValue(consultation.scheduled_at)}
                           name="scheduledAt"
+                          required
                           style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
                           type="datetime-local"
                         />
@@ -157,7 +224,11 @@ export default async function ConsultationsPage({
               <tr>
                 <td colSpan={5}>
                   <strong>No consultations scheduled</strong>
-                  <div className="mini-meta">New inquiry submissions create requested consultations until the owner schedules a time.</div>
+                  <div className="mini-meta">
+                    {queryError
+                      ? "A database error prevented loading consultations. Check server logs for consultations_query_failed."
+                      : "New inquiry submissions create requested consultations until the owner schedules a time."}
+                  </div>
                 </td>
               </tr>
             ) : null}
