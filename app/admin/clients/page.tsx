@@ -1,7 +1,10 @@
+import { BulkDeleteTestClients } from "@/components/admin/BulkDeleteTestClients";
 import { ClientAccountManager } from "@/components/admin/ClientAccountManager";
 import { ContactLinks } from "@/components/admin/ContactLinks";
 import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
+import { TestDataFilterBar } from "@/components/admin/TestDataFilterBar";
 import { ButtonLink } from "@/components/ui/button";
+import { isLikelyTestRecord } from "@/lib/admin/test-data";
 import { formatDate } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { first } from "@/lib/supabase/relations";
@@ -48,7 +51,12 @@ type PortalProject = {
   status: string;
 };
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const { filter } = await searchParams;
   const supabase = createAdminClient();
 
   const [{ data: clientsData, error: clientsError }, { data: projectsData, error: projectsError }] = await Promise.all([
@@ -82,6 +90,14 @@ export default async function ClientsPage() {
     const latest = clientProjects[0];
     const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.email || "Client";
     const portalActive = profile?.active ?? false;
+    const likelyTest = isLikelyTestRecord({
+      email: profile?.email,
+      firstName: profile?.first_name,
+      lastName: profile?.last_name,
+      username: profile?.username,
+      name,
+      eventName: latest?.event_name,
+    });
 
     return {
       id: client.id,
@@ -95,8 +111,20 @@ export default async function ClientsPage() {
       latestEventDate: latest?.event_date ?? null,
       latestStatus: latest?.status ?? null,
       createdAt: client.created_at ?? null,
+      likelyTest,
     };
   });
+
+  const testCount = roster.filter((client) => client.likelyTest).length;
+  const visibleRoster = filter === "test" ? roster.filter((client) => client.likelyTest) : roster;
+  const testClients = roster
+    .filter((client) => client.likelyTest)
+    .map((client) => ({
+      id: client.id,
+      name: client.name,
+      email: client.email,
+      projectCount: client.projectCount,
+    }));
 
   const portalProjects: PortalProject[] = projects.map((project) => {
     const client = first(project.bpd_clients);
@@ -128,6 +156,12 @@ export default async function ClientsPage() {
           </p>
         </div>
         <div className="topbar-actions">
+          <TestDataFilterBar
+            activeFilter={filter}
+            basePath="/admin/clients"
+            testCount={testCount}
+            totalCount={roster.length}
+          />
           <ButtonLink href="#invite-client" variant="secondary">
             Invite a client
           </ButtonLink>
@@ -141,9 +175,12 @@ export default async function ClientsPage() {
         </section>
       ) : null}
 
+      {filter === "test" ? <BulkDeleteTestClients clients={testClients} /> : null}
+
       <section className="panel">
         <h2>
-          {roster.length} Client{roster.length === 1 ? "" : "s"}
+          {visibleRoster.length} Client{visibleRoster.length === 1 ? "" : "s"}
+          {filter === "test" ? " (Test / E2E)" : ""}
         </h2>
         <table className="table">
           <thead>
@@ -157,11 +194,12 @@ export default async function ClientsPage() {
             </tr>
           </thead>
           <tbody>
-            {roster.map((client) => (
+            {visibleRoster.map((client) => (
               <tr key={client.id}>
                 <td>
                   <a href={`/admin/clients/${client.id}`}>{client.name}</a>
                   {client.username ? <div className="mini-meta">@{client.username}</div> : null}
+                  {client.likelyTest ? <div className="mini-meta">Test / E2E</div> : null}
                 </td>
                 <td>
                   <ContactLinks email={client.email} phone={client.phone} />
@@ -184,7 +222,7 @@ export default async function ClientsPage() {
                     confirmName={client.name}
                     endpoint={`/api/admin/clients/${client.id}`}
                     entityLabel="client"
-                    redirectTo="/admin/clients"
+                    redirectTo={filter === "test" ? "/admin/clients?filter=test" : "/admin/clients"}
                     warning={
                       client.projectCount
                         ? `Removes ${client.projectCount} project(s) and related billing/message records.`
@@ -194,12 +232,14 @@ export default async function ClientsPage() {
                 </td>
               </tr>
             ))}
-            {!roster.length ? (
+            {!visibleRoster.length ? (
               <tr>
                 <td colSpan={6}>
-                  <strong>No clients yet</strong>
+                  <strong>{filter === "test" ? "No test / E2E clients found" : "No clients yet"}</strong>
                   <div className="mini-meta">
-                    Convert a consultation request, or use Invite a client below to create a portal login.
+                    {filter === "test"
+                      ? "Nothing matches e2e. emails or E2E / FullFlow / Audit name patterns."
+                      : "Convert a consultation request, or use Invite a client below to create a portal login."}
                   </div>
                 </td>
               </tr>

@@ -238,6 +238,18 @@ export async function generateInvoicePdf(model: InvoiceRenderModel): Promise<Buf
     y -= 12;
   }
 
+  if (model.offlinePaymentInstructions) {
+    y -= 10;
+    ensureSpace(80);
+    currentPage.drawText("How to pay", { x: MARGIN_X, y, size: 11, font: headingFont, color: secondary });
+    y -= 16;
+    for (const line of wrapText(model.offlinePaymentInstructions, bodyFont, 9, PAGE_WIDTH - MARGIN_X * 2)) {
+      ensureSpace(16);
+      currentPage.drawText(line, { x: MARGIN_X, y, size: 9, font: bodyFont, color: bodyColor });
+      y -= 12;
+    }
+  }
+
   if (template.footerText) {
     y -= 6;
     for (const line of wrapText(template.footerText, bodyFont, 8, PAGE_WIDTH - MARGIN_X * 2)) {

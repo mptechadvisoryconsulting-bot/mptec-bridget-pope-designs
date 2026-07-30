@@ -33,85 +33,103 @@ type AdminNavGroup = {
   items: AdminNavItem[];
 };
 
-const navGroups: AdminNavGroup[] = [
-  {
-    id: "today",
-    label: "Today",
-    items: [
-      { label: "Action center", href: "/admin", icon: LayoutDashboard },
-      { label: "Today board", href: "/admin/today", icon: CalendarDays },
-    ],
-  },
-  {
-    id: "pipeline",
-    label: "Pipeline",
-    items: [
-      { label: "New requests", href: "/admin/leads?status=new", icon: Users },
-      { label: "All leads", href: "/admin/leads", icon: CalendarDays },
-      { label: "Consultations", href: "/admin/consultations", icon: CalendarDays },
-    ],
-  },
-  {
-    id: "clients-events",
-    label: "Clients & Events",
-    items: [
-      { label: "Clients", href: "/admin/clients", icon: Users },
-      { label: "Projects", href: "/admin/projects", icon: FolderKanban },
-      { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
-      { label: "Tasks", href: "/admin/tasks", icon: ListChecks },
-    ],
-  },
-  {
-    id: "messages",
-    label: "Messages",
-    items: [{ label: "Inbox", href: "/admin/messages", icon: MessageSquare }],
-  },
-  {
-    id: "billing",
-    label: "Billing",
-    items: [
-      { label: "Proposals", href: "/admin/proposals", icon: FileSignature },
-      { label: "Contracts", href: "/admin/contracts", icon: FileSignature },
-      { label: "Invoices", href: "/admin/invoices", icon: ReceiptText },
-      { label: "Payments", href: "/admin/payments", icon: CreditCard },
-    ],
-  },
-  {
-    id: "studio",
-    label: "Studio",
-    items: [
-      { label: "Website Content", href: "/admin/website", icon: Globe2 },
-      { label: "Design updates", href: "/admin/design-updates", icon: GalleryHorizontalEnd },
-      { label: "Files", href: "/admin/files", icon: FolderKanban },
-      { label: "Gallery", href: "/admin/gallery", icon: GalleryHorizontalEnd },
-      { label: "Inventory", href: "/admin/inventory", icon: Package },
-      { label: "Reports", href: "/admin/reports", icon: LayoutDashboard },
-      { label: "Team", href: "/admin/team", icon: Users },
-    ],
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    items: [
-      { label: "Business settings", href: "/admin/settings", icon: Settings },
-      { label: "Invoice templates", href: "/admin/invoice-templates", icon: ReceiptText },
-    ],
-  },
-];
+export type AdminSidebarFlags = {
+  showInventoryNav?: boolean;
+  showTeamNav?: boolean;
+  showContractsNav?: boolean;
+  hasContracts?: boolean;
+};
+
+function buildNavGroups(flags: AdminSidebarFlags): AdminNavGroup[] {
+  const showContracts = Boolean(flags.showContractsNav) && Boolean(flags.hasContracts);
+  const showInventory = Boolean(flags.showInventoryNav);
+  const showTeam = Boolean(flags.showTeamNav);
+
+  const billingItems: AdminNavItem[] = [
+    { label: "Proposals", href: "/admin/proposals", icon: FileSignature },
+    ...(showContracts ? [{ label: "Contracts", href: "/admin/contracts", icon: FileSignature } as AdminNavItem] : []),
+    { label: "Invoices", href: "/admin/invoices", icon: ReceiptText },
+    { label: "Payments", href: "/admin/payments", icon: CreditCard },
+  ];
+
+  const studioItems: AdminNavItem[] = [
+    { label: "Website Content", href: "/admin/website", icon: Globe2 },
+    { label: "Design updates", href: "/admin/design-updates", icon: GalleryHorizontalEnd },
+    { label: "Files", href: "/admin/files", icon: FolderKanban },
+    { label: "Gallery", href: "/admin/gallery", icon: GalleryHorizontalEnd },
+    ...(showInventory ? [{ label: "Inventory", href: "/admin/inventory", icon: Package } as AdminNavItem] : []),
+    { label: "Reports", href: "/admin/reports", icon: LayoutDashboard },
+    ...(showTeam ? [{ label: "Team", href: "/admin/team", icon: Users } as AdminNavItem] : []),
+  ];
+
+  return [
+    {
+      id: "today",
+      label: "Today",
+      items: [
+        { label: "Action center", href: "/admin", icon: LayoutDashboard },
+        { label: "Today board", href: "/admin/today", icon: CalendarDays },
+      ],
+    },
+    {
+      id: "pipeline",
+      label: "Pipeline",
+      items: [
+        { label: "New requests", href: "/admin/leads?status=new", icon: Users },
+        { label: "All leads", href: "/admin/leads", icon: CalendarDays },
+        { label: "Consultations", href: "/admin/consultations", icon: CalendarDays },
+      ],
+    },
+    {
+      id: "clients-events",
+      label: "Clients & Events",
+      items: [
+        { label: "Clients", href: "/admin/clients", icon: Users },
+        { label: "Projects", href: "/admin/projects", icon: FolderKanban },
+        { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
+        { label: "Tasks", href: "/admin/tasks", icon: ListChecks },
+      ],
+    },
+    {
+      id: "messages",
+      label: "Messages",
+      items: [{ label: "Inbox", href: "/admin/messages", icon: MessageSquare }],
+    },
+    {
+      id: "billing",
+      label: "Billing",
+      items: billingItems,
+    },
+    {
+      id: "studio",
+      label: "Studio",
+      items: studioItems,
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      items: [
+        { label: "Business settings", href: "/admin/settings", icon: Settings },
+        { label: "Invoice templates", href: "/admin/invoice-templates", icon: ReceiptText },
+      ],
+    },
+  ];
+}
 
 function itemIsActive(pathname: string, href: string) {
   const routePath = href.split("?")[0];
   return routePath === "/admin" ? pathname === "/admin" : pathname.startsWith(routePath);
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({ flags = {} }: { flags?: AdminSidebarFlags }) {
   const pathname = usePathname();
+  const navGroups = useMemo(() => buildNavGroups(flags), [flags]);
   const activeGroups = useMemo(
     () =>
       Object.fromEntries(
         navGroups.map((group) => [group.id, group.items.some((item) => itemIsActive(pathname, item.href))]),
       ) as Record<string, boolean>,
-    [pathname],
+    [pathname, navGroups],
   );
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(activeGroups);
 
@@ -119,8 +137,6 @@ export function AdminSidebar() {
     try {
       const saved = window.localStorage.getItem("bpd-admin-nav-open-v2");
       const parsed = saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
-      // Only force-open groups that contain the current page; preserve user's
-      // saved open/closed state for every other group (activeGroups false must not win).
       setOpenGroups((current) => {
         const merged = { ...current, ...parsed };
         for (const [groupId, isActive] of Object.entries(activeGroups)) {

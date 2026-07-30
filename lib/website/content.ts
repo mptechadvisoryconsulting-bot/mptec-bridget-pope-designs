@@ -1,5 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { services as defaultServices } from "@/lib/data";
+import { faqs as defaultFaqs, services as defaultServices } from "@/lib/data";
 import { hasSupabaseAdminEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -9,6 +9,7 @@ export type WebsiteSectionKey =
   | "homepage_gallery"
   | "featured_designs"
   | "about"
+  | "faq"
   | "contact"
   | "testimonials"
   | "footer"
@@ -113,6 +114,20 @@ export type SocialContent = {
   email?: string | null;
 };
 
+export type FaqItem = {
+  id: string;
+  question: string;
+  answer: string;
+  visible: boolean;
+  sortOrder: number;
+};
+
+export type FaqContent = {
+  eyebrow: string;
+  heading: string;
+  items: FaqItem[];
+};
+
 const FIXED_SERVICE_KEYS = ["weddings", "baby_showers", "birthdays", "corporate", "balloons", "full_planning"] as const;
 
 export const defaultWebsiteContent = {
@@ -162,6 +177,17 @@ export const defaultWebsiteContent = {
     secondaryButtonText: "Learn More",
     secondaryButtonHref: "/about",
   } satisfies AboutContent,
+  faq: {
+    eyebrow: "Questions",
+    heading: "Planning Details",
+    items: defaultFaqs.map((faq, index) => ({
+      id: `faq-${index + 1}`,
+      question: faq.question,
+      answer: faq.answer,
+      visible: true,
+      sortOrder: index,
+    })),
+  } satisfies FaqContent,
   contact: {
     businessName: "Bridget Pope Designs",
     phone: "(629) 295-4210",
@@ -207,6 +233,7 @@ export type WebsiteContentMap = {
   homepage_gallery: HomepageGalleryContent;
   featured_designs: FeaturedDesignsContent;
   about: AboutContent;
+  faq: FaqContent;
   contact: ContactContent;
   testimonials: TestimonialsContent;
   footer: FooterContent;
@@ -216,7 +243,20 @@ export type WebsiteContentMap = {
 function mergeSection<K extends WebsiteSectionKey>(key: K, raw: unknown): WebsiteContentMap[K] {
   const defaults = defaultWebsiteContent[key] as WebsiteContentMap[K];
   if (!raw || typeof raw !== "object") return defaults;
-  return { ...defaults, ...(raw as object) } as WebsiteContentMap[K];
+  const merged = { ...defaults, ...(raw as object) } as WebsiteContentMap[K];
+  if (key === "faq") {
+    const faq = merged as FaqContent;
+    const items = Array.isArray(faq.items) && faq.items.length ? faq.items : (defaults as FaqContent).items;
+    return { ...faq, items } as WebsiteContentMap[K];
+  }
+  if (key === "services") {
+    const services = merged as ServicesContent;
+    return {
+      ...services,
+      items: normalizeFixedServices(services.items),
+    } as WebsiteContentMap[K];
+  }
+  return merged;
 }
 
 export async function getWebsiteSection<K extends WebsiteSectionKey>(key: K): Promise<WebsiteContentMap[K]> {

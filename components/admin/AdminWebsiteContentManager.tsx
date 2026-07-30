@@ -2,25 +2,28 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { CmsImageUploadField } from "@/components/admin/CmsImageUploadField";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/form";
 import { Input, Textarea } from "@/components/ui/input";
 import type { WebsiteContentMap, WebsiteSectionKey } from "@/lib/website/content";
 
-const sections: Array<{ key: WebsiteSectionKey; label: string; help: string }> = [
-  { key: "hero", label: "Hero", help: "Homepage hero heading, buttons, and background image." },
-  { key: "services", label: "Services", help: "Six fixed services — edit copy, order, and visibility." },
-  { key: "homepage_gallery", label: "Homepage Gallery", help: "Section headings. Manage images in Gallery Manager." },
-  { key: "featured_designs", label: "Featured Designs", help: "Featured section copy. Toggle images in Gallery Manager." },
-  { key: "about", label: "About / Meet Bridget", help: "Homepage Meet Bridget section and About page — portrait, biography, closing line, and buttons." },
-  { key: "contact", label: "Contact Information", help: "Business contact details shown in the footer and contact surfaces." },
+const sections: Array<{ key: WebsiteSectionKey; label: string; help: string; previewHref: string }> = [
+  { key: "hero", label: "Hero", help: "Homepage hero heading, buttons, and background image.", previewHref: "/" },
+  { key: "services", label: "Services", help: "Six fixed services — edit copy, order, and visibility (homepage and /services use the same list).", previewHref: "/services" },
+  { key: "homepage_gallery", label: "Homepage Gallery", help: "Section headings. Manage images in Gallery Manager.", previewHref: "/#gallery" },
+  { key: "featured_designs", label: "Featured Designs", help: "Featured section copy. Toggle images in Gallery Manager.", previewHref: "/" },
+  { key: "about", label: "About / Meet Bridget", help: "Homepage Meet Bridget section and About page — portrait, biography, closing line, and buttons.", previewHref: "/about" },
+  { key: "faq", label: "FAQ", help: "Homepage and /faq questions — including offline payment wording.", previewHref: "/faq" },
+  { key: "contact", label: "Contact Information", help: "Business contact details shown in the footer and contact surfaces.", previewHref: "/contact" },
   {
     key: "testimonials",
     label: "Testimonials",
     help: "Off by default. Enable when you have real client reviews, then optionally show them on the homepage.",
+    previewHref: "/reviews",
   },
-  { key: "footer", label: "Footer", help: "CTA band, copyright, and quick links." },
-  { key: "social", label: "Social Links", help: "Instagram and other social URLs." },
+  { key: "footer", label: "Footer", help: "CTA band, copyright, and quick links.", previewHref: "/" },
+  { key: "social", label: "Social Links", help: "Instagram and other social URLs.", previewHref: "/contact" },
 ];
 
 export function AdminWebsiteContentManager({ initialContent }: { initialContent: WebsiteContentMap }) {
@@ -46,7 +49,7 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
       return;
     }
     setContent((current) => ({ ...current, [sectionKey]: { ...current[sectionKey], ...next } }));
-    setStatus("Saved. Changes publish immediately on the public site.");
+    setStatus("Saved. Public pages refresh on the next visit.");
   }
 
   function updateActive(patch: Record<string, unknown>) {
@@ -62,11 +65,19 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
         <div>
           <span className="eyebrow">Website</span>
           <h1>Website Content</h1>
-          <p className="mini-meta">Edit marketing copy and media. Saves publish immediately (preview is a follow-up).</p>
+          <p className="mini-meta">Edit marketing copy and media. Saves publish for the next visitor (cache refreshed on save).</p>
         </div>
-        <Link className="btn btn-light" href="/admin/gallery">
-          Open Gallery Manager
-        </Link>
+        <div className="topbar-actions">
+          <a className="btn btn-light" href="/" rel="noopener noreferrer" target="_blank">
+            Preview site
+          </a>
+          <a className="btn btn-light" href={activeMeta.previewHref} rel="noopener noreferrer" target="_blank">
+            View live page
+          </a>
+          <Link className="btn btn-light" href="/admin/gallery">
+            Open Gallery Manager
+          </Link>
+        </div>
       </div>
 
       <div className="dashboard-grid">
@@ -103,7 +114,13 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
               <Field label="Primary button link"><Input value={content.hero.primaryButtonHref} onChange={(e) => updateActive({ primaryButtonHref: e.target.value })} /></Field>
               <Field label="Secondary button text"><Input value={content.hero.secondaryButtonText} onChange={(e) => updateActive({ secondaryButtonText: e.target.value })} /></Field>
               <Field label="Secondary button link"><Input value={content.hero.secondaryButtonHref} onChange={(e) => updateActive({ secondaryButtonHref: e.target.value })} /></Field>
-              <Field label="Background image URL" wide><Input value={content.hero.backgroundImage} onChange={(e) => updateActive({ backgroundImage: e.target.value })} /></Field>
+              <CmsImageUploadField
+                label="Background image"
+                value={content.hero.backgroundImage}
+                onChange={(backgroundImage) => updateActive({ backgroundImage })}
+                help="Upload a photo or paste a URL. Used as the homepage hero background."
+                titleHint="Hero background"
+              />
             </div>
           ) : null}
 
@@ -111,6 +128,9 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
             <div className="form-grid">
               <Field label="Eyebrow"><Input value={content.services.eyebrow} onChange={(e) => updateActive({ eyebrow: e.target.value })} /></Field>
               <Field label="Heading" wide><Input value={content.services.heading} onChange={(e) => updateActive({ heading: e.target.value })} /></Field>
+              <p className="mini-meta wide">
+                Toggle “Show on website” for each service. The homepage and /services both use the same visible services in this order.
+              </p>
               {content.services.items.map((item, index) => (
                 <div className="panel wide" key={item.key} style={{ padding: 16 }}>
                   <strong>{item.title}</strong>
@@ -211,13 +231,13 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
                   placeholder={`Let's create something beautiful together.`}
                 />
               </Field>
-              <Field label="Portrait image URL / path" wide>
-                <Input
-                  value={content.about.portraitImage}
-                  onChange={(e) => updateActive({ portraitImage: e.target.value })}
-                  placeholder="/images/bridget-pope-portrait.jpg"
-                />
-              </Field>
+              <CmsImageUploadField
+                label="Portrait image"
+                value={content.about.portraitImage}
+                onChange={(portraitImage) => updateActive({ portraitImage })}
+                help="Upload a portrait or paste a path/URL for Meet Bridget and the About page."
+                titleHint="Meet Bridget portrait"
+              />
               <Field label="Primary button text">
                 <Input
                   value={content.about.primaryButtonText ?? ""}
@@ -245,6 +265,91 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
             </div>
           ) : null}
 
+          {active === "faq" ? (
+            <div className="form-grid">
+              <Field label="Eyebrow"><Input value={content.faq.eyebrow} onChange={(e) => updateActive({ eyebrow: e.target.value })} /></Field>
+              <Field label="Heading" wide><Input value={content.faq.heading} onChange={(e) => updateActive({ heading: e.target.value })} /></Field>
+              <p className="mini-meta wide">
+                Edit the offline-payment FAQ answer here so clients always see accurate wording (no online checkout).
+              </p>
+              {content.faq.items.map((item, index) => (
+                <div className="panel wide" key={item.id} style={{ padding: 16 }}>
+                  <div className="form-grid">
+                    <Field label="Question" wide>
+                      <Input
+                        value={item.question}
+                        onChange={(e) => {
+                          const items = content.faq.items.map((row, i) => (i === index ? { ...row, question: e.target.value } : row));
+                          updateActive({ items });
+                        }}
+                      />
+                    </Field>
+                    <Field label="Answer" wide>
+                      <Textarea
+                        value={item.answer}
+                        onChange={(e) => {
+                          const items = content.faq.items.map((row, i) => (i === index ? { ...row, answer: e.target.value } : row));
+                          updateActive({ items });
+                        }}
+                        rows={4}
+                      />
+                    </Field>
+                    <Field label="Order">
+                      <Input
+                        type="number"
+                        value={item.sortOrder}
+                        onChange={(e) => {
+                          const items = content.faq.items.map((row, i) =>
+                            i === index ? { ...row, sortOrder: Number(e.target.value) || 0 } : row,
+                          );
+                          updateActive({ items });
+                        }}
+                      />
+                    </Field>
+                    <label className="check-row">
+                      <input
+                        checked={item.visible !== false}
+                        type="checkbox"
+                        onChange={(e) => {
+                          const items = content.faq.items.map((row, i) => (i === index ? { ...row, visible: e.target.checked } : row));
+                          updateActive({ items });
+                        }}
+                      />
+                      <span>Visible</span>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="light"
+                      onClick={() => updateActive({ items: content.faq.items.filter((_, i) => i !== index) })}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="light"
+                onClick={() =>
+                  updateActive({
+                    items: [
+                      ...content.faq.items,
+                      {
+                        id: `faq-${Date.now()}`,
+                        question: "New question",
+                        answer: "Short answer for clients.",
+                        visible: true,
+                        sortOrder: content.faq.items.length,
+                      },
+                    ],
+                  })
+                }
+              >
+                Add FAQ
+              </Button>
+            </div>
+          ) : null}
+
           {active === "contact" ? (
             <div className="form-grid">
               <Field label="Business name"><Input value={content.contact.businessName} onChange={(e) => updateActive({ businessName: e.target.value })} /></Field>
@@ -253,6 +358,10 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
               <Field label="Website"><Input value={content.contact.website ?? ""} onChange={(e) => updateActive({ website: e.target.value || null })} /></Field>
               <Field label="Address" wide><Input value={content.contact.address ?? ""} onChange={(e) => updateActive({ address: e.target.value || null })} /></Field>
               <Field label="Hours" wide><Input value={content.contact.hours ?? ""} onChange={(e) => updateActive({ hours: e.target.value || null })} /></Field>
+              <p className="mini-meta wide">
+                Offline payment handles (Cash App, Zelle, Venmo, check, bank notes) are edited under{" "}
+                <Link href="/admin/settings">Business settings → Payment instructions</Link>.
+              </p>
             </div>
           ) : null}
 
@@ -359,7 +468,7 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
             </div>
           ) : null}
 
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 20 }} className="topbar-actions">
             <Button
               disabled={saving}
               onClick={() => saveSection(active, content[active] as unknown as Record<string, unknown>)}
@@ -367,6 +476,9 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
             >
               {saving ? "Saving..." : "Save section"}
             </Button>
+            <a className="btn btn-light" href={activeMeta.previewHref} rel="noopener noreferrer" target="_blank">
+              View live page
+            </a>
           </div>
         </section>
       </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
+import { formatOfflinePaymentInstructions, loadOfflinePaymentSettings } from "@/lib/business/payment-instructions";
 import { buildInvoiceRenderModel } from "@/lib/invoices/render-model";
 import { generateInvoicePdf } from "@/lib/pdf/generate-invoice-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -66,6 +67,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ invo
     versionNumber = versionRow.version_number;
   }
 
+  const offlinePaymentInstructions = formatOfflinePaymentInstructions(await loadOfflinePaymentSettings(supabase));
+
   const model = buildInvoiceRenderModel({
     invoice: renderInvoice,
     items: renderItems,
@@ -74,6 +77,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ invo
     projectName: project?.event_name,
     venue: project?.venue_name,
     versionNumber,
+    offlinePaymentInstructions,
   });
 
   const pdf = await generateInvoicePdf(model);

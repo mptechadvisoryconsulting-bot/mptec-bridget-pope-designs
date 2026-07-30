@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { MailCheck, Save } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { readinessLabel } from "@/lib/email/delivery";
 import { safeFetch } from "@/lib/safe-fetch";
 
@@ -18,6 +18,16 @@ type OwnerEmailSettings = {
   inquiryNotificationsEnabled: boolean;
   invoiceNotificationsEnabled: boolean;
   paymentConfirmationNotificationsEnabled: boolean;
+  paymentRemindersEnabled: boolean;
+  showInventoryNav: boolean;
+  showTeamNav: boolean;
+  showContractsNav: boolean;
+  cashAppHandle: string;
+  zelleHandle: string;
+  venmoHandle: string;
+  bankTransferNotes: string;
+  checkPayableTo: string;
+  paymentInstructionsNotes: string;
 };
 
 type EmailReadiness = {
@@ -42,6 +52,16 @@ type SettingsApiResponse = {
     inquiryNotificationsEnabled: boolean;
     invoiceNotificationsEnabled: boolean;
     paymentConfirmationNotificationsEnabled: boolean;
+    paymentRemindersEnabled: boolean;
+    showInventoryNav: boolean;
+    showTeamNav: boolean;
+    showContractsNav: boolean;
+    cashAppHandle: string | null;
+    zelleHandle: string | null;
+    venmoHandle: string | null;
+    bankTransferNotes: string | null;
+    checkPayableTo: string | null;
+    paymentInstructionsNotes: string | null;
     emailReadinessStatus: EmailReadiness["status"];
     emailProviderLastSuccessAt: string | null;
     emailProviderLastMessageId: string | null;
@@ -68,6 +88,16 @@ function fromApiSettings(row: NonNullable<SettingsApiResponse["settings"]>): { f
       inquiryNotificationsEnabled: row.inquiryNotificationsEnabled,
       invoiceNotificationsEnabled: row.invoiceNotificationsEnabled,
       paymentConfirmationNotificationsEnabled: row.paymentConfirmationNotificationsEnabled,
+      paymentRemindersEnabled: row.paymentRemindersEnabled,
+      showInventoryNav: row.showInventoryNav,
+      showTeamNav: row.showTeamNav,
+      showContractsNav: row.showContractsNav,
+      cashAppHandle: row.cashAppHandle ?? "",
+      zelleHandle: row.zelleHandle ?? "",
+      venmoHandle: row.venmoHandle ?? "",
+      bankTransferNotes: row.bankTransferNotes ?? "",
+      checkPayableTo: row.checkPayableTo ?? "",
+      paymentInstructionsNotes: row.paymentInstructionsNotes ?? "",
     },
     readiness: {
       status: row.emailReadinessStatus,
@@ -120,6 +150,16 @@ export function AdminSettingsForm({
         inquiryNotificationsEnabled: form.inquiryNotificationsEnabled,
         invoiceNotificationsEnabled: form.invoiceNotificationsEnabled,
         paymentConfirmationNotificationsEnabled: form.paymentConfirmationNotificationsEnabled,
+        paymentRemindersEnabled: form.paymentRemindersEnabled,
+        showInventoryNav: form.showInventoryNav,
+        showTeamNav: form.showTeamNav,
+        showContractsNav: form.showContractsNav,
+        cashAppHandle: form.cashAppHandle,
+        zelleHandle: form.zelleHandle,
+        venmoHandle: form.venmoHandle,
+        bankTransferNotes: form.bankTransferNotes,
+        checkPayableTo: form.checkPayableTo,
+        paymentInstructionsNotes: form.paymentInstructionsNotes,
       },
     });
 
@@ -132,7 +172,7 @@ export function AdminSettingsForm({
     }
 
     setMessageIsError(false);
-    setMessage("Owner email settings saved.");
+    setMessage("Settings saved.");
     if (result.data?.settings) {
       const { form: nextForm, readiness: nextReadiness } = fromApiSettings(result.data.settings);
       setForm(nextForm);
@@ -259,10 +299,114 @@ export function AdminSettingsForm({
               />
               <span>Project completion notifications</span>
             </label>
+            <label className="check-row">
+              <input
+                checked={form.paymentRemindersEnabled}
+                disabled={!canManageOwnerSettings}
+                onChange={(event) => update("paymentRemindersEnabled", event.target.checked)}
+                type="checkbox"
+              />
+              <span>Automatic payment reminders (default off)</span>
+            </label>
           </div>
+          <p className="mini-meta" style={{ marginTop: 8 }}>
+            Payment reminders email clients about invoices due within 3 days or overdue. At most one reminder per invoice every 3 days.
+          </p>
         </div>
 
-        {!canManageOwnerSettings ? <p className="form-error wide">Only the owner account can change business email settings.</p> : null}
+        <h2 className="wide" style={{ marginTop: 12 }}>Dashboard menu</h2>
+        <p className="mini-meta wide">Hide unfinished areas until you are ready to use them.</p>
+        <div className="field wide">
+          <div className="checkbox-grid">
+            <label className="check-row">
+              <input
+                checked={form.showInventoryNav}
+                disabled={!canManageOwnerSettings}
+                onChange={(event) => update("showInventoryNav", event.target.checked)}
+                type="checkbox"
+              />
+              <span>Show Inventory in sidebar</span>
+            </label>
+            <label className="check-row">
+              <input
+                checked={form.showTeamNav}
+                disabled={!canManageOwnerSettings}
+                onChange={(event) => update("showTeamNav", event.target.checked)}
+                type="checkbox"
+              />
+              <span>Show Team in sidebar</span>
+            </label>
+            <label className="check-row">
+              <input
+                checked={form.showContractsNav}
+                disabled={!canManageOwnerSettings}
+                onChange={(event) => update("showContractsNav", event.target.checked)}
+                type="checkbox"
+              />
+              <span>Show Contracts in sidebar</span>
+            </label>
+          </div>
+          <p className="mini-meta" style={{ marginTop: 8 }}>
+            Contracts also hide automatically when you have zero contracts, even if this toggle is on.
+          </p>
+        </div>
+
+        <h2 className="wide" style={{ marginTop: 12 }}>Offline payment instructions</h2>
+        <p className="mini-meta wide">
+          Shown on client invoices, PDF downloads, and invoice emails. No online payment gateway — Cash App, Zelle, Venmo, check, or bank transfer only.
+        </p>
+        <Field label="Cash App">
+          <Input
+            disabled={!canManageOwnerSettings}
+            onChange={(event) => update("cashAppHandle", event.target.value)}
+            placeholder="$YourCashtag"
+            value={form.cashAppHandle}
+          />
+        </Field>
+        <Field label="Zelle">
+          <Input
+            disabled={!canManageOwnerSettings}
+            onChange={(event) => update("zelleHandle", event.target.value)}
+            placeholder="email or phone for Zelle"
+            value={form.zelleHandle}
+          />
+        </Field>
+        <Field label="Venmo">
+          <Input
+            disabled={!canManageOwnerSettings}
+            onChange={(event) => update("venmoHandle", event.target.value)}
+            placeholder="@YourVenmo"
+            value={form.venmoHandle}
+          />
+        </Field>
+        <Field label="Checks payable to">
+          <Input
+            disabled={!canManageOwnerSettings}
+            onChange={(event) => update("checkPayableTo", event.target.value)}
+            placeholder="Bridget Pope Designs"
+            value={form.checkPayableTo}
+          />
+        </Field>
+        <Field label="Bank transfer notes" wide>
+          <Textarea
+            disabled={!canManageOwnerSettings}
+            onChange={(event) => update("bankTransferNotes", event.target.value)}
+            placeholder="Bank name, account details, or ACH notes"
+            rows={3}
+            value={form.bankTransferNotes}
+          />
+        </Field>
+        <Field label="Other payment notes" wide>
+          <Textarea
+            disabled={!canManageOwnerSettings}
+            onChange={(event) => update("paymentInstructionsNotes", event.target.value)}
+            placeholder="Include invoice number in the memo, preferred method, etc."
+            rows={3}
+            value={form.paymentInstructionsNotes}
+          />
+        </Field>
+
+        {!canManageOwnerSettings ? <p className="form-error wide">Only the owner account can change business settings.</p> : null}
         {message ? <p className={messageIsError ? "form-error wide" : "form-success wide"}>{message}</p> : null}
         <div className="topbar-actions wide">
           <Button disabled={isSaving || !canManageOwnerSettings} type="submit">

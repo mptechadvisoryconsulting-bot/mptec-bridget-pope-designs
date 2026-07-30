@@ -10,7 +10,7 @@ export default async function SettingsPage() {
   const { data: settings } = await createAdminClient()
     .from("business_settings")
     .select(
-      "business_email,business_display_name,inquiry_recipient_email,invoice_from_display_name,invoice_reply_to,owner_message_notification_email,client_email_notifications_enabled,inquiry_notifications_enabled,invoice_notifications_enabled,payment_confirmation_notifications_enabled,email_readiness_status,email_provider_last_success_at,email_provider_last_message_id,email_provider_last_failure_at,email_provider_last_error,email_last_test_sent_at,email_last_error",
+      "business_email,business_display_name,inquiry_recipient_email,invoice_from_display_name,invoice_reply_to,owner_message_notification_email,client_email_notifications_enabled,inquiry_notifications_enabled,invoice_notifications_enabled,payment_confirmation_notifications_enabled,payment_reminders_enabled,show_inventory_nav,show_team_nav,show_contracts_nav,cash_app_handle,zelle_handle,venmo_handle,bank_transfer_notes,check_payable_to,payment_instructions_notes,email_readiness_status,email_provider_last_success_at,email_provider_last_message_id,email_provider_last_failure_at,email_provider_last_error,email_last_test_sent_at,email_last_error",
     )
     .limit(1)
     .maybeSingle();
@@ -21,6 +21,7 @@ export default async function SettingsPage() {
         <div>
           <span className="eyebrow">Business Settings</span>
           <h1>Settings</h1>
+          <p className="mini-meta">Email, offline payment instructions, reminders, and dashboard menu options.</p>
         </div>
       </div>
       <AdminSettingsForm
@@ -43,6 +44,16 @@ export default async function SettingsPage() {
           inquiryNotificationsEnabled: settings?.inquiry_notifications_enabled ?? true,
           invoiceNotificationsEnabled: settings?.invoice_notifications_enabled ?? true,
           paymentConfirmationNotificationsEnabled: settings?.payment_confirmation_notifications_enabled ?? true,
+          paymentRemindersEnabled: settings?.payment_reminders_enabled ?? false,
+          showInventoryNav: settings?.show_inventory_nav ?? false,
+          showTeamNav: settings?.show_team_nav ?? false,
+          showContractsNav: settings?.show_contracts_nav !== false,
+          cashAppHandle: settings?.cash_app_handle ?? "",
+          zelleHandle: settings?.zelle_handle ?? "",
+          venmoHandle: settings?.venmo_handle ?? "",
+          bankTransferNotes: settings?.bank_transfer_notes ?? "",
+          checkPayableTo: settings?.check_payable_to ?? "",
+          paymentInstructionsNotes: settings?.payment_instructions_notes ?? "",
         }}
       />
     </div>

@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import { InvoiceDocument } from "@/components/invoices/InvoiceDocument";
 import { DownloadInvoicePdfButton } from "@/components/invoices/DownloadInvoicePdfButton";
 import { InvoicePaymentHistory } from "@/components/invoices/InvoicePaymentHistory";
+import { OfflinePaymentInstructions } from "@/components/invoices/OfflinePaymentInstructions";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
 import { displayName } from "@/lib/auth/current-profile";
+import { formatOfflinePaymentInstructions, loadOfflinePaymentSettings } from "@/lib/business/payment-instructions";
 import { isClientVisibleInvoice } from "@/lib/invoices/client-visibility";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -41,6 +43,8 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
 
   const items = invoice.bpd_invoice_items ?? [];
   const isPayable = !["paid", "cancelled", "refunded"].includes(invoice.status) && Number(invoice.balance_due ?? 0) > 0;
+  const paymentSettings = await loadOfflinePaymentSettings(supabase);
+  const offlinePaymentInstructions = formatOfflinePaymentInstructions(paymentSettings);
 
   return (
     <div>
@@ -58,10 +62,11 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
       {isPayable ? (
         <section className="panel" style={{ marginTop: 16 }}>
           <h2>Payment</h2>
-          <p className="mini-meta" style={{ marginBottom: 0 }}>
-            Payment arrangements are handled directly with Bridget Pope Designs.
+          <p className="mini-meta">
+            Payment arrangements are handled offline with Bridget Pope Designs.
             Your balance updates when a payment is recorded.
           </p>
+          <OfflinePaymentInstructions settings={paymentSettings} compact />
         </section>
       ) : null}
 
@@ -73,6 +78,7 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
           clientName={displayName(profile)}
           invoice={invoice}
           items={items}
+          offlinePaymentInstructions={offlinePaymentInstructions}
           projectName={project?.event_name}
           venue={project?.venue_name}
         />

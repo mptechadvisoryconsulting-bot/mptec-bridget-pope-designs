@@ -32,6 +32,7 @@ export function InvoiceDocument({
   clientEmail,
   projectName,
   venue,
+  offlinePaymentInstructions,
   previewBadge,
 }: {
   invoice: InvoiceDocumentData;
@@ -40,6 +41,7 @@ export function InvoiceDocument({
   clientEmail?: string | null;
   projectName?: string | null;
   venue?: string | null;
+  offlinePaymentInstructions?: string | null;
   previewBadge?: string;
 }) {
   const model = buildInvoiceRenderModel({
@@ -49,6 +51,7 @@ export function InvoiceDocument({
     clientEmail,
     projectName,
     venue,
+    offlinePaymentInstructions,
   });
 
   return <InvoiceDocumentFromModel model={model} previewBadge={previewBadge} />;
@@ -204,6 +207,12 @@ export function InvoiceDocumentFromModel({ model, previewBadge }: { model: Invoi
           <div className="invoice-terms">
             <h2>{template.termsHeading ?? "Terms & Conditions"}</h2>
             <p>{template.paymentTerms}</p>
+            {model.offlinePaymentInstructions ? (
+              <>
+                <h2 style={{ marginTop: 16 }}>How to pay</h2>
+                <p style={{ whiteSpace: "pre-wrap" }}>{model.offlinePaymentInstructions}</p>
+              </>
+            ) : null}
             {template.footerText ? <p className="invoice-footer-text">{template.footerText}</p> : null}
           </div>
         </footer>

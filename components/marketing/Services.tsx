@@ -10,7 +10,8 @@ function visibleSorted(items: ServiceItem[]) {
 
 export async function Services() {
   const services = await getWebsiteSection("services");
-  const items = visibleSorted(services.items).slice(0, 4);
+  // Same visibility + order as /services (no hardcoded 4-item homepage cut).
+  const items = visibleSorted(services.items);
 
   return (
     <section className="section">
@@ -33,7 +34,7 @@ export async function Services() {
         </div>
         <div style={{ marginTop: 28, textAlign: "center" }}>
           <ButtonLink href="/services" variant="secondary">
-            View All Services
+            View service details
           </ButtonLink>
         </div>
       </div>
