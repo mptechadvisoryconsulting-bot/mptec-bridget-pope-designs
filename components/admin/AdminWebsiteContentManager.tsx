@@ -14,7 +14,11 @@ const sections: Array<{ key: WebsiteSectionKey; label: string; help: string }> =
   { key: "featured_designs", label: "Featured Designs", help: "Featured section copy. Toggle images in Gallery Manager." },
   { key: "about", label: "About / Meet Bridget", help: "Homepage Meet Bridget section and About page — portrait, biography, closing line, and buttons." },
   { key: "contact", label: "Contact Information", help: "Business contact details shown in the footer and contact surfaces." },
-  { key: "testimonials", label: "Testimonials", help: "Add, edit, reorder, or hide reviews." },
+  {
+    key: "testimonials",
+    label: "Testimonials",
+    help: "Off by default. Enable when you have real client reviews, then optionally show them on the homepage.",
+  },
   { key: "footer", label: "Footer", help: "CTA band, copyright, and quick links." },
   { key: "social", label: "Social Links", help: "Instagram and other social URLs." },
 ];
@@ -254,6 +258,26 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
 
           {active === "testimonials" ? (
             <div className="form-grid">
+              <label className="check-row wide">
+                <input
+                  checked={content.testimonials.enabled === true}
+                  type="checkbox"
+                  onChange={(e) => updateActive({ enabled: e.target.checked })}
+                />
+                <span>Show reviews publicly (/reviews)</span>
+              </label>
+              <label className="check-row wide">
+                <input
+                  checked={content.testimonials.showOnHomepage === true}
+                  type="checkbox"
+                  onChange={(e) => updateActive({ showOnHomepage: e.target.checked })}
+                  disabled={content.testimonials.enabled !== true}
+                />
+                <span>Also show on homepage</span>
+              </label>
+              <p className="mini-meta wide">
+                Leave both off until you have real client reviews. Placeholder quotes are not shown by default.
+              </p>
               <Field label="Eyebrow"><Input value={content.testimonials.eyebrow} onChange={(e) => updateActive({ eyebrow: e.target.value })} /></Field>
               <Field label="Heading" wide><Input value={content.testimonials.heading} onChange={(e) => updateActive({ heading: e.target.value })} /></Field>
               {content.testimonials.items.map((item, index) => (

@@ -1,5 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { services as defaultServices, testimonials as defaultTestimonials } from "@/lib/data";
+import { services as defaultServices } from "@/lib/data";
 import { hasSupabaseAdminEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -79,6 +79,10 @@ export type TestimonialItem = {
 export type TestimonialsContent = {
   eyebrow: string;
   heading: string;
+  /** When false, /reviews and any homepage testimonials block stay hidden. */
+  enabled: boolean;
+  /** When true (and enabled), homepage may render the testimonials section. */
+  showOnHomepage: boolean;
   items: TestimonialItem[];
 };
 
@@ -172,14 +176,10 @@ export const defaultWebsiteContent = {
   testimonials: {
     eyebrow: "Client reviews",
     heading: "What Clients Are Saying",
-    items: defaultTestimonials.map((item, index) => ({
-      id: `default-${index}`,
-      name: item.name,
-      event: item.event,
-      quote: item.quote.replace("inspiration board", "vision"),
-      visible: true,
-      sortOrder: index,
-    })),
+    enabled: false,
+    showOnHomepage: false,
+    // No placeholder/fake reviews — add real ones in Website Content when ready.
+    items: [],
   } satisfies TestimonialsContent,
   footer: {
     ctaHeading: "Let's Design Your Next Unforgettable Event",

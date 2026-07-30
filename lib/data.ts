@@ -3,7 +3,6 @@ export const navItems = [
   { label: "Services", href: "/services" },
   { label: "Gallery", href: "/gallery" },
   { label: "About", href: "/about" },
-  { label: "Reviews", href: "/reviews" },
   { label: "FAQs", href: "/faq" },
   { label: "Contact", href: "/contact" },
 ];
@@ -43,26 +42,8 @@ export const services = [
 
 export const galleryItems: Array<{ title: string; category: string; image: string }> = [];
 
-export const testimonials = [
-  {
-    name: "Wedding Client",
-    event: "Luxury Wedding Design",
-    quote:
-      "Bridget Pope Designs made every room feel intentional. The process was clear, polished, and honestly calming.",
-  },
-  {
-    name: "Shower Client",
-    event: "Baby Shower Design",
-    quote:
-      "Our guests kept asking who designed the shower. The backdrop, florals, and table styling were flawless.",
-  },
-  {
-    name: "Celebration Client",
-    event: "Milestone Birthday",
-    quote:
-      "The team translated my vision into something more beautiful than I imagined.",
-  },
-];
+/** Kept empty — real reviews are managed in Website Content CMS when available. */
+export const testimonials: Array<{ name: string; event: string; quote: string }> = [];
 
 export const faqs = [
   {
