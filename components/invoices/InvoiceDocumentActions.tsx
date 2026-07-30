@@ -37,7 +37,8 @@ export function InvoiceDocumentActions({
   }
 
   async function deleteInvoice() {
-    if (!window.confirm("Permanently delete this draft invoice? This cannot be undone.")) return;
+    const label = status === "draft" ? "draft invoice" : "cancelled/void invoice";
+    if (!window.confirm(`Permanently delete this ${label}? This cannot be undone.`)) return;
     const response = await fetch(`/api/invoices/${invoiceId}`, { method: "DELETE" });
     const result = await response.json().catch(() => ({ success: false, message: "Unable to delete invoice." }));
     if (!response.ok || !result.success) {

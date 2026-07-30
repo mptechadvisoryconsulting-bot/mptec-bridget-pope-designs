@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
 import { ProjectPipelineActions } from "@/components/admin/ProjectPipelineActions";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ScheduleAvailability } from "@/components/admin/ScheduleAvailability";
@@ -103,6 +104,17 @@ export default async function LeadDetailPage({
           <QueueItemActions primaryAction={primaryAction} actions={actions} />
           {project ? <ButtonLink href={`/admin/projects/${project.id}`} variant="quiet">Open project</ButtonLink> : null}
           {client ? <ButtonLink href={`/admin/clients/${client.id}`} variant="quiet">Open client</ButtonLink> : null}
+          {!client && !project ? (
+            <OwnerDeleteAction
+              buttonLabel="Delete request"
+              confirmName={`${lead.first_name} ${lead.last_name}`.trim()}
+              endpoint={`/api/leads/${leadId}`}
+              entityLabel="consultation request"
+              redirectTo="/admin/leads"
+              variant="button"
+              warning="Prefer Archive for soft cleanup. Delete permanently removes this consultation request."
+            />
+          ) : null}
         </div>
       </div>
 

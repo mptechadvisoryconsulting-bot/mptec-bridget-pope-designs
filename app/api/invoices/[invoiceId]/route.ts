@@ -208,7 +208,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         message:
           invoice.status === "draft"
             ? "Draft invoices with recorded payments cannot be deleted. Cancel/void instead."
-            : "Only draft invoices with no payments can be deleted. Cancel/void sent invoices instead.",
+            : "Only draft, cancelled, or void invoices with no payments can be deleted. Cancel/void open invoices first. Paid invoices cannot be deleted.",
       },
       { status: 400 },
     );

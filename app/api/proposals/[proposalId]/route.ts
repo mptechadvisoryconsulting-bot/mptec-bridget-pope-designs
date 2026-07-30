@@ -122,7 +122,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   if (!canDeleteProposal(String(proposal.status))) {
     return NextResponse.json(
-      { success: false, message: "Only draft proposals can be deleted. Cancel sent proposals instead." },
+      { success: false, message: "Only draft or cancelled proposals can be deleted. Cancel sent proposals instead." },
       { status: 400 },
     );
   }

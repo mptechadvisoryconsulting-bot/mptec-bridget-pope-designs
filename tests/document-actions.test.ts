@@ -8,10 +8,13 @@ import {
 } from "@/lib/billing/document-actions";
 
 describe("document-actions", () => {
-  it("allows deleting draft invoices without payments only", () => {
+  it("allows deleting draft/cancelled/void invoices without payments only", () => {
     expect(canDeleteInvoice("draft", 0)).toBe(true);
+    expect(canDeleteInvoice("cancelled", 0)).toBe(true);
+    expect(canDeleteInvoice("void", 0)).toBe(true);
     expect(canDeleteInvoice("draft", 10)).toBe(false);
     expect(canDeleteInvoice("sent", 0)).toBe(false);
+    expect(canDeleteInvoice("paid", 0)).toBe(false);
   });
 
   it("allows cancelling unpaid non-terminal invoices, not paid ones", () => {
@@ -28,8 +31,9 @@ describe("document-actions", () => {
     expect(invoiceCancelStatus("sent")).toBe("void");
   });
 
-  it("allows deleting draft proposals and cancelling sent/viewed ones", () => {
+  it("allows deleting draft/cancelled proposals and cancelling sent/viewed ones", () => {
     expect(canDeleteProposal("draft")).toBe(true);
+    expect(canDeleteProposal("cancelled")).toBe(true);
     expect(canDeleteProposal("sent")).toBe(false);
     expect(canCancelProposal("sent")).toBe(true);
     expect(canCancelProposal("viewed")).toBe(true);

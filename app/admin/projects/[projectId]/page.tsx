@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
 import { ProjectPipelineActions } from "@/components/admin/ProjectPipelineActions";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
@@ -62,6 +63,9 @@ export default async function ProjectDetailPage({
   const balance = invoiceRows.reduce((sum, invoice) => sum + Number(invoice.balance_due ?? 0), 0);
   const latestProposalId = proposalRows[0]?.id ?? null;
   const latestOpenInvoiceId = invoiceRows.find((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled" && invoice.status !== "refunded")?.id ?? null;
+  const paidInvoiceCount = invoiceRows.filter((invoice) =>
+    ["paid", "partially_paid", "refunded", "partially_refunded"].includes(String(invoice.status)),
+  ).length;
   const stageLabel =
     project.pipeline_stage && project.pipeline_stage in pipelineStageLabels
       ? pipelineStageLabels[project.pipeline_stage as keyof typeof pipelineStageLabels]
@@ -79,6 +83,20 @@ export default async function ProjectDetailPage({
           {client ? <ButtonLink href={`/admin/clients/${client.id}`} variant="light">Open Client</ButtonLink> : null}
           <ButtonLink href={`/admin/proposals/new?projectId=${projectId}`} variant="secondary">Create Proposal</ButtonLink>
           <ButtonLink href="/admin/invoices" variant="light">Create Invoice</ButtonLink>
+          <OwnerDeleteAction
+            buttonLabel="Delete project"
+            confirmName={project.event_name}
+            endpoint={`/api/admin/projects/${projectId}`}
+            entityLabel="project"
+            redirectTo="/admin/projects"
+            requireDeleteWord={paidInvoiceCount > 0}
+            variant="button"
+            warning={
+              paidInvoiceCount > 0
+                ? `This project has ${paidInvoiceCount} paid/settled invoice(s). Prefer setting status to Cancelled unless this is test data.`
+                : "Removes related invoices, proposals, contracts, tasks, and message threads. Prefer status → Cancelled for soft close."
+            }
+          />
         </div>
       </div>
 
