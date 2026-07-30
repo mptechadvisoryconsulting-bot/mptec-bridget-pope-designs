@@ -24,7 +24,7 @@ export async function Footer({ showCta = true }: { showCta?: boolean }) {
               <h2>{footer.ctaHeading}</h2>
               <p>{footer.ctaBody}</p>
             </div>
-            <ButtonLink href={footer.ctaButtonHref || "/inquire"}>{footer.ctaButtonText || "Submit a questionnaire"}</ButtonLink>
+            <ButtonLink href={footer.ctaButtonHref || "/inquire"}>{footer.ctaButtonText || "Submit a Questionnaire"}</ButtonLink>
           </div>
         </section>
       ) : null}
