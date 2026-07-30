@@ -47,7 +47,12 @@ export type AboutContent = {
   heading: string;
   biography: string;
   portraitImage: string;
+  /** Closing line shown under the Meet Bridget biography (and About page). */
   signature?: string | null;
+  primaryButtonText?: string;
+  primaryButtonHref?: string;
+  secondaryButtonText?: string;
+  secondaryButtonHref?: string;
 };
 
 export type ContactContent = {
@@ -142,12 +147,16 @@ export const defaultWebsiteContent = {
     enabled: true,
   } satisfies FeaturedDesignsContent,
   about: {
-    eyebrow: "About Bridget Pope Designs",
-    heading: "Luxury Design With Calm Execution",
+    eyebrow: "Meet the Designer",
+    heading: "Meet Bridget Pope",
     biography:
-      "Bridget Pope Designs brings intentional room styling, custom installations, proposal clarity, and client communication into one elegant experience.",
-    portraitImage: "/images/gallery-gold.png",
-    signature: null,
+      "For as long as I can remember, I've had a passion for creating beautiful spaces and unforgettable celebrations. What began as a love for decorating has grown into a lifelong commitment to designing elegant weddings and special events that reflect each client's unique vision.\n\nOver the years, I've embraced both timeless and modern event design, combining creativity, attention to detail, and thoughtful planning to create meaningful experiences. As a Master of Business Administration graduate, a Certified Event Designer & Draping Specialist, and a breast cancer survivor, I approach every celebration with gratitude, faith, and a genuine love for serving others.\n\nWhether you're planning a wedding, baby shower, birthday celebration, or corporate event, my goal is simple—to bring your vision to life with beauty, elegance, and excellence.",
+    portraitImage: "/images/bridget-pope-portrait.jpg",
+    signature: "Let's create something beautiful together.",
+    primaryButtonText: "Submit Event Questionnaire",
+    primaryButtonHref: "/inquire",
+    secondaryButtonText: "Learn More",
+    secondaryButtonHref: "/about",
   } satisfies AboutContent,
   contact: {
     businessName: "Bridget Pope Designs",

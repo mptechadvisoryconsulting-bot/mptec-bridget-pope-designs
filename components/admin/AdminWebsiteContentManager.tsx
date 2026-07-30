@@ -12,7 +12,7 @@ const sections: Array<{ key: WebsiteSectionKey; label: string; help: string }> =
   { key: "services", label: "Services", help: "Six fixed services — edit copy, order, and visibility." },
   { key: "homepage_gallery", label: "Homepage Gallery", help: "Section headings. Manage images in Gallery Manager." },
   { key: "featured_designs", label: "Featured Designs", help: "Featured section copy. Toggle images in Gallery Manager." },
-  { key: "about", label: "About Bridget", help: "Portrait, biography, and optional signature." },
+  { key: "about", label: "About / Meet Bridget", help: "Homepage Meet Bridget section and About page — portrait, biography, closing line, and buttons." },
   { key: "contact", label: "Contact Information", help: "Business contact details shown in the footer and contact surfaces." },
   { key: "testimonials", label: "Testimonials", help: "Add, edit, reorder, or hide reviews." },
   { key: "footer", label: "Footer", help: "CTA band, copyright, and quick links." },
@@ -192,9 +192,52 @@ export function AdminWebsiteContentManager({ initialContent }: { initialContent:
             <div className="form-grid">
               <Field label="Eyebrow"><Input value={content.about.eyebrow} onChange={(e) => updateActive({ eyebrow: e.target.value })} /></Field>
               <Field label="Heading"><Input value={content.about.heading} onChange={(e) => updateActive({ heading: e.target.value })} /></Field>
-              <Field label="Biography" wide><Textarea value={content.about.biography} onChange={(e) => updateActive({ biography: e.target.value })} /></Field>
-              <Field label="Portrait image URL" wide><Input value={content.about.portraitImage} onChange={(e) => updateActive({ portraitImage: e.target.value })} /></Field>
-              <Field label="Signature (optional)" wide><Input value={content.about.signature ?? ""} onChange={(e) => updateActive({ signature: e.target.value || null })} /></Field>
+              <Field label="Biography" wide>
+                <Textarea
+                  value={content.about.biography}
+                  onChange={(e) => updateActive({ biography: e.target.value })}
+                  rows={10}
+                />
+              </Field>
+              <p className="mini-meta wide">Separate paragraphs with a blank line. This copy powers the homepage Meet Bridget section and the About page.</p>
+              <Field label="Closing line" wide>
+                <Input
+                  value={content.about.signature ?? ""}
+                  onChange={(e) => updateActive({ signature: e.target.value || null })}
+                  placeholder={`Let's create something beautiful together.`}
+                />
+              </Field>
+              <Field label="Portrait image URL / path" wide>
+                <Input
+                  value={content.about.portraitImage}
+                  onChange={(e) => updateActive({ portraitImage: e.target.value })}
+                  placeholder="/images/bridget-pope-portrait.jpg"
+                />
+              </Field>
+              <Field label="Primary button text">
+                <Input
+                  value={content.about.primaryButtonText ?? ""}
+                  onChange={(e) => updateActive({ primaryButtonText: e.target.value })}
+                />
+              </Field>
+              <Field label="Primary button link">
+                <Input
+                  value={content.about.primaryButtonHref ?? ""}
+                  onChange={(e) => updateActive({ primaryButtonHref: e.target.value })}
+                />
+              </Field>
+              <Field label="Secondary button text">
+                <Input
+                  value={content.about.secondaryButtonText ?? ""}
+                  onChange={(e) => updateActive({ secondaryButtonText: e.target.value })}
+                />
+              </Field>
+              <Field label="Secondary button link">
+                <Input
+                  value={content.about.secondaryButtonHref ?? ""}
+                  onChange={(e) => updateActive({ secondaryButtonHref: e.target.value })}
+                />
+              </Field>
             </div>
           ) : null}
 

@@ -417,6 +417,71 @@ textarea {
   border-top: 1px solid var(--line);
 }
 
+.meet-bridget-band {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 247, 0.92), rgba(248, 244, 241, 0.98)),
+    radial-gradient(circle at 12% 20%, rgba(215, 170, 95, 0.12), transparent 42%),
+    radial-gradient(circle at 88% 80%, rgba(214, 117, 142, 0.1), transparent 40%);
+  border-top: 1px solid var(--line);
+}
+
+.meet-bridget-grid {
+  align-items: center;
+  display: grid;
+  gap: 40px;
+  grid-template-columns: minmax(260px, 0.92fr) minmax(280px, 1.08fr);
+}
+
+.meet-bridget-portrait {
+  border: 1px solid rgba(215, 170, 95, 0.35);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.meet-bridget-portrait img {
+  aspect-ratio: 4 / 5;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  width: 100%;
+}
+
+.meet-bridget-copy .eyebrow {
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.meet-bridget-copy h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 400;
+  line-height: 1.08;
+  margin: 0 0 18px;
+}
+
+.meet-bridget-copy p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.75;
+  margin: 0 0 14px;
+}
+
+.meet-bridget-closing {
+  color: var(--ink) !important;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px !important;
+  font-style: italic;
+  margin-top: 8px !important;
+}
+
+.meet-bridget-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 .gallery-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2048,7 +2113,8 @@ a.stat-card-link:hover {
   }
 
   .hero-inner,
-  .client-hero {
+  .client-hero,
+  .meet-bridget-grid {
     grid-template-columns: 1fr;
   }
 
