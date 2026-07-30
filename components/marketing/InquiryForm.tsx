@@ -82,7 +82,7 @@ export function InquiryForm() {
       <div className="container">
         <div className="section-heading">
           <span className="eyebrow">Start your event</span>
-          <h1>Book a Consultation</h1>
+          <h1>Submit a questionnaire</h1>
           <p>Share the details you know today. We will review your request and follow up to schedule a consultation.</p>
         </div>
         <form className="card" onSubmit={handleSubmit(submit)} style={{ margin: "0 auto", maxWidth: 920, padding: 28 }}>

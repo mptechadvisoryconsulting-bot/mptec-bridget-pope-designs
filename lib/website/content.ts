@@ -113,7 +113,7 @@ export const defaultWebsiteContent = {
     scriptHeading: "Celebrated Forever.",
     subheading:
       "From unforgettable weddings to milestone celebrations and corporate events, we create stunning experiences with elegant details and flawless execution.",
-    primaryButtonText: "Book a Consultation",
+    primaryButtonText: "Submit a questionnaire",
     primaryButtonHref: "/inquire",
     secondaryButtonText: "Explore Services",
     secondaryButtonHref: "/services",
@@ -175,7 +175,7 @@ export const defaultWebsiteContent = {
   footer: {
     ctaHeading: "Let's Design Your Next Unforgettable Event",
     ctaBody: "Consultations are by appointment. We would love to bring your vision to life.",
-    ctaButtonText: "Book Your Consultation",
+    ctaButtonText: "Submit a questionnaire",
     ctaButtonHref: "/inquire",
     copyright: "Bridget Pope Designs. All rights reserved.",
     quickLinks: [

@@ -19,7 +19,7 @@ export function MarketingHeader({ showConsultationCta = true }: { showConsultati
             </Link>
           ))}
         </nav>
-        {showConsultationCta ? <ButtonLink href="/inquire">Book a Consultation</ButtonLink> : <span aria-hidden="true" />}
+        {showConsultationCta ? <ButtonLink href="/inquire">Submit a questionnaire</ButtonLink> : <span aria-hidden="true" />}
       </div>
     </header>
   );
@@ -42,7 +42,7 @@ export async function Hero() {
             <p>{hero.subheading}</p>
             <div className="hero-actions">
               <ButtonLink href={hero.primaryButtonHref || "/inquire"}>
-                {hero.primaryButtonText || "Book a Consultation"} <ArrowRight size={16} />
+                {hero.primaryButtonText || "Submit a questionnaire"} <ArrowRight size={16} />
               </ButtonLink>
               <ButtonLink href={hero.secondaryButtonHref || "/services"} variant="secondary">
                 {hero.secondaryButtonText || "Explore Services"}
