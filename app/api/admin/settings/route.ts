@@ -6,6 +6,7 @@ import { mapEmailReadinessStatus, redactEmailError } from "@/lib/email/delivery"
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const emailOrEmpty = z.union([z.string().trim().email(), z.literal("")]);
+const optionalText = z.string().trim().max(2000);
 
 /**
  * All fields are optional so the owner can update any subset of business_settings without the
@@ -22,12 +23,22 @@ const settingsSchema = z
     inquiryNotificationsEnabled: z.boolean(),
     invoiceNotificationsEnabled: z.boolean(),
     paymentConfirmationNotificationsEnabled: z.boolean(),
+    paymentRemindersEnabled: z.boolean(),
+    showInventoryNav: z.boolean(),
+    showTeamNav: z.boolean(),
+    showContractsNav: z.boolean(),
+    cashAppHandle: optionalText,
+    zelleHandle: optionalText,
+    venmoHandle: optionalText,
+    bankTransferNotes: optionalText,
+    checkPayableTo: optionalText,
+    paymentInstructionsNotes: optionalText,
   })
   .partial()
   .refine((data) => Object.keys(data).length > 0, { message: "No settings were provided." });
 
 const columnSelect =
-  "id,business_email,business_display_name,inquiry_recipient_email,invoice_from_display_name,invoice_reply_to,owner_message_notification_email,client_email_notifications_enabled,inquiry_notifications_enabled,invoice_notifications_enabled,payment_confirmation_notifications_enabled,email_readiness_status,email_provider_last_success_at,email_provider_last_message_id,email_provider_last_failure_at,email_provider_last_error,email_last_test_sent_at,email_last_error";
+  "id,business_email,business_display_name,inquiry_recipient_email,invoice_from_display_name,invoice_reply_to,owner_message_notification_email,client_email_notifications_enabled,inquiry_notifications_enabled,invoice_notifications_enabled,payment_confirmation_notifications_enabled,payment_reminders_enabled,show_inventory_nav,show_team_nav,show_contracts_nav,cash_app_handle,zelle_handle,venmo_handle,bank_transfer_notes,check_payable_to,payment_instructions_notes,email_readiness_status,email_provider_last_success_at,email_provider_last_message_id,email_provider_last_failure_at,email_provider_last_error,email_last_test_sent_at,email_last_error";
 
 function toSettingsPayload(input: z.infer<typeof settingsSchema>) {
   const payload: Record<string, unknown> = {};
@@ -50,6 +61,20 @@ function toSettingsPayload(input: z.infer<typeof settingsSchema>) {
   }
   if (input.paymentConfirmationNotificationsEnabled !== undefined) {
     payload.payment_confirmation_notifications_enabled = input.paymentConfirmationNotificationsEnabled;
+  }
+  if (input.paymentRemindersEnabled !== undefined) {
+    payload.payment_reminders_enabled = input.paymentRemindersEnabled;
+  }
+  if (input.showInventoryNav !== undefined) payload.show_inventory_nav = input.showInventoryNav;
+  if (input.showTeamNav !== undefined) payload.show_team_nav = input.showTeamNav;
+  if (input.showContractsNav !== undefined) payload.show_contracts_nav = input.showContractsNav;
+  if (input.cashAppHandle !== undefined) payload.cash_app_handle = input.cashAppHandle || null;
+  if (input.zelleHandle !== undefined) payload.zelle_handle = input.zelleHandle || null;
+  if (input.venmoHandle !== undefined) payload.venmo_handle = input.venmoHandle || null;
+  if (input.bankTransferNotes !== undefined) payload.bank_transfer_notes = input.bankTransferNotes || null;
+  if (input.checkPayableTo !== undefined) payload.check_payable_to = input.checkPayableTo || null;
+  if (input.paymentInstructionsNotes !== undefined) {
+    payload.payment_instructions_notes = input.paymentInstructionsNotes || null;
   }
 
   // Sending will always fail without a recipient, so reflect that immediately rather than
@@ -74,6 +99,16 @@ function toResponseShape(row: Record<string, any> | null | undefined) {
     inquiryNotificationsEnabled: Boolean(row.inquiry_notifications_enabled),
     invoiceNotificationsEnabled: Boolean(row.invoice_notifications_enabled),
     paymentConfirmationNotificationsEnabled: Boolean(row.payment_confirmation_notifications_enabled),
+    paymentRemindersEnabled: Boolean(row.payment_reminders_enabled),
+    showInventoryNav: Boolean(row.show_inventory_nav),
+    showTeamNav: Boolean(row.show_team_nav),
+    showContractsNav: row.show_contracts_nav !== false,
+    cashAppHandle: row.cash_app_handle ?? null,
+    zelleHandle: row.zelle_handle ?? null,
+    venmoHandle: row.venmo_handle ?? null,
+    bankTransferNotes: row.bank_transfer_notes ?? null,
+    checkPayableTo: row.check_payable_to ?? null,
+    paymentInstructionsNotes: row.payment_instructions_notes ?? null,
     emailReadinessStatus: mapEmailReadinessStatus(row.email_readiness_status, row.email_provider_last_error ?? row.email_last_error),
     emailProviderLastSuccessAt: row.email_provider_last_success_at ?? null,
     emailProviderLastMessageId: row.email_provider_last_message_id ?? null,
@@ -123,7 +158,7 @@ export async function PUT(request: Request) {
 
   await supabase.from("activity_logs").insert({
     actor_id: owner.profile.id,
-    action: "business_email_settings_updated",
+    action: "business_settings_updated",
     entity_type: "business_settings",
     entity_id: existing?.id ?? saved?.id ?? null,
     metadata: { updated_fields: Object.keys(payload) },

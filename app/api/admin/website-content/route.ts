@@ -15,6 +15,7 @@ const sectionKeys = [
   "homepage_gallery",
   "featured_designs",
   "about",
+  "faq",
   "contact",
   "testimonials",
   "footer",
@@ -54,6 +55,7 @@ export async function PUT(request: Request) {
     revalidatePath("/");
     revalidatePath("/services");
     revalidatePath("/about");
+    revalidatePath("/faq");
     revalidatePath("/reviews");
     revalidatePath("/gallery");
     revalidatePath("/contact");

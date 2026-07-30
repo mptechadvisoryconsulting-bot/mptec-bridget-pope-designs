@@ -56,7 +56,7 @@ export const faqs = [
   },
   {
     question: "Where are proposals, contracts, and payments handled?",
-    answer: "Proposals, contracts, and invoices live in your client portal alongside project updates, designs, files, messages, and event details. Payments are arranged offline with Bridget Pope Designs.",
+    answer: "Proposals, contracts, and invoices live in your client portal alongside project updates, designs, files, messages, and event details. Payments are arranged offline with Bridget Pope Designs (Cash App, Zelle, Venmo, check, or bank transfer as arranged).",
   },
   {
     question: "Do you travel?",

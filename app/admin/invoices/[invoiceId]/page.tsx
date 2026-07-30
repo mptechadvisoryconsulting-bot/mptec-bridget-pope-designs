@@ -9,6 +9,7 @@ import { RecordManualPaymentForm } from "@/components/invoices/RecordManualPayme
 import { SendInvoiceButton } from "@/components/invoices/SendInvoiceButton";
 import { UploadInvoicePdfForm } from "@/components/invoices/UploadInvoicePdfForm";
 import { ButtonLink } from "@/components/ui/button";
+import { formatOfflinePaymentInstructions, loadOfflinePaymentSettings } from "@/lib/business/payment-instructions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/dates";
 
@@ -37,6 +38,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
   const project = Array.isArray(invoice.bpd_projects) ? invoice.bpd_projects[0] : invoice.bpd_projects;
   const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.email || "Client";
   const canEdit = !["paid", "cancelled", "void", "refunded", "partially_refunded"].includes(invoice.status);
+  const offlinePaymentInstructions = formatOfflinePaymentInstructions(await loadOfflinePaymentSettings(supabase));
 
   return (
     <div>
@@ -91,6 +93,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           clientName={clientName}
           invoice={invoice}
           items={items}
+          offlinePaymentInstructions={offlinePaymentInstructions}
           projectName={project?.event_name}
           venue={project?.venue_name}
         />

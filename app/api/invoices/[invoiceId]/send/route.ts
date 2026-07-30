@@ -4,6 +4,7 @@ import { appUrl } from "@/lib/env";
 import { sendTrackedEmail, toApiEmailStatus, type EmailDeliveryResult } from "@/lib/email/delivery";
 import { emailFrom } from "@/lib/email/resend";
 import { currency } from "@/lib/currency";
+import { formatOfflinePaymentInstructions, loadOfflinePaymentSettings } from "@/lib/business/payment-instructions";
 import { buildInvoiceRenderModel } from "@/lib/invoices/render-model";
 import { generateInvoicePdf } from "@/lib/pdf/generate-invoice-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -66,6 +67,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
     });
   }
 
+  const offlinePaymentInstructions = formatOfflinePaymentInstructions(await loadOfflinePaymentSettings(supabase));
   const model = buildInvoiceRenderModel({
     invoice,
     items: invoice.bpd_invoice_items ?? [],
@@ -74,6 +76,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
     projectName: project?.event_name,
     venue: project?.venue_name,
     versionNumber,
+    offlinePaymentInstructions,
   });
   const pdf = await generateInvoicePdf(model);
 
@@ -99,7 +102,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
         }</p>
         <p><strong>Balance due:</strong> ${currency(Number(invoice.balance_due ?? invoice.total ?? 0))}</p>
         <p><a href="${invoiceUrl}">Review invoice</a></p>
-        <p>Payment arrangements are handled directly with Bridget Pope Designs. Your portal balance updates when a payment is recorded.</p>
+        <p>Payment arrangements are handled offline with Bridget Pope Designs. Your portal balance updates when a payment is recorded.</p>
+        ${
+          offlinePaymentInstructions
+            ? `<p><strong>How to pay</strong></p><pre style="font-family:inherit;white-space:pre-wrap;">${offlinePaymentInstructions}</pre>`
+            : ""
+        }
       `,
       attachments: [{ filename: `Invoice-${invoice.invoice_number}.pdf`, content: pdf.toString("base64") }],
     });

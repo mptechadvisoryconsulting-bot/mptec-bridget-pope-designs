@@ -96,7 +96,18 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
               <tr>
                 <td colSpan={7}>
                   <strong>No contracts yet</strong>
-                  <div className="mini-meta">Approved proposals can generate contracts for client signature.</div>
+                  <div className="mini-meta" style={{ marginBottom: 12 }}>
+                    Contracts appear here after you approve a proposal and generate an agreement. Until then, this menu
+                    stays hidden so your dashboard stays focused.
+                  </div>
+                  <div className="topbar-actions">
+                    <ButtonLink href="/admin/proposals" variant="secondary">
+                      Open proposals
+                    </ButtonLink>
+                    <ButtonLink href="/admin/settings" variant="light">
+                      Menu settings
+                    </ButtonLink>
+                  </div>
                 </td>
               </tr>
             ) : null}

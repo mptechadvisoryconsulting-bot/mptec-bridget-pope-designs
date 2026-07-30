@@ -42,6 +42,8 @@ export type InvoiceRenderModel = {
     total: number;
   };
   template: InvoiceTemplateConfig;
+  /** Owner-editable offline payment instructions (Cash App, Zelle, etc.). */
+  offlinePaymentInstructions?: string | null;
   flags: {
     showDiscount: boolean;
     showTax: boolean;
@@ -75,6 +77,7 @@ export type InvoiceRenderModelInput = {
   projectName?: string | null;
   venue?: string | null;
   versionNumber?: number | null;
+  offlinePaymentInstructions?: string | null;
 };
 
 function num(value: number | string | null | undefined) {
@@ -90,7 +93,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 export function buildInvoiceRenderModel(input: InvoiceRenderModelInput): InvoiceRenderModel {
-  const { invoice, items, clientName, clientEmail, projectName, venue } = input;
+  const { invoice, items, clientName, clientEmail, projectName, venue, offlinePaymentInstructions } = input;
   const template = normalizeInvoiceTemplateConfig(invoice.template_snapshot as InvoiceTemplateConfig | null);
   const visibleFields = template.visibleFields as InvoiceVisibleFieldsConfig;
 
@@ -134,6 +137,7 @@ export function buildInvoiceRenderModel(input: InvoiceRenderModelInput): Invoice
     items: renderItems,
     totals: { subtotal, discount, tax, amountPaid, balanceDue, total },
     template,
+    offlinePaymentInstructions: offlinePaymentInstructions?.trim() || null,
     flags: {
       showDiscount: visibleFields.discount && discount > 0,
       showTax: visibleFields.tax && tax > 0,
