@@ -11,7 +11,7 @@ export default function HomePage() {
     <div className="page-shell">
       <Hero />
       <Services />
-      <Gallery />
+      <Gallery mode="homepage" limit={8} />
       <FAQ />
       <Footer showCta={false} />
     </div>

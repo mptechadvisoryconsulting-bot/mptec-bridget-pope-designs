@@ -18,40 +18,42 @@ function cleanFilePart(value: string) {
     .slice(0, 80);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: Request, { params }: { params: Promise<{ fileId: string }> }) {
   try {
     const admin = await requireAdminProfile();
     if (admin.error) return admin.error;
 
     if (!hasSupabaseAdminEnv()) {
-      return NextResponse.json(
-        { success: false, message: "Supabase environment variables are required for uploads." },
-        { status: 503 },
-      );
+      return NextResponse.json({ success: false, message: "Supabase environment variables are required for uploads." }, { status: 503 });
     }
 
+    const { fileId } = await params;
     const form = await request.formData();
     const file = form.get("file");
 
     if (!(file instanceof File)) {
       return NextResponse.json({ success: false, message: "An image file is required." }, { status: 400 });
     }
-
     if (!imageTypes.has(file.type)) {
       return NextResponse.json({ success: false, message: "Upload a JPG, PNG, or WebP image." }, { status: 400 });
     }
-
     if (file.size > maxImageSize) {
       return NextResponse.json({ success: false, message: "Image must be 15 MB or smaller." }, { status: 400 });
     }
 
     const supabase = createAdminClient();
+    const { data: existing, error: lookupError } = await supabase
+      .from("files")
+      .select("id,storage_path,title,file_name,visibility")
+      .eq("id", fileId)
+      .eq("visibility", "public_gallery")
+      .maybeSingle();
+
+    if (lookupError) return NextResponse.json({ success: false, message: lookupError.message }, { status: 400 });
+    if (!existing) return NextResponse.json({ success: false, message: "Gallery item not found." }, { status: 404 });
+
     const bucket = process.env.NEXT_PUBLIC_GALLERY_BUCKET ?? "event-gallery";
-    const category = String(form.get("category") ?? "Event Design").trim() || "Event Design";
-    const title = String(form.get("title") ?? file.name).trim() || file.name;
-    const description = String(form.get("description") ?? "").trim() || null;
-    const showOnHomepage = String(form.get("showOnHomepage") ?? "") === "1" || form.get("showOnHomepage") === "true";
-    const isFeatured = String(form.get("isFeatured") ?? "") === "1" || form.get("isFeatured") === "true";
+    const title = existing.title || existing.file_name || "event-photo";
     const extension = file.name.split(".").pop()?.toLowerCase() ?? file.type.split("/")[1] ?? "jpg";
     const storagePath = `gallery/${cleanFilePart(title) || "event-photo"}-${randomUUID()}.${extension}`;
 
@@ -66,47 +68,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: uploadError.message }, { status: 400 });
     }
 
-    const { data: maxSort } = await supabase
-      .from("files")
-      .select("sort_order")
-      .eq("visibility", "public_gallery")
-      .order("sort_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const nextSort = Number(maxSort?.sort_order ?? -1) + 1;
-
     const { data, error } = await supabase
       .from("files")
-      .insert({
-        uploaded_by: admin.profile.id,
-        category,
-        title,
-        file_name: title,
-        description,
+      .update({
         storage_path: storagePath,
         mime_type: file.type,
         file_size: file.size,
-        visibility: "public_gallery",
-        sort_order: nextSort,
-        show_on_homepage: showOnHomepage,
-        is_featured: isFeatured,
-        is_visible: true,
+        updated_at: new Date().toISOString(),
       })
+      .eq("id", fileId)
       .select()
       .single();
 
     if (error) {
+      await supabase.storage.from(bucket).remove([storagePath]);
       return NextResponse.json({ success: false, message: error.message }, { status: 400 });
     }
 
-    const { data: publicUrl } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+    const oldPath = String(existing.storage_path ?? "");
+    if (oldPath && !oldPath.startsWith("http") && !oldPath.startsWith("/") && oldPath !== storagePath) {
+      const { count } = await supabase
+        .from("files")
+        .select("id", { count: "exact", head: true })
+        .eq("storage_path", oldPath);
+      if ((count ?? 0) === 0) {
+        await supabase.storage.from(bucket).remove([oldPath]);
+      }
+    }
 
     revalidatePath("/");
     revalidatePath("/gallery");
     revalidatePath("/admin/gallery");
 
-    return NextResponse.json({ success: true, file: data, publicUrl: publicUrl.publicUrl }, { status: 201 });
+    return NextResponse.json({ success: true, file: data });
   } catch (error) {
     return NextResponse.json({ success: false, message: safeErrorMessage(error) }, { status: 400 });
   }

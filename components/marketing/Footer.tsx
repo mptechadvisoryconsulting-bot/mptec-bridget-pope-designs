@@ -1,9 +1,19 @@
 import { Instagram, Mail, Phone } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { getPublicContactEmail } from "@/lib/business/public-contact";
+import { getWebsiteSection } from "@/lib/website/content";
 
 export async function Footer({ showCta = true }: { showCta?: boolean }) {
-  const contactEmail = await getPublicContactEmail();
+  const [contactEmail, footer, contact, social] = await Promise.all([
+    getPublicContactEmail(),
+    getWebsiteSection("footer"),
+    getWebsiteSection("contact"),
+    getWebsiteSection("social"),
+  ]);
+
+  const phone = contact.phone || "(629) 295-4210";
+  const email = contact.email || contactEmail;
+  const year = new Date().getFullYear();
 
   return (
     <>
@@ -11,12 +21,10 @@ export async function Footer({ showCta = true }: { showCta?: boolean }) {
         <section className="cta-band">
           <div className="container cta-inner">
             <div>
-              <h2>Let's Design Your Next Unforgettable Event</h2>
-              <p>Consultations are by appointment. We would love to bring your vision to life.</p>
+              <h2>{footer.ctaHeading}</h2>
+              <p>{footer.ctaBody}</p>
             </div>
-            <ButtonLink href="/inquire">
-              Book Your Consultation
-            </ButtonLink>
+            <ButtonLink href={footer.ctaButtonHref || "/inquire"}>{footer.ctaButtonText || "Book Your Consultation"}</ButtonLink>
           </div>
         </section>
       ) : null}
@@ -25,15 +33,29 @@ export async function Footer({ showCta = true }: { showCta?: boolean }) {
           <div className="brand">
             Bridget Pope
             <span>Designs</span>
+            <div className="mini-meta" style={{ marginTop: 8 }}>
+              © {year} {footer.copyright}
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 18 }}>
-            <span style={{ display: "inline-flex", gap: 8 }}><Phone size={16} /> (629) 295-4210</span>
-            <a href={`mailto:${contactEmail}`} style={{ display: "inline-flex", gap: 8, color: "inherit" }}>
-              <Mail size={16} /> {contactEmail}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <span style={{ display: "inline-flex", gap: 8 }}>
+              <Phone size={16} /> {phone}
+            </span>
+            <a href={`mailto:${email}`} style={{ display: "inline-flex", gap: 8, color: "inherit" }}>
+              <Mail size={16} /> {email}
             </a>
+            {footer.quickLinks?.length ? (
+              <div className="footer-links" style={{ gap: 12 }}>
+                {footer.quickLinks.map((link) => (
+                  <a key={`${link.href}-${link.label}`} href={link.href}>
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="footer-links">
-            <Instagram size={18} />
+            {social.instagram || contact.instagram ? <Instagram size={18} /> : null}
             <Mail size={18} />
             <Phone size={18} />
           </div>

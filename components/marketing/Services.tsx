@@ -1,22 +1,29 @@
 import { Baby, BriefcaseBusiness, Cake, Flower2, Gem, Gift, Heart, MapPin, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { services } from "@/lib/data";
+import { getWebsiteSection, type ServiceItem } from "@/lib/website/content";
 
 const icons = [Flower2, Baby, Cake, BriefcaseBusiness, Sparkles, Gift];
 
-export function Services() {
+function visibleSorted(items: ServiceItem[]) {
+  return items.filter((item) => item.visible !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+export async function Services() {
+  const services = await getWebsiteSection("services");
+  const items = visibleSorted(services.items).slice(0, 4);
+
   return (
     <section className="section">
       <div className="container">
         <div className="section-heading">
-          <span className="eyebrow">Our services</span>
-          <h2>Everything You Need for a Flawless Event</h2>
+          <span className="eyebrow">{services.eyebrow}</span>
+          <h2>{services.heading}</h2>
         </div>
         <div className="service-grid">
-          {services.slice(0, 4).map((service, index) => {
-            const Icon = icons[index];
+          {items.map((service, index) => {
+            const Icon = icons[index % icons.length];
             return (
-              <article className="card service-card" key={service.title}>
+              <article className="card service-card" key={service.key || service.title}>
                 <Icon size={34} strokeWidth={1.6} />
                 <h3>{service.title}</h3>
                 <p>{service.description}</p>
@@ -34,23 +41,26 @@ export function Services() {
   );
 }
 
-export function ServiceCatalog() {
+export async function ServiceCatalog() {
+  const services = await getWebsiteSection("services");
+  const items = visibleSorted(services.items);
+
   return (
     <section className="section">
       <div className="container">
         <div className="section-heading">
           <span className="eyebrow">Service catalog</span>
           <h1>Luxury Event Services</h1>
-          <p>Choose a focused install or a full design and planning experience with proposal, contract, payments, and timeline automation.</p>
+          <p>Choose a focused install or a full design and planning experience with proposals, contracts, invoices, and timeline coordination in your client portal.</p>
         </div>
         <div className="service-grid">
-          {services.map((service, index) => {
+          {items.map((service, index) => {
             const Icon = icons[index % icons.length];
             return (
-              <article className="card service-card" key={service.title}>
+              <article className="card service-card" key={service.key || service.title}>
                 <Icon size={34} strokeWidth={1.6} />
                 <h3>{service.title}</h3>
-                <p>{service.detail}</p>
+                <p>{service.detail || service.description}</p>
               </article>
             );
           })}

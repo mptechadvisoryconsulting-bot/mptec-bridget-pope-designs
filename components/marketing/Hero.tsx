@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { navItems } from "@/lib/data";
+import { getWebsiteSection } from "@/lib/website/content";
 
 export function MarketingHeader({ showConsultationCta = true }: { showConsultationCta?: boolean }) {
   return (
@@ -24,32 +25,34 @@ export function MarketingHeader({ showConsultationCta = true }: { showConsultati
   );
 }
 
-export function Hero() {
+export async function Hero() {
+  const hero = await getWebsiteSection("hero");
+
   return (
     <>
       <MarketingHeader showConsultationCta={false} />
       <section className="hero">
         <div className="hero-inner">
           <div className="hero-copy">
-            <span className="eyebrow">Luxury event design and planning</span>
+            <span className="eyebrow">{hero.eyebrow}</span>
             <h1>
-              Designed Beautifully.
-              <span className="script">Celebrated Forever.</span>
+              {hero.heading}
+              {hero.scriptHeading ? <span className="script">{hero.scriptHeading}</span> : null}
             </h1>
-            <p>
-              From unforgettable weddings to milestone celebrations and corporate events, we create stunning experiences
-              with elegant details and flawless execution.
-            </p>
+            <p>{hero.subheading}</p>
             <div className="hero-actions">
-              <ButtonLink href="/inquire">
-                Book a Consultation <ArrowRight size={16} />
+              <ButtonLink href={hero.primaryButtonHref || "/inquire"}>
+                {hero.primaryButtonText || "Book a Consultation"} <ArrowRight size={16} />
               </ButtonLink>
-              <ButtonLink href="/services" variant="secondary">
-                Explore Services
+              <ButtonLink href={hero.secondaryButtonHref || "/services"} variant="secondary">
+                {hero.secondaryButtonText || "Explore Services"}
               </ButtonLink>
             </div>
           </div>
-          <div className="hero-visual" style={{ backgroundImage: "url('/images/event-hero.png')" }} />
+          <div
+            className="hero-visual"
+            style={{ backgroundImage: `url('${hero.backgroundImage || "/images/event-hero.png"}')` }}
+          />
         </div>
       </section>
     </>

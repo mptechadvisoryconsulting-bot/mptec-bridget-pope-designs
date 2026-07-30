@@ -8,7 +8,7 @@ export default function GalleryPage() {
   return (
     <div className="page-shell">
       <MarketingHeader />
-      <Gallery />
+      <Gallery mode="library" limit={48} />
       <Footer />
     </div>
   );
