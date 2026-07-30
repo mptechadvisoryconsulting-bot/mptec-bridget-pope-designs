@@ -22,6 +22,7 @@ const tableAliases = {
   design_feedback: "bpd_design_feedback",
   design_approvals: "bpd_design_approvals",
   pipeline_events: "bpd_pipeline_events",
+  honeybook_financial_references: "bpd_honeybook_financial_references",
   milestones: "bpd_milestones",
   tasks: "bpd_tasks",
   inventory_items: "bpd_inventory_items",

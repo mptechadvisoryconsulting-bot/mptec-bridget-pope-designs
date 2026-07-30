@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
@@ -38,6 +39,9 @@ export default async function ClientDetailPage({
   const outstanding = invoiceRows.reduce((sum, row) => sum + Number(row.balance_due ?? 0), 0);
   const primaryProjectId = projectRows[0]?.id;
   const showProvisionedBanner = query.provisioned === "1";
+  const paidInvoiceCount = invoiceRows.filter((row) =>
+    ["paid", "partially_paid", "refunded", "partially_refunded"].includes(String(row.status)),
+  ).length;
 
   return (
     <div>
@@ -60,6 +64,21 @@ export default async function ClientDetailPage({
             </ButtonLink>
           ) : null}
           <ButtonLink href={`/admin/proposals/new`} variant="secondary">Create Proposal</ButtonLink>
+          <OwnerDeleteAction
+            buttonLabel="Delete client"
+            cascade={projectRows.length > 0}
+            confirmName={clientName}
+            endpoint={`/api/admin/clients/${clientId}`}
+            entityLabel="client"
+            redirectTo="/admin/clients"
+            requireDeleteWord={paidInvoiceCount > 0}
+            variant="button"
+            warning={
+              projectRows.length
+                ? `Removes ${projectRows.length} project(s), related invoices/proposals, and message threads. Prefer Deactivate on the Clients page if you only want to revoke portal login.`
+                : "Removes this client record and portal profile. Prefer Deactivate on the Clients page if you only want to revoke portal login."
+            }
+          />
           <ButtonLink href="/admin/clients" variant="light">Back to Clients</ButtonLink>
         </div>
       </div>

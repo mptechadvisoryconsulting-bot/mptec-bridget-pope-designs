@@ -35,7 +35,8 @@ export function ProposalDocumentActions({
   }
 
   async function deleteProposal() {
-    if (!window.confirm("Permanently delete this draft proposal? This cannot be undone.")) return;
+    const label = status === "draft" ? "draft proposal" : "cancelled proposal";
+    if (!window.confirm(`Permanently delete this ${label}? This cannot be undone.`)) return;
     const response = await fetch(`/api/proposals/${proposalId}`, { method: "DELETE" });
     const result = await response.json().catch(() => ({ success: false, message: "Unable to delete proposal." }));
     if (!response.ok || !result.success) {

@@ -1,10 +1,13 @@
 const PAID_OR_SETTLED_INVOICE = new Set(["paid", "refunded", "partially_refunded"]);
 const TERMINAL_INVOICE = new Set(["cancelled", "void", "paid", "refunded", "partially_refunded"]);
+const DELETABLE_INVOICE = new Set(["draft", "cancelled", "void"]);
 const CANCELABLE_PROPOSAL = new Set(["sent", "viewed", "expired"]);
 const TERMINAL_PROPOSAL = new Set(["cancelled", "rejected", "approved"]);
+const DELETABLE_PROPOSAL = new Set(["draft", "cancelled"]);
 
 export function canDeleteInvoice(status: string, amountPaid = 0) {
-  return status === "draft" && Number(amountPaid ?? 0) <= 0;
+  // Draft or already-cancelled/void test leftovers — never paid/settled invoices.
+  return DELETABLE_INVOICE.has(status) && Number(amountPaid ?? 0) <= 0;
 }
 
 export function canCancelInvoice(status: string) {
@@ -14,7 +17,7 @@ export function canCancelInvoice(status: string) {
 }
 
 export function canDeleteProposal(status: string) {
-  return status === "draft";
+  return DELETABLE_PROPOSAL.has(status);
 }
 
 export function canCancelProposal(status: string) {

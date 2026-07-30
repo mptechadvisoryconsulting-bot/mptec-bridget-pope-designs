@@ -70,9 +70,12 @@ export function getLeadDetailActions(leadId: string, status: string): {
   const lost: QueueAction = { label: "Mark lost", href: `/admin/leads/${leadId}?action=lost` };
   const archive: QueueAction = { label: "Archive", href: `/admin/leads/${leadId}?action=archive` };
 
-  const terminal = status === "converted" || status === "archived";
-  if (terminal) {
+  if (status === "converted") {
     return { primaryAction: null, actions: [] };
+  }
+
+  if (status === "archived" || status === "lost" || status === "declined") {
+    return { primaryAction: null, actions: status === "archived" ? [] : [archive] };
   }
 
   const actions = [contacted, schedule, complete, awaiting, convert, decline, lost, archive];

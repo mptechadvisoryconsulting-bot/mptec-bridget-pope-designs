@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
@@ -118,7 +119,17 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   </td>
                   <td>{taskCounts.get(project.id) ?? 0}</td>
                   <td>{balance > 0 ? currency(balance) : "No balance reference"}</td>
-                  <td><ButtonLink href={`/admin/projects/${project.id}`} variant="light">Open</ButtonLink></td>
+                  <td style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                    <ButtonLink href={`/admin/projects/${project.id}`} variant="light">Open</ButtonLink>
+                    <OwnerDeleteAction
+                      buttonLabel="Delete"
+                      confirmName={project.event_name}
+                      endpoint={`/api/admin/projects/${project.id}`}
+                      entityLabel="project"
+                      redirectTo="/admin/projects"
+                      warning="Removes related invoices, proposals, and message threads for this project."
+                    />
+                  </td>
                 </tr>
               );
             })}

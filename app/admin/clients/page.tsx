@@ -1,5 +1,6 @@
 import { ClientAccountManager } from "@/components/admin/ClientAccountManager";
 import { ContactLinks } from "@/components/admin/ContactLinks";
+import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDate } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -152,6 +153,7 @@ export default async function ClientsPage() {
               <th>Projects</th>
               <th>Latest event</th>
               <th>Portal</th>
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -175,11 +177,26 @@ export default async function ClientsPage() {
                 <td>
                   <span className="status">{client.portalActive ? "Active" : "Invited / inactive"}</span>
                 </td>
+                <td>
+                  <OwnerDeleteAction
+                    buttonLabel="Delete"
+                    cascade={client.projectCount > 0}
+                    confirmName={client.name}
+                    endpoint={`/api/admin/clients/${client.id}`}
+                    entityLabel="client"
+                    redirectTo="/admin/clients"
+                    warning={
+                      client.projectCount
+                        ? `Removes ${client.projectCount} project(s) and related billing/message records.`
+                        : undefined
+                    }
+                  />
+                </td>
               </tr>
             ))}
             {!roster.length ? (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <strong>No clients yet</strong>
                   <div className="mini-meta">
                     Convert a consultation request, or use Invite a client below to create a portal login.
