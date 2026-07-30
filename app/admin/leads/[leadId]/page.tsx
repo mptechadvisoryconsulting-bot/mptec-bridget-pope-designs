@@ -131,9 +131,10 @@ export default async function LeadDetailPage({
             <div><dt>City</dt><dd>{lead.city || "Not set"}</dd></div>
             <div><dt>Guest Count</dt><dd>{lead.guest_count ?? "Not set"}</dd></div>
             <div><dt>Budget</dt><dd>{lead.estimated_budget || "Not set"}</dd></div>
+            <div><dt>How They Heard About Us</dt><dd>{lead.referral_source || "Not set"}</dd></div>
             <div><dt>Colors / Theme</dt><dd>{[lead.event_colors, lead.event_theme].filter(Boolean).join(" · ") || "Not set"}</dd></div>
             <div><dt>Services Needed</dt><dd>{(lead.services_needed ?? []).join(", ") || "Not set"}</dd></div>
-            <div><dt>Preferred Consultation</dt><dd>{[lead.preferred_consultation_method, lead.preferred_consultation_date].filter(Boolean).join(" · ") || "Not set"}</dd></div>
+            <div><dt>Preferred Consultation</dt><dd>{[lead.preferred_consultation_method, lead.preferred_consultation_date, lead.preferred_consultation_time].filter(Boolean).join(" · ") || "Not set"}</dd></div>
             <div><dt>Source</dt><dd>{(lead.source || "public_website").replace(/_/g, " ")}</dd></div>
           </dl>
           {lead.message ? (

@@ -37,18 +37,14 @@ export async function POST(request: Request) {
         email: normalized.email,
         phone: normalized.phone,
         event_type: normalized.eventType,
-        event_date: normalized.eventDate,
-        venue: normalized.venue,
-        city: normalized.city,
         guest_count: normalized.guestCount,
         estimated_budget: normalized.estimatedBudget,
         preferred_consultation_method: normalized.preferredConsultationMethod,
         preferred_consultation_date: normalized.preferredConsultationDate,
         preferred_consultation_time: normalized.preferredConsultationTime,
-        event_colors: normalized.eventColors,
-        event_theme: normalized.eventTheme,
         services_needed: normalized.servicesNeeded,
         message: normalized.message,
+        referral_source: normalized.referralSource,
         status: "new",
         source: "public_website",
       })
@@ -97,7 +93,7 @@ export async function POST(request: Request) {
         lead_id: lead.id,
         type: "new_consultation_request",
         title: "New consultation request",
-        message: `${input.firstName} ${input.lastName} requested a ${input.eventType} consultation.`,
+        message: `${normalized.firstName} ${normalized.lastName} requested a ${normalized.eventType} consultation.`,
         action_url: `/admin/leads/${lead.id}`,
       })) ?? [];
 
@@ -118,7 +114,11 @@ export async function POST(request: Request) {
       action: "inquiry_submitted",
       entity_type: "lead",
       entity_id: lead.id,
-      metadata: { lead_number: lead.lead_number, services_needed: input.servicesNeeded },
+      metadata: {
+        lead_number: lead.lead_number,
+        services_needed: input.servicesNeeded,
+        referral_source: input.referralSource,
+      },
       ip_address: getRequestIp(request),
     });
 
@@ -137,20 +137,18 @@ export async function POST(request: Request) {
         from: emailFrom(),
         to: ownerEmail,
         replyTo: input.email,
-        subject: `New consultation request: ${input.eventType}`,
+        subject: `New consultation request: ${normalized.eventType}`,
         html: `
           <h2>New consultation request</h2>
           <p><strong>Lead:</strong> ${lead.lead_number}</p>
-          <p><strong>Client:</strong> ${input.firstName} ${input.lastName}</p>
+          <p><strong>Client:</strong> ${normalized.fullName}</p>
           <p><strong>Email:</strong> ${input.email}</p>
           <p><strong>Phone:</strong> ${input.phone}</p>
-          <p><strong>Event:</strong> ${input.eventType}</p>
-          <p><strong>Date:</strong> ${input.eventDate || "Not provided"}</p>
-          <p><strong>Venue:</strong> ${input.venue || "Not provided"}</p>
-          <p><strong>Guest count:</strong> ${input.guestCount || "Not provided"}</p>
-          <p><strong>Budget:</strong> ${input.estimatedBudget || "Not provided"}</p>
+          <p><strong>Project type:</strong> ${normalized.eventType}</p>
+          <p><strong>Guest count:</strong> ${normalized.guestCount ?? "Not provided"}</p>
+          <p><strong>Budget:</strong> ${normalized.estimatedBudget || "Not provided"}</p>
           <p><strong>Services:</strong> ${input.servicesNeeded.join(", ")}</p>
-          <p><strong>Colors/theme:</strong> ${input.eventColors || "Not provided"} / ${input.eventTheme || "Not provided"}</p>
+          <p><strong>How they heard about us:</strong> ${input.referralSource}</p>
           <p><strong>Message:</strong> ${input.message}</p>
           <p><a href="${adminUrl}">Review request in admin dashboard</a></p>
         `,
@@ -188,8 +186,8 @@ export async function POST(request: Request) {
         to: input.email,
         subject: "We received your consultation request",
         html: `
-          <p>Hello ${input.firstName},</p>
-          <p>Bridget Pope Designs received your event request for ${input.eventType}.</p>
+          <p>Hello ${normalized.firstName},</p>
+          <p>Bridget Pope Designs received your event request for ${normalized.eventType}.</p>
           <p>Your request reference number is <strong>${lead.lead_number}</strong>.</p>
           <p>We will review the details and contact you to schedule a consultation.</p>
         `,

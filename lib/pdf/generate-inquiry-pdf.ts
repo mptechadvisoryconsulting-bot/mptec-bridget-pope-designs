@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { InquiryInput } from "@/lib/validation/inquiry-schema";
+import { normalizeInquiry } from "@/lib/validation/inquiry-schema";
 
 type LeadRecord = {
   id: string;
@@ -26,6 +27,7 @@ function lines(value: string, max = 86) {
 }
 
 export async function generateInquiryPdf({ lead, input }: { lead: LeadRecord; input: InquiryInput }) {
+  const normalized = normalizeInquiry(input);
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([612, 792]);
   const serif = await pdf.embedFont(StandardFonts.TimesRoman);
@@ -44,24 +46,23 @@ export async function generateInquiryPdf({ lead, input }: { lead: LeadRecord; in
   const rows = [
     ["Lead", lead.lead_number ?? lead.id],
     ["Submitted", lead.created_at ?? new Date().toISOString()],
-    ["Client", `${input.firstName} ${input.lastName}`],
+    ["Client", normalized.fullName],
     ["Email", input.email],
     ["Phone", input.phone],
-    ["Event", input.eventType],
-    ["Event date", input.eventDate || "Not provided"],
-    ["Venue", input.venue || "Not provided"],
-    ["City", input.city || "Not provided"],
-    ["Guest count", String(input.guestCount || "Not provided")],
-    ["Budget", input.estimatedBudget || "Not provided"],
-    ["Consultation", `${input.preferredConsultationMethod} ${input.preferredConsultationDate || ""} ${input.preferredConsultationTime || ""}`.trim()],
-    ["Colors", input.eventColors || "Not provided"],
-    ["Theme", input.eventTheme || "Not provided"],
+    ["Project type", normalized.eventType],
+    ["Guest count", String(normalized.guestCount ?? "Not provided")],
+    ["Budget", normalized.estimatedBudget || "Not provided"],
+    ["Heard about us", input.referralSource],
+    [
+      "Consultation",
+      `${input.preferredConsultationMethod} ${input.preferredConsultationDate || ""} ${input.preferredConsultationTime || ""}`.trim(),
+    ],
     ["Services", input.servicesNeeded.join(", ")],
   ];
 
   for (const [label, value] of rows) {
     page.drawText(label, { x: 54, y, size: 10, font: serifBold, color: rgb(0.08, 0.06, 0.05) });
-    page.drawText(value, { x: 180, y, size: 10, font: sans, color: rgb(0.18, 0.15, 0.13) });
+    page.drawText(String(value), { x: 180, y, size: 10, font: sans, color: rgb(0.18, 0.15, 0.13) });
     y -= 20;
   }
 
@@ -71,16 +72,6 @@ export async function generateInquiryPdf({ lead, input }: { lead: LeadRecord; in
   for (const line of lines(input.message)) {
     page.drawText(line, { x: 54, y, size: 10, font: sans, color: rgb(0.18, 0.15, 0.13) });
     y -= 16;
-  }
-
-  if (input.inspirationFileNames.length) {
-    y -= 10;
-    page.drawText("Uploaded inspiration references", { x: 54, y, size: 12, font: serifBold });
-    y -= 18;
-    for (const fileName of input.inspirationFileNames) {
-      page.drawText(`- ${fileName}`, { x: 54, y, size: 10, font: sans });
-      y -= 15;
-    }
   }
 
   return Buffer.from(await pdf.save());
