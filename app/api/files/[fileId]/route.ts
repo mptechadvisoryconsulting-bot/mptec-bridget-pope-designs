@@ -16,6 +16,20 @@ function storageBucketForFile(file: { visibility?: string | null; category?: str
   return "project-files";
 }
 
+async function storagePathReferencedElsewhere(
+  supabase: ReturnType<typeof createAdminClient>,
+  storagePath: string,
+  excludeFileId: string,
+) {
+  const { count } = await supabase
+    .from("files")
+    .select("id", { count: "exact", head: true })
+    .eq("storage_path", storagePath)
+    .neq("id", excludeFileId);
+
+  return (count ?? 0) > 0;
+}
+
 export async function DELETE(_request: Request, { params }: { params: Promise<{ fileId: string }> }) {
   const admin = await requireAdminProfile();
   if (admin.error) return admin.error;
@@ -36,7 +50,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   const storagePath = String(file.storage_path ?? "").trim();
-  if (storagePath && !storagePath.startsWith("http") && !storagePath.startsWith("/")) {
+  const canDeleteObject =
+    storagePath &&
+    !storagePath.startsWith("http") &&
+    !storagePath.startsWith("/") &&
+    !(await storagePathReferencedElsewhere(supabase, storagePath, fileId));
+
+  if (canDeleteObject) {
     const bucket = storageBucketForFile(file);
     const { error: storageError } = await supabase.storage.from(bucket).remove([storagePath]);
     if (storageError) {

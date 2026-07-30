@@ -10,6 +10,7 @@ import {
   FileSignature,
   FolderKanban,
   GalleryHorizontalEnd,
+  Globe2,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -79,6 +80,7 @@ const navGroups: AdminNavGroup[] = [
     id: "studio",
     label: "Studio",
     items: [
+      { label: "Website Content", href: "/admin/website", icon: Globe2 },
       { label: "Design updates", href: "/admin/design-updates", icon: GalleryHorizontalEnd },
       { label: "Files", href: "/admin/files", icon: FolderKanban },
       { label: "Gallery", href: "/admin/gallery", icon: GalleryHorizontalEnd },

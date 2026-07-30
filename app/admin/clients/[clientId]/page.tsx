@@ -7,8 +7,15 @@ import { first } from "@/lib/supabase/relations";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
+export default async function ClientDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clientId: string }>;
+  searchParams: Promise<{ provisioned?: string }>;
+}) {
   const { clientId } = await params;
+  const query = await searchParams;
   const supabase = createAdminClient();
 
   const { data: client } = await supabase
@@ -29,6 +36,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
   const projectRows = projects ?? [];
   const invoiceRows = invoices ?? [];
   const outstanding = invoiceRows.reduce((sum, row) => sum + Number(row.balance_due ?? 0), 0);
+  const primaryProjectId = projectRows[0]?.id;
+  const showProvisionedBanner = query.provisioned === "1";
 
   return (
     <div>
@@ -37,10 +46,20 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
           <span className="eyebrow">CRM</span>
           <h1>{clientName}</h1>
           <p className="mini-meta">{profile?.email} · {profile?.phone || "Phone not set"} · {profile?.active ? "Active portal" : "Portal not active"}</p>
+          {showProvisionedBanner ? (
+            <p className="form-success">
+              Client portal workspace ready — invitation email sent. Use Messages to chat once the client accepts.
+            </p>
+          ) : null}
         </div>
         <div className="topbar-actions">
+          <ButtonLink href="/admin/messages" variant="secondary">Open Messages</ButtonLink>
+          {primaryProjectId ? (
+            <ButtonLink href={`/admin/projects/${primaryProjectId}`} variant="light">
+              Open Project
+            </ButtonLink>
+          ) : null}
           <ButtonLink href={`/admin/proposals/new`} variant="secondary">Create Proposal</ButtonLink>
-          <ButtonLink href="/admin/projects" variant="light">Open Projects</ButtonLink>
           <ButtonLink href="/admin/clients" variant="light">Back to Clients</ButtonLink>
         </div>
       </div>

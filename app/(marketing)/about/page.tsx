@@ -1,17 +1,37 @@
 import { MarketingPage } from "@/components/marketing/MarketingPage";
+import { getWebsiteSection } from "@/lib/website/content";
 
-export default function AboutPage() {
+export const dynamic = "force-dynamic";
+
+function biographyParagraphs(biography: string) {
+  return biography
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export default async function AboutPage() {
+  const about = await getWebsiteSection("about");
+  const paragraphs = biographyParagraphs(about.biography);
+
   return (
-    <MarketingPage eyebrow="About Bridget Pope Designs" title="Luxury Design With Calm Execution">
+    <MarketingPage eyebrow={about.eyebrow} title={about.heading}>
       <div className="placeholder-grid">
         <section className="placeholder-hero">
-          <h1>Design, planning, and production in one polished process.</h1>
-          <p className="mini-meta">
-            Bridget Pope Designs brings intentional room styling, custom installations, proposal clarity, payment automation,
-            and client communication into one elegant experience.
-          </p>
+          <h1>{about.heading}</h1>
+          {paragraphs.map((paragraph, index) => (
+            <p className="mini-meta" key={`about-bio-${index}`} style={{ marginTop: 14 }}>
+              {paragraph}
+            </p>
+          ))}
+          {about.signature ? <p className="script" style={{ marginTop: 18 }}>{about.signature}</p> : null}
         </section>
-        <img className="card" src="/images/gallery-gold.png" alt="Luxury event table styling" style={{ height: "100%", objectFit: "cover", width: "100%" }} />
+        <img
+          className="card"
+          src={about.portraitImage || "/images/bridget-pope-portrait.jpg"}
+          alt="Portrait of Bridget Pope, founder of Bridget Pope Designs."
+          style={{ height: "100%", objectFit: "cover", width: "100%" }}
+        />
       </div>
     </MarketingPage>
   );

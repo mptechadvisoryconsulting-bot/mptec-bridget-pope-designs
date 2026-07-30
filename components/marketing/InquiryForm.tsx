@@ -17,7 +17,17 @@ const serviceOptions = [
   "Corporate Events",
   "Luxury Balloons",
   "Full Planning",
-];
+] as const;
+
+const referralOptions = [
+  "Instagram",
+  "Facebook",
+  "Google",
+  "Friend or Family",
+  "Wedding Vendor",
+  "Previous Client",
+  "Other",
+] as const;
 
 export function InquiryForm() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -25,19 +35,21 @@ export function InquiryForm() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<InquiryInput>({
     resolver: zodResolver(inquirySchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       email: "",
       phone: "",
-      eventType: "Wedding",
-      preferredConsultationMethod: "phone",
+      projectType: "Wedding",
       servicesNeeded: ["Weddings"],
-      inspirationFileNames: [],
+      referralSource: "Instagram",
+      preferredConsultationMethod: "phone",
+      preferredConsultationDate: "",
+      preferredConsultationTime: "",
+      estimatedBudget: "",
+      message: "",
       consent: false,
       company: "",
     },
@@ -70,30 +82,26 @@ export function InquiryForm() {
       <div className="container">
         <div className="section-heading">
           <span className="eyebrow">Start your event</span>
-          <h1>Book a Consultation</h1>
+          <h1>Submit a Questionnaire</h1>
           <p>Share the details you know today. We will review your request and follow up to schedule a consultation.</p>
         </div>
         <form className="card" onSubmit={handleSubmit(submit)} style={{ margin: "0 auto", maxWidth: 920, padding: 28 }}>
           <input aria-hidden="true" suppressHydrationWarning tabIndex={-1} style={{ display: "none" }} {...register("company")} />
           <div className="form-grid">
-            <Field label="First Name">
-              <Input placeholder="First name" {...register("firstName")} />
-              {errors.firstName && <small>{errors.firstName.message}</small>}
+            <Field label="Full Name" wide>
+              <Input placeholder="Full name" {...register("fullName")} />
+              {errors.fullName && <small>{errors.fullName.message}</small>}
             </Field>
-            <Field label="Last Name">
-              <Input placeholder="Last name" {...register("lastName")} />
-              {errors.lastName && <small>{errors.lastName.message}</small>}
-            </Field>
-            <Field label="Email">
+            <Field label="Email Address">
               <Input placeholder="client@example.com" type="email" {...register("email")} />
               {errors.email && <small>{errors.email.message}</small>}
             </Field>
-            <Field label="Phone">
+            <Field label="Phone Number">
               <Input placeholder="(629) 295-4210" {...register("phone")} />
               {errors.phone && <small>{errors.phone.message}</small>}
             </Field>
-            <Field label="Event Type">
-              <Select defaultValue="Wedding" {...register("eventType")}>
+            <Field label="Project Type">
+              <Select defaultValue="Wedding" {...register("projectType")}>
                 <option>Wedding</option>
                 <option>Baby Shower</option>
                 <option>Birthday</option>
@@ -102,42 +110,14 @@ export function InquiryForm() {
                 <option>Full Planning</option>
               </Select>
             </Field>
-            <Field label="Event Date">
-              <Input type="date" {...register("eventDate")} />
-            </Field>
-            <Field label="Guest Count">
+            <Field label="Estimated Guest Count">
               <Input placeholder="125" type="number" {...register("guestCount")} />
             </Field>
-            <Field label="Venue">
-              <Input placeholder="Venue name" {...register("venue")} />
-            </Field>
-            <Field label="City">
-              <Input placeholder="Murfreesboro" {...register("city")} />
-            </Field>
-            <Field label="Estimated Budget">
+            <Field label="Budget">
               <Input placeholder="$5,000 - $8,000" {...register("estimatedBudget")} />
             </Field>
-            <Field label="Consultation Method">
-              <Select {...register("preferredConsultationMethod")}>
-                <option value="phone">Phone</option>
-                <option value="video">Video call</option>
-                <option value="in_person">In person</option>
-              </Select>
-            </Field>
-            <Field label="Preferred Date">
-              <Input type="date" {...register("preferredConsultationDate")} />
-            </Field>
-            <Field label="Preferred Time">
-              <Input placeholder="10:00 AM" {...register("preferredConsultationTime")} />
-            </Field>
-            <Field label="Event Colors">
-              <Input placeholder="Blush, ivory, gold" {...register("eventColors")} />
-            </Field>
-            <Field label="Event Theme">
-              <Input placeholder="Elegant garden wedding" {...register("eventTheme")} />
-            </Field>
             <div className="field wide">
-              <span>Services Needed</span>
+              <span>Services Interested In</span>
               <div className="checkbox-grid">
                 {serviceOptions.map((service) => (
                   <label key={service} className="check-row">
@@ -148,21 +128,31 @@ export function InquiryForm() {
               </div>
               {errors.servicesNeeded && <small>{errors.servicesNeeded.message}</small>}
             </div>
-            <Field label="Inspiration File Names" wide>
-              <Input
-                placeholder="Optional: list files you plan to upload, separated by commas"
-                onChange={(event) => {
-                  const names = event.target.value
-                    .split(",")
-                    .map((name) => name.trim())
-                    .filter(Boolean);
-                  setValue("inspirationFileNames", names, { shouldValidate: true });
-                }}
-              />
-              <small>Private image upload storage is handled by the authenticated file workflow.</small>
+            <Field label="How Did You Hear About Us?">
+              <Select defaultValue="Instagram" {...register("referralSource")}>
+                {referralOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+              {errors.referralSource && <small>{errors.referralSource.message}</small>}
             </Field>
-            <Field label="Vision" wide>
-              <Textarea placeholder="Tell us about colors, venue, inspiration, and the experience you want guests to remember." {...register("message")} />
+            <Field label="Consultation Method">
+              <Select {...register("preferredConsultationMethod")}>
+                <option value="phone">Phone</option>
+                <option value="video">Video call</option>
+                <option value="in_person">In person</option>
+              </Select>
+            </Field>
+            <Field label="Preferred Consultation Date">
+              <Input type="date" {...register("preferredConsultationDate")} />
+            </Field>
+            <Field label="Preferred Consultation Time">
+              <Input placeholder="10:00 AM" {...register("preferredConsultationTime")} />
+            </Field>
+            <Field label="Leave Us a Message" wide>
+              <Textarea placeholder="Tell us about your event vision and any details that will help us prepare for your consultation." {...register("message")} />
               {errors.message && <small>{errors.message.message}</small>}
             </Field>
             <label className="check-row wide">

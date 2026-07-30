@@ -35,6 +35,7 @@ const tableAliases = {
   activity_logs: "bpd_activity_logs",
   automation_logs: "bpd_automation_logs",
   business_settings: "bpd_business_settings",
+  website_content: "bpd_website_content",
 } as const;
 
 const bucketAliases = {

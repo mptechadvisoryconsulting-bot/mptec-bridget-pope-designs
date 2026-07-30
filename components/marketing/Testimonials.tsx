@@ -1,27 +1,33 @@
 import { Star } from "lucide-react";
-import { testimonials } from "@/lib/data";
+import { getWebsiteSection } from "@/lib/website/content";
 
-export function Testimonials() {
+export async function Testimonials() {
+  const content = await getWebsiteSection("testimonials");
+  const items = (content.items ?? [])
+    .filter((item) => item.visible !== false)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
   return (
     <section className="section">
       <div className="container">
         <div className="section-heading">
-          <span className="eyebrow">Client reviews</span>
-          <h2>Trusted for Milestone Moments</h2>
+          <span className="eyebrow">{content.eyebrow}</span>
+          <h2>{content.heading}</h2>
         </div>
         <div className="testimonial-grid">
-          {testimonials.map((testimonial) => (
-            <article className="card service-card" key={testimonial.name} style={{ textAlign: "left" }}>
+          {items.map((testimonial) => (
+            <article className="card service-card" key={testimonial.id || testimonial.name} style={{ textAlign: "left" }}>
               <div style={{ color: "var(--gold)", display: "flex", gap: 4, marginBottom: 14 }}>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Star fill="currentColor" key={index} size={15} />
                 ))}
               </div>
-              <p style={{ fontSize: 15 }}>"{testimonial.quote}"</p>
+              <p style={{ fontSize: 15 }}>&ldquo;{testimonial.quote}&rdquo;</p>
               <h3 style={{ marginTop: 18 }}>{testimonial.name}</h3>
               <p>{testimonial.event}</p>
             </article>
           ))}
+          {!items.length ? <p className="mini-meta">Client reviews will appear here once published in Website Content.</p> : null}
         </div>
       </div>
     </section>

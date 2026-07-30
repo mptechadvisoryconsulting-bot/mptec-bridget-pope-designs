@@ -41,12 +41,7 @@ export const services = [
   },
 ];
 
-export const galleryItems = [
-  { title: "Blush Birthday", category: "Birthdays", image: "/images/gallery-blush.png" },
-  { title: "Golden Wedding", category: "Weddings", image: "/images/gallery-gold.png" },
-  { title: "Oh Baby Shower", category: "Showers", image: "/images/gallery-baby.png" },
-  { title: "Corporate Gala", category: "Corporate", image: "/images/gallery-table.png" },
-];
+export const galleryItems: Array<{ title: string; category: string; image: string }> = [];
 
 export const testimonials = [
   {
@@ -65,7 +60,7 @@ export const testimonials = [
     name: "Celebration Client",
     event: "Milestone Birthday",
     quote:
-      "The team translated my inspiration board into something more beautiful than I imagined.",
+      "The team translated my vision into something more beautiful than I imagined.",
   },
 ];
 
@@ -80,7 +75,7 @@ export const faqs = [
   },
   {
     question: "Where are proposals, contracts, and payments handled?",
-    answer: "Invoices, proposals, and contracts live in your client portal alongside project updates, designs, files, messages, and event details.",
+    answer: "Proposals, contracts, and invoices live in your client portal alongside project updates, designs, files, messages, and event details. Payments are arranged offline with Bridget Pope Designs.",
   },
   {
     question: "Do you travel?",

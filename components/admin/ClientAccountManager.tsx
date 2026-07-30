@@ -53,7 +53,20 @@ export function ClientAccountManager({ projects }: { projects: ClientProject[] }
 
       if (result.ok) {
         setMessageKind("success");
-        setMessage(result.message ?? "Invitation sent. The client will receive an email to set up their portal login.");
+        const payload = (result.payload ?? {}) as {
+          clientId?: string;
+          projectId?: string;
+          conversationId?: string;
+          message?: string;
+        };
+        setMessage(
+          result.message ??
+            "Invitation sent. Opening the client workspace so you can monitor the portal and messages.",
+        );
+        if (payload.clientId) {
+          window.location.href = `/admin/clients/${payload.clientId}?provisioned=1`;
+          return;
+        }
         window.location.reload();
         return;
       }
@@ -108,8 +121,8 @@ export function ClientAccountManager({ projects }: { projects: ClientProject[] }
       <form action={createClient} className="panel form-grid span-2" id="invite-client-form">
         <h2 className="wide">Invite a client (portal login)</h2>
         <p className="mini-meta wide">
-          Secondary action: sends a portal invitation email. After the client sets a password, they sign in at the
-          client login — not while you remain logged in as owner.
+          Secondary action: invites the client by email and creates their project workspace plus messaging thread.
+          After create, you are taken to the client dashboard so you can monitor progress and chat.
         </p>
         <Field label="First Name"><Input name="firstName" placeholder="First name" required /></Field>
         <Field label="Last Name"><Input name="lastName" placeholder="Johnson" required /></Field>
