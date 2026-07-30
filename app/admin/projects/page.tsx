@@ -54,6 +54,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           .select("project_id,balance_due")
           .in("project_id", projectIds)
           .gt("balance_due", 0)
+          .not("status", "in", '("draft","cancelled","void")')
       : Promise.resolve({ data: [] }),
   ]);
 

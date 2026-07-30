@@ -5,6 +5,7 @@ import { CollapsibleImportPanel } from "@/components/admin/CollapsibleImportPane
 import { ListPageActions } from "@/components/admin/ListPageActions";
 import { ButtonLink } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { applyOpenBalanceFilter } from "@/lib/billing/open-invoices";
 import { currency } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -82,7 +83,7 @@ export default async function InvoicesPage({
     .limit(50);
 
   if (statusFilter === "unpaid") {
-    invoicesQuery = invoicesQuery.gt("balance_due", 0).not("status", "eq", "draft");
+    invoicesQuery = applyOpenBalanceFilter(invoicesQuery);
   }
 
   const [{ data: clients }, { data: projects }, { data: proposals }, { data: templates }, { data: invoices }] = await Promise.all([

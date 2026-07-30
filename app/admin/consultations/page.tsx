@@ -43,7 +43,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const consultationSelect =
-  "id,scheduled_at,meeting_type,location,status,notes,lead_id,project_id,created_at,bpd_leads(first_name,last_name,email,phone,event_type),bpd_projects(event_name,bpd_clients(bpd_profiles(first_name,last_name,email,phone)))";
+  "id,scheduled_at,meeting_type,location,status,notes,lead_id,project_id,created_at,bpd_leads!lead_id(first_name,last_name,email,phone,event_type),bpd_projects!project_id(event_name,bpd_clients!client_id(bpd_profiles(first_name,last_name,email,phone)))";
 
 function toDateTimeInputValue(value?: string | null) {
   if (!value) return "";

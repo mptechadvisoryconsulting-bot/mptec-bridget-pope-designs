@@ -219,7 +219,7 @@ export function AdminGalleryManager({ initialItems }: { initialItems: PublicGall
             <Input accept="image/jpeg,image/png,image/webp" name="file" required type="file" />
           </label>
           <label className="check-row">
-            <input name="showOnHomepage" type="checkbox" value="1" />
+            <input defaultChecked name="showOnHomepage" type="checkbox" value="1" />
             <span>Display on Homepage</span>
           </label>
           <label className="check-row">
