@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { first } from "@/lib/supabase/relations";
 import type { PipelineAction, PipelineStage } from "@/lib/admin/pipeline-constants";
+import { createDraftInvoiceFromProposal } from "@/lib/billing/create-invoice-from-proposal";
 import { provisionClientFromLead } from "@/lib/provisioning/provision-client";
 
 export type { PipelineAction } from "@/lib/admin/pipeline-constants";
@@ -22,6 +23,8 @@ export type PipelineActionResult = {
   stage?: PipelineStage;
   proposalUrl?: string;
   provisioned?: boolean;
+  invoiceId?: string;
+  invoiceCreated?: boolean;
   warning?: string;
 };
 
@@ -312,6 +315,8 @@ export async function runPipelineAction(
   if (input.action === "proposal_approved") {
     const stage: PipelineStage = "proposal_approved";
     let provisioned = false;
+    let invoiceId: string | undefined;
+    let invoiceCreated = false;
     let warning: string | undefined;
 
     if (input.proposalId) {
@@ -336,6 +341,21 @@ export async function runPipelineAction(
       }
     }
 
+    if (input.proposalId && project.client_id) {
+      const invoiceResult = await createDraftInvoiceFromProposal(supabase, {
+        proposalId: input.proposalId,
+        projectId,
+        clientId: project.client_id,
+        actorId: input.actorId,
+      });
+      if (!invoiceResult.success) {
+        warning = [warning, invoiceResult.message].filter(Boolean).join(" ");
+      } else {
+        invoiceId = invoiceResult.invoiceId;
+        invoiceCreated = invoiceResult.created;
+      }
+    }
+
     const nextProjectStatus =
       !project.status || project.status === "pending"
         ? "booked"
@@ -356,6 +376,8 @@ export async function runPipelineAction(
       metadata: {
         proposalId: input.proposalId ?? null,
         provisioned,
+        invoiceId: invoiceId ?? null,
+        invoiceCreated,
         warning: warning ?? null,
       },
       source: "manual",
@@ -371,10 +393,12 @@ export async function runPipelineAction(
       projectId,
       type: "pipeline_proposal_approved",
       title: provisioned ? "Proposal approved · client provisioned" : "Proposal approved",
-      message: provisioned
-        ? `${eventName} was approved and the client portal invite path ran.`
-        : `${eventName} was approved.`,
-      actionUrl: `/admin/projects/${projectId}`,
+      message: invoiceId
+        ? `${eventName} was approved${invoiceCreated ? " and a draft invoice was created" : ""}.`
+        : provisioned
+          ? `${eventName} was approved and the client portal invite path ran.`
+          : `${eventName} was approved.`,
+      actionUrl: invoiceId ? `/admin/invoices/${invoiceId}` : `/admin/projects/${projectId}`,
       extraRecipientIds: [project.assigned_admin_id],
     });
     await logActivity(supabase, {
@@ -384,7 +408,7 @@ export async function runPipelineAction(
       action: "pipeline_proposal_approved",
       entityType: input.proposalId ? "proposal" : "project",
       entityId: input.proposalId ?? projectId,
-      metadata: { stage, provisioned, warning: warning ?? null, note },
+      metadata: { stage, provisioned, invoiceId: invoiceId ?? null, invoiceCreated, warning: warning ?? null, note },
     });
     await logAutomation(supabase, {
       projectId,
@@ -392,17 +416,21 @@ export async function runPipelineAction(
       action: input.action,
       stage,
       status: warning && !provisioned ? "partial" : "success",
-      metadata: { provisioned, warning: warning ?? null },
+      metadata: { provisioned, invoiceId: invoiceId ?? null, invoiceCreated, warning: warning ?? null },
     });
 
     return {
       success: true,
       stage,
       provisioned,
+      invoiceId,
+      invoiceCreated,
       warning,
-      message: provisioned
-        ? "Proposal approved, client provisioned, pipeline updated."
-        : "Proposal approved and pipeline updated.",
+      message: invoiceCreated
+        ? "Proposal approved, draft invoice created, pipeline updated."
+        : provisioned
+          ? "Proposal approved, client provisioned, pipeline updated."
+          : "Proposal approved and pipeline updated.",
     };
   }
 

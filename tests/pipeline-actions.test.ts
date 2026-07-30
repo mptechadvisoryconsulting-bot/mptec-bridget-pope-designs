@@ -57,6 +57,15 @@ vi.mock("@/lib/provisioning/provision-client", () => ({
   })),
 }));
 
+vi.mock("@/lib/billing/create-invoice-from-proposal", () => ({
+  createDraftInvoiceFromProposal: vi.fn(async () => ({
+    success: true,
+    invoiceId: "invoice-1",
+    invoiceNumber: "INV-TEST",
+    created: true,
+  })),
+}));
+
 describe("pipeline constants", () => {
   it("exposes the supported manual pipeline actions", () => {
     expect(pipelineActions).toEqual([
@@ -156,6 +165,7 @@ describe("runPipelineAction", () => {
 
   it("proposal_approved provisions from lead and advances stage", async () => {
     const { provisionClientFromLead } = await import("@/lib/provisioning/provision-client");
+    const { createDraftInvoiceFromProposal } = await import("@/lib/billing/create-invoice-from-proposal");
     const { supabase } = createMockSupabase({
       projects: [
         {
@@ -192,9 +202,19 @@ describe("runPipelineAction", () => {
     expect(result.success).toBe(true);
     expect(result.stage).toBe("proposal_approved");
     expect(result.provisioned).toBe(true);
+    expect(result.invoiceId).toBe("invoice-1");
+    expect(result.invoiceCreated).toBe(true);
     expect(provisionClientFromLead).toHaveBeenCalledWith(
       supabase,
       expect.objectContaining({ leadId: "lead-1", inviteToPortal: true }),
+    );
+    expect(createDraftInvoiceFromProposal).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        proposalId: "11111111-1111-1111-1111-111111111111",
+        projectId: "project-1",
+        clientId: "client-1",
+      }),
     );
   });
 
