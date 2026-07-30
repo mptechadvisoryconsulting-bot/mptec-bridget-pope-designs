@@ -1,8 +1,17 @@
 import { Star } from "lucide-react";
 import { getWebsiteSection } from "@/lib/website/content";
 
-export async function Testimonials() {
+type TestimonialsProps = {
+  /** Homepage only renders when CMS `showOnHomepage` is enabled. */
+  placement?: "page" | "homepage";
+};
+
+export async function Testimonials({ placement = "page" }: TestimonialsProps) {
   const content = await getWebsiteSection("testimonials");
+
+  if (!content.enabled) return null;
+  if (placement === "homepage" && !content.showOnHomepage) return null;
+
   const items = (content.items ?? [])
     .filter((item) => item.visible !== false)
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
