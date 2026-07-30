@@ -1,7 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { PDFDocument } from "pdf-lib";
+import { clearSession, login, requireDestructiveE2e } from "./helpers";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "https://bridget-pope-designs.us";
 const ownerUsername = process.env.E2E_OWNER_USERNAME ?? "Bridget20";
@@ -16,6 +17,7 @@ const knownClientId = process.env.E2E_CLIENT_ID ?? "62cce26e-e1c0-419b-a9d5-67b3
 const secondProjectId = process.env.E2E_SECOND_PROJECT_ID ?? "b2a081e9-fcbc-45ad-83f0-f2896afd6379";
 
 test.skip(!ownerPassword, "Owner password required.");
+requireDestructiveE2e();
 test.setTimeout(420_000);
 
 type Row = { name: string; status: "PASS" | "FAIL" | "PARTIAL"; notes: string[] };
@@ -24,27 +26,6 @@ const artifactDir = join(process.cwd(), ".e2e-artifacts");
 
 function row(name: string, status: Row["status"], ...notes: string[]) {
   matrix.push({ name, status, notes });
-}
-
-async function login(page: Page, username: string, password: string, next: string) {
-  await page.goto(`/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Username or Email").fill(username);
-  await page.getByLabel("Password").fill(password);
-  const [response] = await Promise.all([
-    page.waitForResponse((res) => res.url().includes("/api/auth/password-login"), { timeout: 45_000 }),
-    page.getByRole("button", { name: /sign in/i }).click(),
-  ]);
-  expect(response.ok(), `login failed ${response.status()}`).toBeTruthy();
-  await expect(page).toHaveURL(new RegExp(next.replace(/\//g, "\\/")), { timeout: 45_000 });
-}
-
-async function clearSession(page: Page) {
-  await page.context().clearCookies();
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
 }
 
 async function tinyPdfBytes() {

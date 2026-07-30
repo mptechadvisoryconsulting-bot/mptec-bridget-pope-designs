@@ -1,9 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { requireE2eEnv } from "./e2e-env";
+import { cleanupE2eResidue, clearSession, login, requireDestructiveE2e } from "./helpers";
 
 /**
  * Production A–G flow.
@@ -18,8 +18,6 @@ import { requireE2eEnv } from "./e2e-env";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "https://bridget-pope-designs.us";
 const ownerUsername = process.env.E2E_OWNER_USERNAME ?? process.env.E2E_ADMIN_USERNAME;
 const ownerPassword = process.env.E2E_OWNER_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD;
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const expectedInquiryRecipient = "bpeventsanddesigns@gmail.com";
 // Keep durable artifacts outside Playwright's outputDir (`test-results`), which is wiped each run.
 const artifactDir = join(process.cwd(), ".e2e-artifacts");
@@ -27,6 +25,7 @@ const statePath = join(artifactDir, "production-e2e-state.json");
 const reportPath = join(artifactDir, "production-full-flow-report.json");
 
 requireE2eEnv(!ownerUsername || !ownerPassword, "Owner credentials are required for production full-flow E2E.");
+requireDestructiveE2e();
 
 test.setTimeout(900_000);
 
@@ -124,27 +123,6 @@ function loadState(): State {
   return JSON.parse(readFileSync(statePath, "utf8")) as State;
 }
 
-async function login(page: Page, username: string, password: string, next: string) {
-  await page.goto(`/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Username or Email").fill(username);
-  await page.getByLabel("Password").fill(password);
-  const [response] = await Promise.all([
-    page.waitForResponse((res) => res.url().includes("/api/auth/password-login"), { timeout: 45_000 }),
-    page.getByRole("button", { name: /sign in/i }).click(),
-  ]);
-  expect(response.ok(), `login failed: ${response.status()}`).toBeTruthy();
-  await expect(page).toHaveURL(new RegExp(next.replace(/\//g, "\\/")), { timeout: 45_000 });
-}
-
-async function clearSession(page: Page) {
-  await page.context().clearCookies();
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
-}
-
 async function tinyPngBytes() {
   return Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -157,13 +135,6 @@ async function tinyPdfBytes() {
   const page = pdf.addPage([200, 200]);
   page.drawText("E2E Invoice PDF", { x: 24, y: 100, size: 12 });
   return Buffer.from(await pdf.save());
-}
-
-function adminClient(): SupabaseClient | null {
-  if (!supabaseUrl || !serviceRoleKey) return null;
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 }
 
 test("production-full-flow-phase1", async ({ page }) => {
@@ -183,19 +154,14 @@ test("production-full-flow-phase1", async ({ page }) => {
     await page.goto("/inquire", { waitUntil: "domcontentloaded" });
     await page.screenshot({ path: join("test-results", `a-inquire-${suffix}.png`), fullPage: true });
 
-    await page.locator('input[name="firstName"]').fill("E2E");
-    await page.locator('input[name="lastName"]').fill(`FullFlow${suffix}`);
+    await page.locator('input[name="fullName"]').fill(`E2E FullFlow${suffix}`);
     await page.locator('input[name="email"]').fill(state.clientEmail);
     await page.locator('input[name="phone"]').fill("(629) 555-0199");
-    await page.locator('select[name="eventType"]').selectOption("Wedding");
-    await page.locator('input[name="eventDate"]').fill("2026-11-14");
+    await page.locator('select[name="projectType"]').selectOption("Wedding");
     await page.locator('input[name="guestCount"]').fill("120");
-    await page.locator('input[name="venue"]').fill("E2E Garden Venue");
-    await page.locator('input[name="city"]').fill("Murfreesboro");
     await page.locator('input[name="estimatedBudget"]').fill("$4,500 - $6,000");
+    await page.locator('select[name="referralSource"]').selectOption("Instagram");
     await page.locator('select[name="preferredConsultationMethod"]').selectOption("phone");
-    await page.locator('input[name="eventColors"]').fill("Blush, ivory");
-    await page.locator('input[name="eventTheme"]').fill("Garden romance");
     const weddingCheckbox = page.locator('input[type="checkbox"][value="Weddings"]');
     if (!(await weddingCheckbox.isChecked())) await weddingCheckbox.check();
     await page.locator('textarea[name="message"]').fill(`${state.visionMarker}. Looking for full design and day-of styling.`);
@@ -232,7 +198,7 @@ test("production-full-flow-phase1", async ({ page }) => {
     await page.goto("/admin/leads", { waitUntil: "domcontentloaded" });
     await expect(page.getByText(state.clientEmail).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("link", { name: new RegExp(`FullFlow${suffix}`, "i") }).first()).toBeVisible();
-    note(report, "A", `Lead visible on /admin/leads as FullFlow${suffix} / ${state.clientEmail} (lead # ${state.leadNumber})`);
+    note(report, "A", `Lead visible on /admin/leads as E2E FullFlow${suffix} / ${state.clientEmail} (lead # ${state.leadNumber})`);
     await page.goto(`/admin/leads/${state.leadId}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText(state.leadNumber).first()).toBeVisible({ timeout: 20_000 });
     note(report, "A", "Lead detail page shows lead number");
@@ -538,6 +504,15 @@ test("production-full-flow-phase1", async ({ page }) => {
     const message = error instanceof Error ? error.message : String(error);
     report.bugs.push(message);
     saveState(state);
+    const cleanupNotes = await cleanupE2eResidue({
+      clientId: state.clientId,
+      secondClientId: state.secondClientId,
+      leadId: state.leadId,
+      galleryFileId: state.galleryFileId,
+      authUserId: state.authUserId,
+      secondAuthUserId: state.secondAuthUserId,
+    });
+    for (const msg of cleanupNotes) note(report, "G", msg);
     saveReport(report);
     await page.screenshot({ path: join("test-results", `fatal-phase1-${Date.now()}.png`), fullPage: true }).catch(() => null);
     throw error;
@@ -642,14 +617,28 @@ test("production-full-flow-phase2", async ({ page }) => {
     report.blockers = [];
     saveReport(report);
 
-    const admin = adminClient();
-    if (admin) {
-      // best-effort cleanup when local service role is available
-      note(report, "G", "Service role present — cleanup left to operator/script");
-    }
+    const cleanupNotes = await cleanupE2eResidue({
+      clientId: state.clientId,
+      secondClientId: state.secondClientId,
+      leadId: state.leadId,
+      galleryFileId: state.galleryFileId,
+      authUserId: state.authUserId,
+      secondAuthUserId: state.secondAuthUserId,
+    });
+    for (const msg of cleanupNotes) note(report, "G", msg);
+    saveReport(report);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     report.bugs.push(message);
+    const cleanupNotes = await cleanupE2eResidue({
+      clientId: state.clientId,
+      secondClientId: state.secondClientId,
+      leadId: state.leadId,
+      galleryFileId: state.galleryFileId,
+      authUserId: state.authUserId,
+      secondAuthUserId: state.secondAuthUserId,
+    });
+    for (const msg of cleanupNotes) note(report, "G", msg);
     saveReport(report);
     throw error;
   }

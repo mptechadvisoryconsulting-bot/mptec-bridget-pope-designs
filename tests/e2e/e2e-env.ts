@@ -8,6 +8,9 @@ import { test } from "@playwright/test";
  * - `E2E_RELEASE_GATE=true` (release/CI gate): missing credentials FAIL the suite instead of
  *   silently skipping, so a release cannot ship with E2E coverage quietly disabled because a
  *   secret was never configured.
+ *
+ * Destructive suites (CRM writes / residue) also require `E2E_ALLOW_DESTRUCTIVE=true`
+ * via `requireDestructiveE2e` in helpers.ts. Prefer `production-audit-smoke` for read-only prod checks.
  */
 export function requireE2eEnv(missing: boolean, message: string) {
   if (missing && process.env.E2E_RELEASE_GATE === "true") {

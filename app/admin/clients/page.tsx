@@ -54,11 +54,11 @@ export default async function ClientsPage() {
   const [{ data: clientsData, error: clientsError }, { data: projectsData, error: projectsError }] = await Promise.all([
     supabase
       .from("clients")
-      .select("id,billing_address,created_at,bpd_profiles(id,first_name,last_name,username,email,phone,active)")
+      .select("id,billing_address,created_at,bpd_profiles!profile_id(id,first_name,last_name,username,email,phone,active)")
       .order("created_at", { ascending: false }),
     supabase
       .from("projects")
-      .select("id,client_id,event_name,event_type,event_date,status,created_at,bpd_clients(bpd_profiles(id,first_name,last_name,username,email,active))")
+      .select("id,client_id,event_name,event_type,event_date,status,created_at,bpd_clients!client_id(bpd_profiles!profile_id(id,first_name,last_name,username,email,active))")
       .order("created_at", { ascending: false }),
   ]);
 

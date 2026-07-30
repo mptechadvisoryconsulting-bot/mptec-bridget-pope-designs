@@ -23,3 +23,10 @@ Primary routes:
 - Internal offline billing is the source of truth: generate or upload invoice PDFs, send proposals/contracts, and record manual payments in the CRM.
 - Card checkout is not enabled; payments are collected offline and recorded against invoices.
 - Resend handles inquiry, client invitation, project message, design update, and notification email delivery when configured.
+
+## E2E / test data cleanup
+
+- **Read-only production smoke:** `npx playwright test tests/e2e/production-audit-smoke.spec.ts` (logs in and navigates; does not write CRM data).
+- **Destructive suites** (`production-full-flow`, `production-audit-followup`, `owner-client-session`) require `E2E_ALLOW_DESTRUCTIVE=true`. They should clean up when `SUPABASE_SERVICE_ROLE_KEY` is set; otherwise residue may remain.
+- **Manual cleanup:** In Admin, use **Delete** on a lead/client/project (owner confirmation dialog — type the name or `DELETE`). Prefer this over any bulk SQL delete of production CRM rows.
+- Do not mass-delete production clients automatically. Test emails use the `e2e.*@bridget-pope-designs.us` pattern so they are easy to spot.

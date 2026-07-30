@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { requireE2eEnv } from "./e2e-env";
+import { clearSession, login, requireDestructiveE2e } from "./helpers";
 
 const adminUsername = process.env.E2E_ADMIN_USERNAME;
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
@@ -13,6 +14,7 @@ requireE2eEnv(
   !adminUsername || !adminPassword || !supabaseUrl || !serviceRoleKey,
   "Admin credentials (E2E_ADMIN_USERNAME/E2E_ADMIN_PASSWORD) and Supabase service role env (NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY) are required for full session tests.",
 );
+requireDestructiveE2e();
 
 test.setTimeout(900_000);
 
@@ -27,28 +29,6 @@ type CreatedRecord = {
   password: string;
   eventName: string;
 };
-
-async function login(page: Page, username: string, password: string, next: string) {
-  await page.goto(`/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Username or Email").fill(username);
-  await page.getByLabel("Password").fill(password);
-  const [response] = await Promise.all([
-    page.waitForResponse((res) => res.url().includes("/api/auth/password-login"), { timeout: 30_000 }),
-    page.getByRole("button", { name: /sign in/i }).click(),
-  ]);
-  expect(response.ok()).toBeTruthy();
-  await expect(page).toHaveURL(new RegExp(next.replace(/\//g, "\\/")), { timeout: 30_000 });
-  await page.waitForLoadState("networkidle");
-}
-
-async function clearSession(page: Page) {
-  await page.context().clearCookies();
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
-}
 
 async function expectProtectedShell(page: Page, shellLabel: RegExp) {
   await expect(page.getByRole("heading", { name: /welcome back/i })).toHaveCount(0);

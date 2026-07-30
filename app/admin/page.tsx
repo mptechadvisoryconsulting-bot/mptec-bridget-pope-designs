@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ButtonLink } from "@/components/ui/button";
 import { currency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
+import { applyOpenBalanceFilter } from "@/lib/billing/open-invoices";
 import { first } from "@/lib/supabase/relations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -49,12 +50,12 @@ export default async function AdminDashboardPage() {
       .in("status", [...FOLLOW_UP_STATUSES])
       .order("updated_at", { ascending: true })
       .limit(QUEUE_LIMIT),
-    supabase.from("invoices").select("id", { count: "exact", head: true }).gt("balance_due", 0).not("status", "eq", "draft"),
-    supabase
-      .from("invoices")
-      .select("id,invoice_number,balance_due,due_date,status,bpd_clients!client_id(bpd_profiles(first_name,last_name))")
-      .gt("balance_due", 0)
-      .not("status", "eq", "draft")
+    applyOpenBalanceFilter(supabase.from("invoices").select("id", { count: "exact", head: true })),
+    applyOpenBalanceFilter(
+      supabase
+        .from("invoices")
+        .select("id,invoice_number,balance_due,due_date,status,bpd_clients!client_id(bpd_profiles(first_name,last_name))"),
+    )
       .order("due_date", { ascending: true })
       .limit(QUEUE_LIMIT),
     supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null),

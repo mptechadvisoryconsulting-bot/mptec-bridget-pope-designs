@@ -1,3 +1,4 @@
+import { isOpenBalanceInvoice } from "@/lib/billing/open-invoices";
 import { formatDate } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,7 +26,7 @@ export default async function ReportsPage() {
   const convertedLeads = leadRows.filter((row) => row.status === "converted").length;
   const conversionRate = leadRows.length ? Math.round((convertedLeads / leadRows.length) * 100) : 0;
   const pendingDesignActions = designActionRows.filter((row) => row.client_action_status === "pending" || row.client_action_status === "overdue").length;
-  const openInvoices = invoiceRows.filter((row) => Number(row.balance_due ?? 0) > 0 && row.status !== "draft" && row.status !== "cancelled").length;
+  const openInvoices = invoiceRows.filter((row) => isOpenBalanceInvoice(row)).length;
   const nextEvent = projectRows
     .filter((project) => project.event_date)
     .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)))[0];

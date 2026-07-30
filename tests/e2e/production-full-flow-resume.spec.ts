@@ -1,8 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { requireE2eEnv } from "./e2e-env";
+import { clearSession, login, requireDestructiveE2e } from "./helpers";
 
 /**
  * Resume path when /api/inquiries is rate-limited.
@@ -14,6 +15,7 @@ const ownerPassword = process.env.E2E_OWNER_PASSWORD ?? process.env.E2E_ADMIN_PA
 const reportPath = join(process.cwd(), "test-results", "production-full-flow-report.json");
 
 requireE2eEnv(!ownerUsername || !ownerPassword, "Owner credentials required");
+requireDestructiveE2e();
 
 test.setTimeout(600_000);
 
@@ -48,27 +50,6 @@ function saveReport(report: ReturnType<typeof loadReport>) {
   writeFileSync(reportPath, JSON.stringify(report, null, 2));
   // eslint-disable-next-line no-console
   console.log("\n===== PRODUCTION FULL FLOW REPORT =====\n" + JSON.stringify(report, null, 2));
-}
-
-async function login(page: Page, username: string, password: string, next: string) {
-  await page.goto(`/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Username or Email").fill(username);
-  await page.getByLabel("Password").fill(password);
-  const [response] = await Promise.all([
-    page.waitForResponse((res) => res.url().includes("/api/auth/password-login"), { timeout: 45_000 }),
-    page.getByRole("button", { name: /sign in/i }).click(),
-  ]);
-  expect(response.ok(), `login failed ${response.status()}`).toBeTruthy();
-  await expect(page).toHaveURL(new RegExp(next.replace(/\//g, "\\/")), { timeout: 45_000 });
-}
-
-async function clearSession(page: Page) {
-  await page.context().clearCookies();
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
 }
 
 async function tinyPdfBytes() {
