@@ -34,7 +34,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ lea
   const { leadId } = await params;
   const supabase = createAdminClient();
   const { data, error } = await supabase.from("leads").select("*, bpd_files(*)").eq("id", leadId).single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 404 });
+  if (error) {
+    console.error("lead_lookup_failed", { leadId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Lead not found." }, { status: 404 });
+  }
   return NextResponse.json({ success: true, lead: data });
 }
 
@@ -46,7 +49,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ le
   const input = leadUpdateSchema.parse(await request.json());
   const supabase = createAdminClient();
   const { data, error } = await supabase.from("leads").update(input).eq("id", leadId).select().single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("lead_update_failed", { leadId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to update lead." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, lead: data });
 }
 
