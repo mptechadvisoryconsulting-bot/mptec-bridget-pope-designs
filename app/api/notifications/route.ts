@@ -16,6 +16,9 @@ export async function GET(request: Request) {
     .eq("recipient_id", recipientId)
     .is("read_at", null)
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("notification_list_failed", { recipientId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to load notifications." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, notifications: data });
 }
