@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - agent/2026-production-hardening
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
