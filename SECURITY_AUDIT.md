@@ -78,7 +78,7 @@ This review does **not** claim release validation: cross-client regression tests
 - `POST /api/proposals/[proposalId]/approve`
   - Classification: owner/admin, assigned admin, or owning client.
   - Status: verified.
-  - Notes: verifies the proposal's project and client profile before approval; unauthorized callers receive a generic not-found response.
+  - Notes: verifies the proposal's project and client profile before approval; lookup failures and unauthorized callers receive a generic not-found response.
 
 - `POST /api/contracts/[contractId]/sign`
   - Classification: owning client for client signature; owner/admin or assigned admin for owner signature.
