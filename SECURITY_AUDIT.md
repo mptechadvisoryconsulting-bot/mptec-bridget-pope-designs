@@ -102,9 +102,9 @@ This review does **not** claim release validation: cross-client regression tests
 
 ## Error-Disclosure Hardening
 
-The August pass changed reviewed endpoints to log detailed Supabase errors server-side and return generic browser-facing failures where practical. This includes leads, files create, consultations, design updates, conversation reads, notifications, and gallery uploads.
+The August pass changed the reviewed endpoints to log detailed Supabase errors server-side and return generic browser-facing failures where practical. This includes leads, files create/delete, consultations, design updates, conversation reads, notifications, proposal send/approve, contract signing, invoice payment handling, and gallery uploads.
 
-Additional endpoints still contain raw `error.message` responses. Those should be converted to the same logging-plus-generic-response pattern in a follow-up patch after regression tests are available. Authorization review and error-disclosure cleanup are tracked separately: a route can have correct access control while still exposing too much implementation detail on failure.
+A repository-wide error-disclosure sweep should still be run after dependencies are available so remaining endpoints outside this reviewed set can be checked consistently. Authorization review and error-disclosure cleanup are tracked separately: a route can have correct access control while still exposing too much implementation detail on failure.
 
 ## Regression Tests Still Required
 
