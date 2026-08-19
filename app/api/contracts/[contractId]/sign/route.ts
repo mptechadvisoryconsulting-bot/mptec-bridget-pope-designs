@@ -17,11 +17,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ con
 
   const input = signatureSchema.parse(await request.json());
   const supabase = createAdminClient();
-  const { data: contract } = await supabase
+  const { data: contract, error: lookupError } = await supabase
     .from("contracts")
     .select("id,bpd_projects(assigned_admin_id,bpd_clients(profile_id))")
     .eq("id", contractId)
     .maybeSingle();
+
+  if (lookupError) {
+    console.error("contract_lookup_failed", { contractId, code: lookupError.code, message: lookupError.message });
+    return NextResponse.json({ success: false, message: "Contract not found." }, { status: 404 });
+  }
+
   const project = Array.isArray(contract?.bpd_projects) ? contract?.bpd_projects[0] : contract?.bpd_projects;
   const client = Array.isArray(project?.bpd_clients) ? project?.bpd_clients[0] : project?.bpd_clients;
   const canSignAsOwner = input.signer === "owner" && (adminRoles.has(profile.role) || project?.assigned_admin_id === profile.id);
@@ -36,6 +42,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ con
       ? { client_signature: input.signature, client_signed_at: new Date().toISOString() }
       : { owner_signature: input.signature, owner_signed_at: new Date().toISOString() };
   const { data, error } = await supabase.from("contracts").update(fields).eq("id", contractId).select().single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("contract_sign_failed", { contractId, signer: input.signer, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to save signature." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, contract: data });
 }
