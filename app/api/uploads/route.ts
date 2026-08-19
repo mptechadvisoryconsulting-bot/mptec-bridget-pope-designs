@@ -63,7 +63,8 @@ export async function POST(request: Request) {
       });
 
     if (uploadError) {
-      return NextResponse.json({ success: false, message: uploadError.message }, { status: 400 });
+      console.error("Gallery upload failed", { message: uploadError.message });
+      return NextResponse.json({ success: false, message: "Unable to upload image." }, { status: 400 });
     }
 
     const { data: maxSort } = await supabase
@@ -97,7 +98,12 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+      console.error("Gallery file record creation failed", { message: error.message, storagePath });
+      const { error: cleanupError } = await supabase.storage.from(bucket).remove([storagePath]);
+      if (cleanupError) {
+        console.error("Gallery upload cleanup failed", { message: cleanupError.message, storagePath });
+      }
+      return NextResponse.json({ success: false, message: "Unable to save uploaded image." }, { status: 400 });
     }
 
     const { data: publicUrl } = supabase.storage.from(bucket).getPublicUrl(storagePath);
