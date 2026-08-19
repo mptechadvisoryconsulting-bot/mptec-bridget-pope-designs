@@ -11,6 +11,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
   const input = consultationUpdateSchema.parse(await request.json());
   const supabase = createAdminClient();
   const { data, error } = await supabase.from("consultations").update(input).eq("id", consultationId).select().single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("consultation_update_failed", { consultationId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to update consultation." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, consultation: data });
 }
