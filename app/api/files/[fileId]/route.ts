@@ -43,7 +43,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .maybeSingle();
 
   if (lookupError) {
-    return NextResponse.json({ success: false, message: lookupError.message }, { status: 400 });
+    console.error("file_lookup_failed", { fileId, code: lookupError.code, message: lookupError.message });
+    return NextResponse.json({ success: false, message: "File not found." }, { status: 404 });
   }
   if (!file) {
     return NextResponse.json({ success: false, message: "File not found." }, { status: 404 });
@@ -65,7 +66,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   const { error } = await supabase.from("files").delete().eq("id", fileId);
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("file_delete_failed", { fileId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to delete file." }, { status: 400 });
+  }
 
   if (file.visibility === "public_gallery") {
     revalidatePath("/");
