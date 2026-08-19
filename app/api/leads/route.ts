@@ -8,6 +8,9 @@ export async function GET() {
 
   const supabase = createAdminClient();
   const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("Failed to load leads", { message: error.message, code: error.code });
+    return NextResponse.json({ success: false, message: "Unable to load leads." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, leads: data });
 }
