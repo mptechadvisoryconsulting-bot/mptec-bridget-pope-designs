@@ -10,11 +10,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
   }
 
   const supabase = createAdminClient();
-  const { data: conversation } = await supabase
+  const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
     .select("id,bpd_clients!client_id(profile_id),bpd_projects!project_id(assigned_admin_id)")
     .eq("id", conversationId)
     .maybeSingle();
+
+  if (conversationError) {
+    console.error("conversation_lookup_failed", { conversationId, code: conversationError.code, message: conversationError.message });
+    return NextResponse.json({ success: false, message: "Conversation not found." }, { status: 404 });
+  }
 
   const client = Array.isArray(conversation?.bpd_clients) ? conversation?.bpd_clients[0] : conversation?.bpd_clients;
   const project = Array.isArray(conversation?.bpd_projects) ? conversation?.bpd_projects[0] : conversation?.bpd_projects;
@@ -29,6 +34,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
     .select("*")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("message_list_failed", { conversationId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to load messages." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, messages: data });
 }
