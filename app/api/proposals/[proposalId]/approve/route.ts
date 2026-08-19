@@ -47,7 +47,20 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
     if (project.assigned_admin_id === profile.id) {
       canApprove = true;
     } else if (project.client_id) {
-      const { data: client } = await supabase.from("clients").select("profile_id").eq("id", project.client_id).maybeSingle();
+      const { data: client, error: clientLookupError } = await supabase
+        .from("clients")
+        .select("profile_id")
+        .eq("id", project.client_id)
+        .maybeSingle();
+      if (clientLookupError) {
+        console.error("proposal_client_lookup_failed", {
+          proposalId,
+          clientId: project.client_id,
+          code: clientLookupError.code,
+          message: clientLookupError.message,
+        });
+        return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
+      }
       canApprove = client?.profile_id === profile.id;
     }
   }
