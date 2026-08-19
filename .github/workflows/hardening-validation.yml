@@ -1,5 +1,6 @@
 name: Hardening Validation
 
+# Branch-only validation for the production-hardening draft PR.
 on:
   push:
     branches:
