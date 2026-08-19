@@ -43,6 +43,9 @@ export async function POST(request: Request) {
     })
     .select()
     .single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("design_update_create_failed", { code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to create design update." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, designUpdate: data }, { status: 201 });
 }
