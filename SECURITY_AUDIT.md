@@ -6,7 +6,7 @@ Last reviewed: 2026-08-19
 
 The August 2026 production-hardening pass re-reviewed the service-role API routes that were left unclassified in the July audit. The reviewed routes generally enforce authentication plus admin-role or record-ownership checks before service-role reads/writes. The prior audit therefore overstated the amount of unresolved authorization work.
 
-This review does **not** claim release validation: cross-client regression tests, dependency audit, typecheck, test, build, and production smoke still need to run in an environment with the repository dependencies and the Bridget Pope production Vercel project connected.
+Release validation is now partly complete on the isolated maintenance branch: Next.js has been patched to `15.5.21`, pnpm frozen-lockfile install passes, TypeScript typecheck passes, all 70 unit tests pass, and `next build` succeeds. Dependency audit identified five transitive advisories in `sharp`, `nanoid`, and `postcss`; patched overrides are being validated before this PR can be considered ready.
 
 ## Verified Authorization Controls
 
@@ -104,7 +104,7 @@ This review does **not** claim release validation: cross-client regression tests
 
 The August pass changed the reviewed endpoints to log detailed Supabase errors server-side and return generic browser-facing failures where practical. This includes leads, files create/delete, consultations, design updates, conversation reads, notifications, proposal send/approve, contract signing, invoice payment handling, and gallery uploads.
 
-A repository-wide error-disclosure sweep should still be run after dependencies are available so remaining endpoints outside this reviewed set can be checked consistently. Authorization review and error-disclosure cleanup are tracked separately: a route can have correct access control while still exposing too much implementation detail on failure.
+A repository-wide error-disclosure sweep should still be run after the current release-hardening work so remaining endpoints outside this reviewed set can be checked consistently. Authorization review and error-disclosure cleanup are tracked separately: a route can have correct access control while still exposing too much implementation detail on failure.
 
 ## Regression Tests Still Required
 
@@ -123,23 +123,33 @@ The contract signing route verifies signer authorization, but it currently permi
 
 ## Dependency Security
 
-The previous July audit recorded two moderate vulnerabilities from an `npm install`. That result is stale and must not be treated as the current dependency state.
+Validated on Node 24 with pnpm 11.7.0:
 
-The repository is pinned to pnpm, so the next validated dependency pass should run:
+- `pnpm install --frozen-lockfile`: passed after regenerating the lockfile with pnpm.
+- `pnpm typecheck`: passed.
+- `pnpm test`: 19 files / 70 tests passed.
+- `pnpm build`: passed on Next.js `15.5.21`.
+- `pnpm audit --audit-level=moderate`: identified five remaining transitive advisories before overrides were applied.
 
-```bash
-pnpm install --frozen-lockfile
-pnpm audit
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm exec playwright test tests/e2e/production-audit-smoke.spec.ts
-```
+The audit findings were:
 
-As of 2026-08-19, the project still declares Next.js `15.5.20`. The July 2026 Next.js security release requires the 15.5 maintenance line to be upgraded to at least `15.5.21`. Regenerate and commit `pnpm-lock.yaml` with the package update, then run the full validation commands above before merging that dependency change.
+- `sharp <0.35.0`: high severity, inherited libvips vulnerabilities; reached through Next.js.
+- `nanoid <3.3.18`: high severity infinite-loop issues; reached through PostCSS dependency paths.
+- `postcss <=8.5.22`: high/moderate source-map path/file-disclosure issues.
+
+The maintenance branch now requests pnpm overrides for `sharp 0.35.3`, `nanoid 3.3.18`, and `postcss 8.5.26`. These overrides must not be merged until pnpm regenerates the lockfile and frozen install, typecheck, unit tests, production build, dependency audit, and Vercel preview all pass with the overrides in place.
 
 Do not use a force audit fix on production dependencies without reviewing the resulting major-version changes.
 
+## Build Warnings / Follow-Up
+
+The successful CI production build emitted two non-blocking warnings that should be tracked separately:
+
+- Supabase's client package references a Node API through the middleware import trace while Next.js compiles middleware for the Edge runtime.
+- CI does not provide `NEXT_PUBLIC_SUPABASE_URL`, so public contact-email lookup logs a configuration warning during static generation; the build still completes.
+
+These warnings are not being silently changed in the security-patch PR because they should be reviewed with the actual Vercel environment configuration.
+
 ## Deployment Visibility
 
-The GitHub repository is accessible through the connected GitHub account, but the connected Vercel team does not expose the Bridget Pope Designs production project. Production environment variables, deployment/build logs, runtime errors, domain configuration, and Vercel security settings therefore remain unaudited until that production project is connected or shared with the accessible Vercel team/account.
+GitHub's Vercel integration can build a Bridget Pope Designs preview and has successfully built the patched Next.js branch. The connected Vercel API still returns 404 for the Bridget project, so production environment variables, runtime logs, domain configuration, and Vercel security settings remain unavailable through the connector. Production-level audit remains incomplete until that project is exposed to the connected Vercel account/API.
