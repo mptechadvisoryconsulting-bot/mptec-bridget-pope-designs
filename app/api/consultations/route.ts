@@ -24,7 +24,10 @@ export async function POST(request: Request) {
     })
     .select()
     .single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("consultation_create_failed", { code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to create consultation." }, { status: 400 });
+  }
   if (input.leadId) await supabase.from("leads").update({ status: "consultation_scheduled" }).eq("id", input.leadId);
   return NextResponse.json({ success: true, consultation: data }, { status: 201 });
 }
