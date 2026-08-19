@@ -4,10 +4,10 @@ Luxury event design website, client portal, and owner CRM built with Next.js 15,
 
 ## Local Development
 
-This repository is pinned to pnpm via the `packageManager` field in `package.json`.
+This repository declares pnpm in `package.json`. Use pnpm consistently so local installs and CI resolve the same dependency graph.
 
 ```bash
-pnpm install --frozen-lockfile
+pnpm install
 pnpm dev
 ```
 
@@ -19,17 +19,14 @@ Primary routes:
 
 ## Validation
 
-Before merging production changes, run:
+Before merging production-impacting changes, run:
 
 ```bash
+pnpm install --frozen-lockfile
+pnpm audit
 pnpm typecheck
 pnpm test
 pnpm build
-```
-
-For the read-only production smoke suite:
-
-```bash
 pnpm exec playwright test tests/e2e/production-audit-smoke.spec.ts
 ```
 
