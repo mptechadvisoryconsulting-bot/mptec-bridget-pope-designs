@@ -17,6 +17,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ up
   const { updateId } = await params;
   const input = designUpdatePatchSchema.parse(await request.json());
   const { data, error } = await createAdminClient().from("design_updates").update(input).eq("id", updateId).select().single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("design_update_patch_failed", { updateId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to update design update." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, designUpdate: data });
 }
