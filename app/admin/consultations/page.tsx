@@ -8,7 +8,7 @@ import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { sendConsultationScheduledEmail } from "@/lib/admin/consultation-notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { first } from "@/lib/supabase/relations";
-import { completeConsultation, convertConsultationLead, scheduleConsultation } from "@/lib/admin/workflow";
+import { completeConsultation, scheduleConsultation } from "@/lib/admin/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -116,7 +116,6 @@ export default async function ConsultationsPage({
       }
     }
     if (action === "complete") await completeConsultation(supabase, id, profile?.id);
-    if (action === "convert") await convertConsultationLead(supabase, id, profile?.id);
     redirect("/admin/consultations");
   }
 
@@ -186,7 +185,7 @@ export default async function ConsultationsPage({
               const secondaryActions = [
                 { label: "Complete", href: `/admin/consultations?action=complete&id=${consultation.id}` },
                 ...(consultation.lead_id
-                  ? [{ label: "Convert to client", href: `/admin/consultations?action=convert&id=${consultation.id}` }]
+                  ? [{ label: "Open lead", href: `/admin/leads/${consultation.lead_id}` }]
                   : []),
               ];
 
