@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
+import { canAccessConversation } from "@/lib/auth/conversation-access";
 import { appUrl } from "@/lib/env";
 import { sendTrackedEmail } from "@/lib/email/delivery";
 import { emailFrom } from "@/lib/email/resend";
@@ -104,7 +105,12 @@ export async function POST(request: Request) {
   const clientProfile = (Array.isArray(client?.bpd_profiles) ? client?.bpd_profiles[0] : client?.bpd_profiles) as ClientProfile | null;
   const project = Array.isArray(conversation?.bpd_projects) ? conversation?.bpd_projects[0] : conversation?.bpd_projects;
   const isAdminSender = adminRoles.has(profile.role);
-  const canAccess = isAdminSender || client?.profile_id === profile.id || project?.assigned_admin_id === profile.id;
+  const canAccess = canAccessConversation({
+    role: profile.role,
+    profileId: profile.id,
+    clientProfileId: client?.profile_id,
+    assignedAdminId: project?.assigned_admin_id,
+  });
 
   if (!conversation || !canAccess) {
     return NextResponse.json({ success: false, message: "Conversation not found." }, { status: 404 });

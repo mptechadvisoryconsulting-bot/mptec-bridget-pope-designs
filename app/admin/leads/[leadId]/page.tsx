@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { OwnerDeleteAction } from "@/components/admin/OwnerDeleteAction";
 import { ProjectPipelineActions } from "@/components/admin/ProjectPipelineActions";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
@@ -6,12 +7,13 @@ import { ScheduleAvailability } from "@/components/admin/ScheduleAvailability";
 import { ButtonLink } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { sendConsultationScheduledEmail } from "@/lib/admin/consultation-notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getLeadDetailActions } from "@/lib/admin/lead-queue-actions";
+import { provisionClientFromLead } from "@/lib/provisioning/provision-client";
 import {
   archiveLead,
   completeLeadConsultation,
-  convertLeadToClient,
   declineLead,
   leadStatusLabels,
   markLeadAwaitingApproval,
@@ -22,17 +24,22 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const BUSINESS_TIME_ZONE = "America/Chicago";
+
 function toDateTimeInputValue(value?: string | null) {
   if (!value) {
     const fallback = new Date();
     fallback.setDate(fallback.getDate() + 2);
-    fallback.setHours(10, 0, 0, 0);
-    const offsetMs = fallback.getTimezoneOffset() * 60000;
-    return new Date(fallback.getTime() - offsetMs).toISOString().slice(0, 16);
+    const day = formatInTimeZone(fallback, BUSINESS_TIME_ZONE, "yyyy-MM-dd");
+    return `${day}T10:00`;
   }
-  const date = new Date(value);
-  const offsetMs = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  return formatInTimeZone(new Date(value), BUSINESS_TIME_ZONE, "yyyy-MM-dd'T'HH:mm");
+}
+
+function consultationInputToIso(value?: string) {
+  if (!value) return undefined;
+  const parsed = fromZonedTime(value, BUSINESS_TIME_ZONE);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
 }
 
 export default async function LeadDetailPage({
@@ -49,10 +56,30 @@ export default async function LeadDetailPage({
 
   if (action) {
     if (action === "contacted") await markLeadContacted(supabase, leadId, profile?.id);
-    if (action === "schedule") await scheduleLeadConsultation(supabase, leadId, profile?.id, { scheduledAt, meetingType });
+    if (action === "schedule") {
+      const scheduled = await scheduleLeadConsultation(supabase, leadId, profile?.id, {
+        scheduledAt: consultationInputToIso(scheduledAt),
+        meetingType,
+      });
+      if (scheduled.success && scheduled.id) {
+        const confirmation = await sendConsultationScheduledEmail(supabase, scheduled.id);
+        if (confirmation.warning) {
+          console.warn("consultation_confirmation_email_warning", { consultationId: scheduled.id, warning: confirmation.warning });
+        }
+      }
+    }
     if (action === "complete-consultation") await completeLeadConsultation(supabase, leadId, profile?.id);
     if (action === "awaiting-approval") await markLeadAwaitingApproval(supabase, leadId, profile?.id);
-    if (action === "convert") await convertLeadToClient(supabase, leadId, profile?.id);
+    if (action === "convert") {
+      const converted = await provisionClientFromLead(supabase as any, {
+        leadId,
+        actorId: profile?.id,
+        inviteToPortal: false,
+      });
+      if (!converted.success) {
+        console.error("lead_workspace_conversion_failed", { leadId, message: converted.message });
+      }
+    }
     if (action === "decline") await declineLead(supabase, leadId, profile?.id);
     if (action === "lost") await markLeadLost(supabase, leadId, profile?.id);
     if (action === "archive") await archiveLead(supabase, leadId, profile?.id);
@@ -127,16 +154,7 @@ export default async function LeadDetailPage({
               <dt>Email</dt>
               <dd>{lead.email ? <a href={`mailto:${lead.email}`}>{lead.email}</a> : "Not set"}</dd>
             </div>
-            <div>
-              <dt>Phone</dt>
-              <dd>
-                {lead.phone ? (
-                  <a href={`tel:${String(lead.phone).replace(/[^\d+]/g, "")}`}>{lead.phone}</a>
-                ) : (
-                  "Not set"
-                )}
-              </dd>
-            </div>
+            <div><dt>Phone</dt><dd>{lead.phone ? <a href={`tel:${String(lead.phone).replace(/[^\d+]/g, "")}`}>{lead.phone}</a> : "Not set"}</dd></div>
             <div><dt>Event Type</dt><dd>{lead.event_type}</dd></div>
             <div><dt>Event Date</dt><dd>{formatDate(lead.event_date, "Date pending")}</dd></div>
             <div><dt>Venue</dt><dd>{lead.venue || "Not set"}</dd></div>
@@ -161,58 +179,34 @@ export default async function LeadDetailPage({
           <h2>Pipeline Progress</h2>
           <ul className="list">
             <li><span>Contacted</span><span className="status">{lead.status === "new" ? "Pending" : "Done"}</span></li>
-            <li>
-              <span>Consultation</span>
-              <span className="status">{consultation ? leadStatusLabels[consultation.status] ?? consultation.status : "Not scheduled"}</span>
-            </li>
+            <li><span>Consultation</span><span className="status">{consultation ? leadStatusLabels[consultation.status] ?? consultation.status : "Not scheduled"}</span></li>
             <li><span>Client Record</span><span className="status">{client ? "Created" : "Not created"}</span></li>
             <li><span>Project</span><span className="status">{project ? project.status : "Not created"}</span></li>
           </ul>
-          {consultation?.scheduled_at ? (
-            <p className="mini-meta">Next consultation: {formatDateTime(consultation.scheduled_at)} ({consultation.meeting_type ?? "method pending"})</p>
-          ) : null}
+          {consultation?.scheduled_at ? <p className="mini-meta">Next consultation: {formatDateTime(consultation.scheduled_at)} ({consultation.meeting_type ?? "method pending"})</p> : null}
         </section>
 
         <ScheduleAvailability busyDates={busyDates} />
 
         <section className="panel span-2" id="schedule">
           <h2>Schedule consultation</h2>
-          <p className="mini-meta">Pick a date and time using the availability calendar above. This updates the Consultations page and the lead status together.</p>
+          <p className="mini-meta">Pick a date and time using the availability calendar above. Times are saved in Central Time and the prospect receives a confirmation email.</p>
           <form action={`/admin/leads/${leadId}`} method="get" className="queue-row-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
             <input type="hidden" name="action" value="schedule" />
-            <input
-              aria-label="Consultation date and time"
-              className="input"
-              defaultValue={toDateTimeInputValue(consultation?.scheduled_at)}
-              name="scheduledAt"
-              required
-              style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
-              type="datetime-local"
-            />
-            <select
-              aria-label="Meeting type"
-              className="input"
-              defaultValue={consultation?.meeting_type ?? lead.preferred_consultation_method ?? "video"}
-              name="meetingType"
-              style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}
-            >
+            <input aria-label="Consultation date and time" className="input" defaultValue={toDateTimeInputValue(consultation?.scheduled_at)} name="scheduledAt" required style={{ minHeight: 36, padding: "6px 8px", width: "auto" }} type="datetime-local" />
+            <select aria-label="Meeting type" className="input" defaultValue={consultation?.meeting_type ?? lead.preferred_consultation_method ?? "video"} name="meetingType" style={{ minHeight: 36, padding: "6px 8px", width: "auto" }}>
               <option value="phone">Phone</option>
               <option value="video">Video</option>
               <option value="in_person">In Person</option>
             </select>
-            <button className="btn btn-primary" type="submit">
-              {consultation ? "Save consultation time" : "Schedule consultation"}
-            </button>
+            <button className="btn btn-primary" type="submit">{consultation ? "Reschedule & Email" : "Schedule & Email"}</button>
           </form>
         </section>
 
         <section className="panel span-2">
           <h2>Sales Pipeline</h2>
-          <ProjectPipelineActions
-            convertFirstHref={!project ? `/admin/leads/${leadId}?action=convert` : null}
-            pipelineStage={project?.pipeline_stage}
-            projectId={project?.id}
-          />
+          {!project ? <p className="mini-meta" style={{ marginBottom: 10 }}>Create the internal project workspace when you are ready to prepare a proposal. This does not invite the prospect to the client portal; the normal portal invite happens after proposal approval.</p> : null}
+          <ProjectPipelineActions convertFirstHref={!project ? `/admin/leads/${leadId}?action=convert` : null} pipelineStage={project?.pipeline_stage} projectId={project?.id} />
         </section>
       </div>
     </div>

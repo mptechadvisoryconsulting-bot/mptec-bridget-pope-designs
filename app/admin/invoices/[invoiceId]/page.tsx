@@ -64,6 +64,20 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           />
         </div>
       </div>
+
+      {!offlinePaymentInstructions ? (
+        <section className="panel" style={{ marginBottom: 16, borderColor: "var(--warning, #b7791f)" }}>
+          <strong>Payment instructions are not configured yet.</strong>
+          <div className="mini-meta" style={{ marginTop: 6 }}>
+            The invoice can still be printed or emailed, but it will not tell the client how to pay. Add Bridget Pope Designs&apos;
+            preferred offline payment instructions in Business Settings before sending a final invoice.
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <ButtonLink href="/admin/settings" variant="light">Open Business Settings</ButtonLink>
+          </div>
+        </section>
+      ) : null}
+
       {Number(invoice.active_version ?? 1) > 1 ? (
         <p className="mini-meta invoice-version-banner">
           This invoice is on version {invoice.active_version}. A new version is created automatically whenever a sent invoice

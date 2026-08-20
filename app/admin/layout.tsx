@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { RealtimeRefresh } from "@/components/realtime/RealtimeRefresh";
@@ -5,6 +6,14 @@ import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await getCurrentProfile();

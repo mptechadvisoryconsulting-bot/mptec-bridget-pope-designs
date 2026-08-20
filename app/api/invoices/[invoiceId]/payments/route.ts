@@ -31,7 +31,8 @@ export async function GET(_request: Request, context: { params: Promise<{ invoic
     .order("paid_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    console.error("invoice_payment_list_failed", { invoiceId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to load payments." }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, payments: data ?? [] });
@@ -65,7 +66,8 @@ export async function POST(request: Request, context: { params: Promise<{ invoic
     .maybeSingle();
 
   if (invoiceError) {
-    return NextResponse.json({ success: false, message: invoiceError.message }, { status: 500 });
+    console.error("invoice_payment_invoice_lookup_failed", { invoiceId, code: invoiceError.code, message: invoiceError.message });
+    return NextResponse.json({ success: false, message: "Unable to load invoice." }, { status: 500 });
   }
   if (!invoice) {
     return NextResponse.json({ success: false, message: "Invoice not found." }, { status: 404 });
@@ -117,17 +119,22 @@ export async function POST(request: Request, context: { params: Promise<{ invoic
     .single();
 
   if (insertError) {
-    return NextResponse.json({ success: false, message: insertError.message }, { status: 500 });
+    console.error("invoice_payment_insert_failed", { invoiceId, code: insertError.code, message: insertError.message });
+    return NextResponse.json({ success: false, message: "Unable to record payment." }, { status: 500 });
   }
 
   let financials: { netPaid: number; balanceDue: number; status: string };
   try {
     financials = await recalculateInvoiceFinancials(supabase, invoice.id);
   } catch (error) {
+    console.error("invoice_payment_recalculation_failed", {
+      invoiceId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Payment saved but invoice totals could not be recalculated.",
+        message: "Payment was saved, but invoice totals could not be recalculated. Review the invoice before recording another payment.",
       },
       { status: 500 },
     );

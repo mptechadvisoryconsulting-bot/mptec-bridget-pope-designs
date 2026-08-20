@@ -1,14 +1,18 @@
 import { redirect } from "next/navigation";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { ContactLinks } from "@/components/admin/ContactLinks";
 import { QueueItemActions } from "@/components/admin/QueueItemActions";
 import { ScheduleAvailability } from "@/components/admin/ScheduleAvailability";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { sendConsultationScheduledEmail } from "@/lib/admin/consultation-notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { first } from "@/lib/supabase/relations";
-import { completeConsultation, convertConsultationLead, scheduleConsultation } from "@/lib/admin/workflow";
+import { completeConsultation, scheduleConsultation } from "@/lib/admin/workflow";
 
 export const dynamic = "force-dynamic";
+
+const BUSINESS_TIME_ZONE = "America/Chicago";
 
 type LeadRef = {
   first_name?: string | null;
@@ -47,9 +51,13 @@ const consultationSelect =
 
 function toDateTimeInputValue(value?: string | null) {
   if (!value) return "";
-  const date = new Date(value);
-  const offsetMs = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  return formatInTimeZone(new Date(value), BUSINESS_TIME_ZONE, "yyyy-MM-dd'T'HH:mm");
+}
+
+function consultationInputToIso(value?: string) {
+  if (!value) return undefined;
+  const parsed = fromZonedTime(value, BUSINESS_TIME_ZONE);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
 }
 
 async function loadConsultations(supabase: ReturnType<typeof createAdminClient>) {
@@ -94,9 +102,20 @@ export default async function ConsultationsPage({
   const supabase = createAdminClient();
 
   if (action && id) {
-    if (action === "schedule") await scheduleConsultation(supabase, id, profile?.id, { scheduledAt, meetingType, location });
+    if (action === "schedule") {
+      const result = await scheduleConsultation(supabase, id, profile?.id, {
+        scheduledAt: consultationInputToIso(scheduledAt),
+        meetingType,
+        location,
+      });
+      if (result.success) {
+        const confirmation = await sendConsultationScheduledEmail(supabase, id);
+        if (confirmation.warning) {
+          console.warn("consultation_confirmation_email_warning", { consultationId: id, warning: confirmation.warning });
+        }
+      }
+    }
     if (action === "complete") await completeConsultation(supabase, id, profile?.id);
-    if (action === "convert") await convertConsultationLead(supabase, id, profile?.id);
     redirect("/admin/consultations");
   }
 
@@ -124,7 +143,7 @@ export default async function ConsultationsPage({
         <div>
           <span className="eyebrow">Scheduling</span>
           <h1>Consultations</h1>
-          <p className="mini-meta">Requested and scheduled consultations created from landing-page inquiries.</p>
+          <p className="mini-meta">Requested consultations from the website. Times are scheduled in Central Time and the prospect receives a confirmation email.</p>
         </div>
       </div>
 
@@ -166,7 +185,7 @@ export default async function ConsultationsPage({
               const secondaryActions = [
                 { label: "Complete", href: `/admin/consultations?action=complete&id=${consultation.id}` },
                 ...(consultation.lead_id
-                  ? [{ label: "Convert to client", href: `/admin/consultations?action=convert&id=${consultation.id}` }]
+                  ? [{ label: "Open lead", href: `/admin/leads/${consultation.lead_id}` }]
                   : []),
               ];
 
@@ -211,7 +230,7 @@ export default async function ConsultationsPage({
                           <option value="in_person">In Person</option>
                         </select>
                         <button className="btn btn-quiet" type="submit">
-                          {consultation.status === "requested" ? "Schedule" : "Reschedule"}
+                          {consultation.status === "requested" ? "Schedule & Email" : "Reschedule & Email"}
                         </button>
                       </form>
                       <QueueItemActions actions={secondaryActions} />

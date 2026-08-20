@@ -10,7 +10,16 @@ export async function PATCH(_request: Request, { params }: { params: Promise<{ n
   }
 
   const supabase = createAdminClient();
-  const { data: notification } = await supabase.from("notifications").select("id,recipient_id").eq("id", notificationId).maybeSingle();
+  const { data: notification, error: lookupError } = await supabase
+    .from("notifications")
+    .select("id,recipient_id")
+    .eq("id", notificationId)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("notification_lookup_failed", { notificationId, code: lookupError.code, message: lookupError.message });
+    return NextResponse.json({ success: false, message: "Notification not found." }, { status: 404 });
+  }
 
   if (!notification || (notification.recipient_id !== profile.id && !adminRoles.has(profile.role))) {
     return NextResponse.json({ success: false, message: "Notification not found." }, { status: 404 });
@@ -22,6 +31,9 @@ export async function PATCH(_request: Request, { params }: { params: Promise<{ n
     .eq("id", notificationId)
     .select()
     .single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("notification_update_failed", { notificationId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to update notification." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, notification: data });
 }

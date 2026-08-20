@@ -14,7 +14,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
     .eq("id", proposalId)
     .select("id,project_id")
     .single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("proposal_send_failed", { proposalId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to send proposal." }, { status: 400 });
+  }
   await supabase.from("activity_logs").insert({
     project_id: data.project_id,
     action: "proposal_sent",

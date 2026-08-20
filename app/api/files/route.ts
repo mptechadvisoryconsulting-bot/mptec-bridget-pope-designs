@@ -45,6 +45,9 @@ export async function POST(request: Request) {
     })
     .select()
     .single();
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("Failed to create file record", { message: error.message, code: error.code });
+    return NextResponse.json({ success: false, message: "Unable to save file." }, { status: 400 });
+  }
   return NextResponse.json({ success: true, file: data }, { status: 201 });
 }

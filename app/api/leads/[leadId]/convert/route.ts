@@ -11,7 +11,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ le
   const result = await provisionClientFromLead(createAdminClient(), {
     leadId,
     actorId: admin.profile.id,
-    inviteToPortal: true,
+    // Create the internal profile/client/project/conversation needed for proposals,
+    // but do not invite the prospect into the portal until approval.
+    inviteToPortal: false,
   });
 
   if (!result.success) {

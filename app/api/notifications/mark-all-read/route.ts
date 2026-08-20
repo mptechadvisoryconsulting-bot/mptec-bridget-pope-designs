@@ -18,6 +18,9 @@ export async function POST(request: Request) {
     .update({ read_at: new Date().toISOString() })
     .eq("recipient_id", recipientId)
     .is("read_at", null);
-  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("notification_mark_all_read_failed", { recipientId, code: error.code, message: error.message });
+    return NextResponse.json({ success: false, message: "Unable to update notifications." }, { status: 400 });
+  }
   return NextResponse.json({ success: true });
 }
