@@ -20,7 +20,7 @@ const proposalPatchSchema = z.object({
   discountAmount: z.coerce.number().min(0).optional(),
   taxAmount: z.coerce.number().min(0).optional(),
   depositAmount: z.coerce.number().min(0).optional(),
-  status: z.enum(["draft", "sent", "viewed", "approved", "rejected", "expired", "cancelled"]).optional(),
+  status: z.enum(["draft", "sent", "viewed", "changes_requested", "approved", "rejected", "expired", "cancelled"]).optional(),
   items: z.array(proposalItemSchema).optional(),
 });
 
