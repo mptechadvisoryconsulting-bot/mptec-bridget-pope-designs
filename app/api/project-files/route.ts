@@ -6,7 +6,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const allowedTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+]);
 const maxSize = 15 * 1024 * 1024;
 
 function cleanFilePart(value: string) {
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "A project is required." }, { status: 400 });
     }
     if (!allowedTypes.has(file.type)) {
-      return NextResponse.json({ success: false, message: "Upload a JPG, PNG, WebP, or PDF file." }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Upload a JPG, PNG, WebP, HEIC/HEIF, or PDF file." }, { status: 400 });
     }
     if (file.size > maxSize) {
       return NextResponse.json({ success: false, message: "File must be 15 MB or smaller." }, { status: 400 });
@@ -78,7 +85,7 @@ export async function POST(request: Request) {
     });
 
     if (uploadError) {
-      return NextResponse.json({ success: false, message: uploadError.message }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Unable to upload file." }, { status: 400 });
     }
 
     const { data, error } = await supabase
@@ -93,11 +100,16 @@ export async function POST(request: Request) {
         file_size: file.size,
         visibility,
       })
-      .select("id,file_name,category,visibility,storage_path,created_at")
+      .select("id,file_name,category,visibility,storage_path,mime_type,created_at")
       .single();
 
     if (error) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+      console.error("project_file_record_failed", { projectId, code: error.code, message: error.message, storagePath });
+      const { error: cleanupError } = await supabase.storage.from("project-files").remove([storagePath]);
+      if (cleanupError) {
+        console.error("project_file_cleanup_failed", { projectId, storagePath, message: cleanupError.message });
+      }
+      return NextResponse.json({ success: false, message: "Unable to save uploaded file." }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, file: data }, { status: 201 });
