@@ -7,6 +7,7 @@ import { getRequestIp, jsonError, rateLimit } from "@/lib/http";
 import { generateInquiryPdf } from "@/lib/pdf/generate-inquiry-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { inquirySchema, normalizeInquiry } from "@/lib/validation/inquiry-schema";
+import { getInquiryContent, validateInquiryOptions } from "@/lib/website/inquiry-content";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,12 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const input = inquirySchema.parse(body);
+    const inquiryConfig = await getInquiryContent();
+    const optionError = validateInquiryOptions(input, inquiryConfig);
+    if (optionError) {
+      return NextResponse.json({ success: false, message: optionError }, { status: 400 });
+    }
+
     const normalized = normalizeInquiry(input);
     const supabase = createAdminClient();
     const generatedLeadNumber = leadNumber();
