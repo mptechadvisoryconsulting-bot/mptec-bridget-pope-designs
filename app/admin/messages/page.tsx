@@ -77,6 +77,7 @@ export default async function AdminMessagesPage() {
 
     return {
       id: conversation.id,
+      projectId: conversation.project_id,
       clientName,
       clientProfileId: client?.profile_id ?? null,
       projectName: project?.event_name ?? "Project",

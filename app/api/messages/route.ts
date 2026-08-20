@@ -6,6 +6,7 @@ import { appUrl } from "@/lib/env";
 import { sendTrackedEmail } from "@/lib/email/delivery";
 import { emailFrom } from "@/lib/email/resend";
 import { getRequestIp, rateLimit } from "@/lib/http";
+import { canUseFileAsMessageAttachment } from "@/lib/messages/attachment-access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { messageSchema } from "@/lib/validation/message-schema";
 
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
   const client = Array.isArray(conversation?.bpd_clients) ? conversation?.bpd_clients[0] : conversation?.bpd_clients;
   const clientProfile = (Array.isArray(client?.bpd_profiles) ? client?.bpd_profiles[0] : client?.bpd_profiles) as ClientProfile | null;
   const project = Array.isArray(conversation?.bpd_projects) ? conversation?.bpd_projects[0] : conversation?.bpd_projects;
-  const isAdminSender = adminRoles.has(profile.role);
+  const isAdminSender = adminRoles.has(profile.role) || project?.assigned_admin_id === profile.id;
   const canAccess = canAccessConversation({
     role: profile.role,
     profileId: profile.id,
@@ -114,6 +115,36 @@ export async function POST(request: Request) {
 
   if (!conversation || !canAccess) {
     return NextResponse.json({ success: false, message: "Conversation not found." }, { status: 404 });
+  }
+
+  if (input.attachmentFileId) {
+    const { data: attachment, error: attachmentError } = await supabase
+      .from("files")
+      .select("id,project_id,visibility,storage_path")
+      .eq("id", input.attachmentFileId)
+      .maybeSingle();
+
+    if (attachmentError) {
+      console.error("message_attachment_lookup_failed", {
+        conversationId: input.conversationId,
+        attachmentFileId: input.attachmentFileId,
+        code: attachmentError.code,
+        message: attachmentError.message,
+      });
+      return NextResponse.json({ success: false, message: "Unable to verify attachment." }, { status: 400 });
+    }
+
+    if (
+      !attachment ||
+      !canUseFileAsMessageAttachment({
+        fileProjectId: attachment.project_id,
+        conversationProjectId: conversation.project_id,
+        visibility: attachment.visibility,
+        storagePath: attachment.storage_path,
+      })
+    ) {
+      return NextResponse.json({ success: false, message: "Attachment not found." }, { status: 404 });
+    }
   }
 
   const { data, error } = await supabase
