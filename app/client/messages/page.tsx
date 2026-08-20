@@ -23,15 +23,18 @@ export default async function MessagesPage() {
         <div>
           <span className="eyebrow">Messages</span>
           <h1>Planner Chat</h1>
-          <p className="mini-meta">Messages stay attached to your active Bridget Pope Designs project.</p>
+          <p className="mini-meta">Messages and shared files stay attached to your active Bridget Pope Designs project.</p>
         </div>
       </div>
       <MessagePanel
         conversationId={conversation?.id}
+        currentProfileId={profile.id}
+        projectId={project?.id}
         messages={(messages ?? []).map((message) => ({
           id: message.id,
           body: message.body,
-          fromAdmin: message.sender_id !== profile.id,
+          senderId: message.sender_id,
+          createdAt: message.created_at,
           readAt: message.read_at,
         }))}
       />
