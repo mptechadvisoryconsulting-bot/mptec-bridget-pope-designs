@@ -54,6 +54,7 @@ function buildNavGroups(flags: AdminSidebarFlags): AdminNavGroup[] {
 
   const studioItems: AdminNavItem[] = [
     { label: "Website Content", href: "/admin/website", icon: Globe2 },
+    { label: "Inquiry Questions", href: "/admin/inquiry", icon: ListChecks },
     { label: "Design updates", href: "/admin/design-updates", icon: GalleryHorizontalEnd },
     { label: "Files", href: "/admin/files", icon: FolderKanban },
     { label: "Gallery", href: "/admin/gallery", icon: GalleryHorizontalEnd },
