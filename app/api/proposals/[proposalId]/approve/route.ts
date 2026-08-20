@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
 import { runPipelineAction } from "@/lib/admin/pipeline";
 import { createDraftInvoiceFromProposal } from "@/lib/billing/create-invoice-from-proposal";
+import { canClientActOnProposal } from "@/lib/proposals/client-response";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ proposalId: string }> }) {
@@ -42,7 +43,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
     return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
   }
 
-  let canApprove = adminRoles.has(profile.role);
+  const isAdmin = adminRoles.has(profile.role);
+  let canApprove = isAdmin;
   if (!canApprove && project) {
     if (project.assigned_admin_id === profile.id) {
       canApprove = true;
@@ -67,6 +69,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
 
   if (!canApprove) {
     return NextResponse.json({ success: false, message: "Proposal not found." }, { status: 404 });
+  }
+
+  if (!isAdmin && !canClientActOnProposal(existing.status)) {
+    return NextResponse.json({ success: false, message: "This proposal is no longer awaiting approval." }, { status: 409 });
   }
 
   // Prefer full pipeline when project is available (provisions client + creates draft invoice).
