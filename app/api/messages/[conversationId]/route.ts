@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { adminRoles, getCurrentProfile } from "@/lib/auth/current-profile";
+import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { canAccessConversation } from "@/lib/auth/conversation-access";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ conversationId: string }> }) {
@@ -23,7 +24,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
 
   const client = Array.isArray(conversation?.bpd_clients) ? conversation?.bpd_clients[0] : conversation?.bpd_clients;
   const project = Array.isArray(conversation?.bpd_projects) ? conversation?.bpd_projects[0] : conversation?.bpd_projects;
-  const canAccess = adminRoles.has(profile.role) || client?.profile_id === profile.id || project?.assigned_admin_id === profile.id;
+  const canAccess = canAccessConversation({
+    role: profile.role,
+    profileId: profile.id,
+    clientProfileId: client?.profile_id,
+    assignedAdminId: project?.assigned_admin_id,
+  });
 
   if (!conversation || !canAccess) {
     return NextResponse.json({ success: false, message: "Conversation not found." }, { status: 404 });
