@@ -1,6 +1,8 @@
 import { FileSignature } from "lucide-react";
 import { notFound } from "next/navigation";
+import { ClientProposalResponseActions } from "@/components/proposals/ClientProposalResponseActions";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 import { requireClientPortalContext } from "@/lib/client-portal";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,6 +31,7 @@ export default async function ClientProposalDetailPage({ params }: { params: Pro
           <span className="eyebrow">{proposal.proposal_number ?? "Proposal"}</span>
           <h1>{proposal.title ?? "Event Design Proposal"}</h1>
           <p className="mini-meta">{proposal.introduction ?? "Review the proposal shared by Bridget Pope Designs."}</p>
+          <div style={{ marginTop: 10 }}><StatusBadge status={proposal.status} /></div>
         </div>
       </div>
       <section className="panel">
@@ -45,7 +48,10 @@ export default async function ClientProposalDetailPage({ params }: { params: Pro
             <tr><td><strong>Total</strong></td><td /><td /><td><strong>{currency(Number(proposal.total ?? 0))}</strong></td></tr>
           </tbody>
         </table>
-        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+
+        <ClientProposalResponseActions proposalId={proposal.id} status={proposal.status} />
+
+        <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
           <ButtonLink href="/client/contracts"><FileSignature size={16} /> View Contracts</ButtonLink>
           <ButtonLink href="/client/messages" variant="light">Ask a Question</ButtonLink>
         </div>
