@@ -15,6 +15,7 @@ const statusLabels: Record<string, string> = {
   draft: "Draft",
   sent: "Sent",
   viewed: "Viewed",
+  changes_requested: "Changes Requested",
   approved: "Approved",
   rejected: "Rejected",
   expired: "Expired",
@@ -33,11 +34,6 @@ export default async function ProposalDetailPage({
   const { profile } = await getCurrentProfile();
   const supabase = createAdminClient();
 
-  if (action === "send") {
-    await sendProposal(supabase, proposalId, profile?.id);
-    redirect(`/admin/proposals/${proposalId}`);
-  }
-
   // Disambiguate proposal→project FK (PostgREST otherwise returns HTTP 300 and the page 404s).
   const { data: proposal } = await supabase
     .from("proposals")
@@ -46,6 +42,18 @@ export default async function ProposalDetailPage({
     .maybeSingle();
 
   if (!proposal) notFound();
+
+  if (action === "send") {
+    // A revised proposal should return to the normal sent/awaiting-response state.
+    if (["changes_requested", "rejected", "viewed"].includes(proposal.status)) {
+      await supabase
+        .from("proposals")
+        .update({ status: "draft", approved_at: null, updated_at: new Date().toISOString() })
+        .eq("id", proposalId);
+    }
+    await sendProposal(supabase, proposalId, profile?.id);
+    redirect(`/admin/proposals/${proposalId}`);
+  }
 
   const { data: projectRow } = await supabase
     .from("projects")
@@ -65,6 +73,18 @@ export default async function ProposalDetailPage({
       [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ") || clientProfile?.email || "Client";
   }
 
+  const { data: latestClientResponse } = await supabase
+    .from("activity_logs")
+    .select("action,metadata,created_at")
+    .eq("entity_type", "proposal")
+    .eq("entity_id", proposalId)
+    .in("action", ["proposal_changes_requested", "proposal_rejected"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const responseMetadata = (latestClientResponse?.metadata ?? {}) as Record<string, unknown>;
+  const responseNote = typeof responseMetadata.note === "string" ? responseMetadata.note : "";
+
   const items = proposal.bpd_proposal_items ?? [];
   const project = projectRow;
   const sentAt =
@@ -80,10 +100,13 @@ export default async function ProposalDetailPage({
           <p className="mini-meta">{project?.event_name ?? "Project"} for {clientName}</p>
         </div>
         <div className="topbar-actions">
-          {proposal.status !== "cancelled" ? (
+          {!(["cancelled", "approved"].includes(proposal.status)) ? (
             <ButtonLink href={`/admin/proposals/${proposalId}?action=send`} variant="secondary">
               {proposal.status === "draft" ? "Send Proposal" : "Resend Proposal"}
             </ButtonLink>
+          ) : null}
+          {proposal.status === "changes_requested" || proposal.status === "rejected" ? (
+            <ButtonLink href={`/admin/proposals/new?projectId=${proposal.project_id}`} variant="light">Create Revision</ButtonLink>
           ) : null}
           <ButtonLink href="/admin/invoices" variant="light">Create Invoice</ButtonLink>
           <ProposalDocumentActions
@@ -96,6 +119,24 @@ export default async function ProposalDetailPage({
 
       <div className="dashboard-grid">
         <UploadProposalPdfForm proposalId={proposal.id} />
+
+        {proposal.status === "changes_requested" || proposal.status === "rejected" ? (
+          <section className="panel span-2">
+            <h2>{proposal.status === "changes_requested" ? "Client requested changes" : "Client declined proposal"}</h2>
+            <p className="mini-meta">
+              {proposal.status === "changes_requested"
+                ? "Review the request, discuss details in Messages if needed, then revise and resend the proposal. No invoice is created until the client approves."
+                : "No invoice was created. You can contact the client or create a revised proposal if they want to reconsider."}
+            </p>
+            {responseNote ? <p style={{ whiteSpace: "pre-wrap", marginTop: 12 }}>{responseNote}</p> : null}
+            {latestClientResponse?.created_at ? <p className="mini-meta">Received {formatDateTime(latestClientResponse.created_at)}</p> : null}
+            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+              <ButtonLink href="/admin/messages" variant="secondary">Open Messages</ButtonLink>
+              <ButtonLink href={`/admin/proposals/new?projectId=${proposal.project_id}`} variant="light">Create Revision</ButtonLink>
+            </div>
+          </section>
+        ) : null}
+
         <section className="panel span-2">
           <h2>Proposal Items</h2>
           {proposal.introduction ? <p className="mini-meta">{proposal.introduction}</p> : null}

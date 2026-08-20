@@ -45,6 +45,7 @@ const STATUS_LABELS: Record<string, string> = {
   voided: "Void",
   // Proposals / contracts / designs
   rejected: "Rejected",
+  changes_requested: "Changes Requested",
   expired: "Expired",
   signed: "Signed",
   shared: "Shared",
@@ -95,6 +96,7 @@ const STATUS_TONES: Record<string, StatusTone> = {
   void: "muted",
   voided: "muted",
   rejected: "danger",
+  changes_requested: "warning",
   expired: "muted",
   signed: "success",
   shared: "info",
