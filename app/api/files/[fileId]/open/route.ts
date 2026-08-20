@@ -62,5 +62,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
     return NextResponse.json({ success: false, message: "File is unavailable." }, { status: 404 });
   }
 
-  return NextResponse.redirect(url, 302);
+  return NextResponse.redirect(url, { status: 302 });
 }
