@@ -6,25 +6,6 @@ const optionalDate = z
   .optional()
   .or(z.literal(""));
 
-const approvedService = z.enum([
-  "Weddings",
-  "Baby Showers",
-  "Birthdays",
-  "Corporate Events",
-  "Luxury Balloons",
-  "Full Planning",
-]);
-
-const referralSource = z.enum([
-  "Instagram",
-  "Facebook",
-  "Google",
-  "Friend or Family",
-  "Wedding Vendor",
-  "Previous Client",
-  "Other",
-]);
-
 function splitFullName(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return { firstName: "", lastName: "" };
@@ -36,13 +17,13 @@ export const inquirySchema = z.object({
   fullName: z.string().trim().min(2).max(160),
   email: z.string().trim().email(),
   phone: z.string().trim().min(7).max(30),
-  projectType: z.enum(["Wedding", "Baby Shower", "Birthday", "Corporate Event", "Luxury Balloons", "Full Planning"]),
+  projectType: z.string().trim().min(1).max(100),
   guestCount: z.coerce.number().int().positive().optional().or(z.literal("")),
   estimatedBudget: z.string().trim().max(100).optional().or(z.literal("")),
-  servicesNeeded: z.array(approvedService).min(1),
-  referralSource: referralSource,
+  servicesNeeded: z.array(z.string().trim().min(1).max(100)).min(1).max(30),
+  referralSource: z.string().trim().min(1).max(100),
   message: z.string().trim().min(10).max(5000),
-  // Existing consultation workflow fields — kept for scheduling, not creative/upload.
+  // Existing consultation workflow values stay fixed because the scheduling table enforces these three values.
   preferredConsultationMethod: z.enum(["phone", "video", "in_person"]).default("phone"),
   preferredConsultationDate: optionalDate,
   preferredConsultationTime: z.string().trim().max(30).optional().or(z.literal("")),
