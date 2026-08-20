@@ -2,11 +2,12 @@ import { Mail, MapPin, Phone } from "lucide-react";
 import { InquiryForm } from "@/components/marketing/InquiryForm";
 import { MarketingPage } from "@/components/marketing/MarketingPage";
 import { getPublicContactEmail } from "@/lib/business/public-contact";
+import { getInquiryContent } from "@/lib/website/inquiry-content";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
-  const contactEmail = await getPublicContactEmail();
+  const [contactEmail, inquiryConfig] = await Promise.all([getPublicContactEmail(), getInquiryContent()]);
 
   return (
     <MarketingPage eyebrow="Contact" title="Let's Talk Through the Details">
@@ -23,7 +24,7 @@ export default async function ContactPage() {
             <li><span><MapPin size={16} /> Murfreesboro, TN</span></li>
           </ul>
         </section>
-        <InquiryForm />
+        <InquiryForm config={inquiryConfig} />
       </div>
     </MarketingPage>
   );
