@@ -21,14 +21,62 @@ async function markEvent(
   status: "processed" | "ignored" | "failed",
   processingError?: string | null,
 ) {
+  const now = new Date().toISOString();
   await supabase
     .from("stripe_events")
     .update({
-      status,
+      processing_status: status,
       processing_error: processingError ? processingError.slice(0, 1000) : null,
-      processed_at: new Date().toISOString(),
+      processed_at: status === "failed" ? null : now,
+      failed_at: status === "failed" ? now : null,
     })
-    .eq("id", eventId);
+    .eq("stripe_event_id", eventId);
+}
+
+async function registerEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: any,
+  eventAccountId: string | null,
+  stripeObject: any,
+) {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("stripe_events").insert({
+    stripe_event_id: event.id,
+    event_type: event.type,
+    stripe_account_id: eventAccountId,
+    object_id: objectId(stripeObject),
+    processing_status: "claimed",
+    claimed_at: now,
+    processing_started_at: now,
+  });
+
+  if (!error) return { process: true as const };
+  if (error.code !== "23505") throw new Error(error.message);
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("stripe_events")
+    .select("processing_status,retry_count")
+    .eq("stripe_event_id", event.id)
+    .maybeSingle();
+  if (lookupError) throw new Error(lookupError.message);
+
+  if (existing?.processing_status !== "failed") {
+    return { process: false as const };
+  }
+
+  const { error: retryError } = await supabase
+    .from("stripe_events")
+    .update({
+      processing_status: "claimed",
+      processing_started_at: now,
+      processing_error: null,
+      failed_at: null,
+      retry_count: Number(existing.retry_count ?? 0) + 1,
+    })
+    .eq("stripe_event_id", event.id)
+    .eq("processing_status", "failed");
+  if (retryError) throw new Error(retryError.message);
+  return { process: true as const };
 }
 
 async function reconcilePaidCheckout(
@@ -77,7 +125,7 @@ async function reconcilePaidCheckout(
       amount: grossAmount,
       gross_amount: grossAmount,
       platform_fee_amount: platformFeeAmount,
-      net_amount: Number((grossAmount - platformFeeAmount).toFixed(2)),
+      net_amount: null,
       currency: String(session.currency ?? "usd").toLowerCase(),
       payment_type: "invoice_payment",
       payment_method: "stripe",
@@ -90,6 +138,7 @@ async function reconcilePaidCheckout(
         note: "Paid securely through Stripe",
         checkout_session_id: session.id,
         platform_fee_basis_points: Number(session?.metadata?.platform_fee_basis_points ?? 0),
+        net_amount_note: "Stripe processing fees are assessed on the connected account and are not estimated here.",
       },
     });
     if (paymentError) throw new Error(paymentError.message);
@@ -148,20 +197,33 @@ async function reconcileRefund(
   if (!payment?.id || !payment.invoice_id) return;
 
   const refundedAmount = centsToMoney(charge.amount_refunded);
-  const { error: adjustmentError } = await supabase.from("payment_adjustments").upsert(
-    {
-      payment_id: payment.id,
-      invoice_id: payment.invoice_id,
-      adjustment_type: "refund",
-      amount: refundedAmount,
-      status: "succeeded",
-      stripe_event_id: event.id,
-      stripe_refund_id: null,
-      metadata: { charge_id: charge.id, payment_intent_id: paymentIntentId },
-      updated_at: new Date().toISOString(),
+  const { data: existingAdjustment, error: adjustmentLookupError } = await supabase
+    .from("payment_adjustments")
+    .select("id")
+    .eq("payment_id", payment.id)
+    .eq("adjustment_type", "refund")
+    .maybeSingle();
+  if (adjustmentLookupError) throw new Error(adjustmentLookupError.message);
+
+  const adjustmentPayload = {
+    payment_id: payment.id,
+    invoice_id: payment.invoice_id,
+    adjustment_type: "refund",
+    amount: refundedAmount,
+    status: "succeeded",
+    stripe_event_id: event.id,
+    stripe_refund_id: null,
+    metadata: {
+      charge_id: charge.id,
+      payment_intent_id: paymentIntentId,
+      source: "stripe_cumulative_amount_refunded",
     },
-    { onConflict: "stripe_event_id" },
-  );
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: adjustmentError } = existingAdjustment?.id
+    ? await supabase.from("payment_adjustments").update(adjustmentPayload).eq("id", existingAdjustment.id)
+    : await supabase.from("payment_adjustments").insert(adjustmentPayload);
   if (adjustmentError) throw new Error(adjustmentError.message);
 
   await recalculatePaymentRefundState(supabase, payment.id);
@@ -188,18 +250,13 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const eventAccountId = typeof event.account === "string" ? event.account : null;
   const stripeObject = event?.data?.object;
-  const { error: eventInsertError } = await supabase.from("stripe_events").insert({
-    id: event.id,
-    event_type: event.type,
-    stripe_account_id: eventAccountId,
-    object_id: objectId(stripeObject),
-    status: "processing",
-  });
 
-  if (eventInsertError?.code === "23505") {
-    return NextResponse.json({ success: true, duplicate: true });
-  }
-  if (eventInsertError) {
+  try {
+    const registration = await registerEvent(supabase, event, eventAccountId, stripeObject);
+    if (!registration.process) {
+      return NextResponse.json({ success: true, duplicate: true });
+    }
+  } catch {
     return NextResponse.json({ success: false, message: "Unable to register Stripe event." }, { status: 500 });
   }
 
