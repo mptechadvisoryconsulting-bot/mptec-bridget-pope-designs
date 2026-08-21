@@ -1,16 +1,25 @@
 -- Stripe Connect direct-charge support for Bridget Pope Designs.
 -- Additive only: existing manual/offline payments remain unchanged.
+-- Production already contains the original Stripe event table, so preserve it and extend it.
 
 create table if not exists bpd_stripe_events (
-  id text primary key,
+  id uuid primary key default gen_random_uuid(),
+  stripe_event_id text not null unique,
   event_type text not null,
-  stripe_account_id text,
-  object_id text,
-  status text not null default 'processing' check (status in ('processing', 'processed', 'ignored', 'failed')),
-  processing_error text,
+  processed_at timestamptz,
+  payload jsonb,
   created_at timestamptz not null default now(),
-  processed_at timestamptz
+  processing_started_at timestamptz,
+  processing_error text,
+  processing_status text not null default 'claimed',
+  claimed_at timestamptz,
+  failed_at timestamptz,
+  retry_count integer not null default 0
 );
+
+alter table bpd_stripe_events
+  add column if not exists stripe_account_id text,
+  add column if not exists object_id text;
 
 create table if not exists bpd_payment_adjustments (
   id uuid primary key default gen_random_uuid(),
@@ -43,6 +52,10 @@ create index if not exists bpd_idx_stripe_events_account_created
 
 create index if not exists bpd_idx_payment_adjustments_payment
   on bpd_payment_adjustments(payment_id, created_at desc);
+
+create unique index if not exists bpd_payment_adjustments_one_refund_state_per_payment
+  on bpd_payment_adjustments(payment_id)
+  where adjustment_type = 'refund';
 
 alter table bpd_stripe_events enable row level security;
 alter table bpd_payment_adjustments enable row level security;
