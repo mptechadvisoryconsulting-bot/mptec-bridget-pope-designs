@@ -79,6 +79,14 @@ create unique index if not exists bpd_payment_adjustments_one_refund_state_per_p
 alter table bpd_stripe_events enable row level security;
 alter table bpd_payment_adjustments enable row level security;
 
+-- New public-schema tables are not guaranteed to be exposed to the Data API by
+-- default. Grant only the roles the application actually needs, then rely on RLS
+-- for authenticated access. The server-side service role needs full access for
+-- signed webhook reconciliation.
+grant select on table bpd_stripe_events to authenticated;
+grant select, insert, update, delete on table bpd_stripe_events to service_role;
+grant select, insert, update, delete on table bpd_payment_adjustments to authenticated, service_role;
+
 drop policy if exists "Admins can view bpd_stripe_events" on bpd_stripe_events;
 create policy "Admins can view bpd_stripe_events"
 on bpd_stripe_events
