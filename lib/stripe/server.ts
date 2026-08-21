@@ -5,6 +5,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 const STRIPE_API_BASE = "https://api.stripe.com";
 const STRIPE_API_VERSION = "2026-06-24.dahlia";
 const WEBHOOK_TOLERANCE_SECONDS = 300;
+const STRIPE_REQUEST_TIMEOUT_MS = 10_000;
 
 export type StripeConnectedAccountSnapshot = {
   id: string;
@@ -33,6 +34,17 @@ function safeStripeError(payload: any, fallback: string) {
   return typeof message === "string" && message.trim() ? message : fallback;
 }
 
+function stripeRequestSignal() {
+  return AbortSignal.timeout(STRIPE_REQUEST_TIMEOUT_MS);
+}
+
+function throwStripeNetworkError(error: unknown): never {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    throw new Error("Stripe is temporarily unavailable. Please try again.");
+  }
+  throw error;
+}
+
 async function stripeJsonRequest<T>(
   path: string,
   options: {
@@ -50,12 +62,19 @@ async function stripeJsonRequest<T>(
   if (options.connectedAccountId) headers["Stripe-Account"] = options.connectedAccountId;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
-  const response = await fetch(`${STRIPE_API_BASE}${path}`, {
-    method: options.method ?? (options.body ? "POST" : "GET"),
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${STRIPE_API_BASE}${path}`, {
+      method: options.method ?? (options.body ? "POST" : "GET"),
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      cache: "no-store",
+      signal: stripeRequestSignal(),
+    });
+  } catch (error) {
+    throwStripeNetworkError(error);
+  }
+
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(safeStripeError(payload, `Stripe request failed (${response.status}).`));
@@ -80,12 +99,19 @@ async function stripeFormRequest<T>(
   if (options.connectedAccountId) headers["Stripe-Account"] = options.connectedAccountId;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
-  const response = await fetch(`${STRIPE_API_BASE}${path}`, {
-    method: options.method ?? (options.params ? "POST" : "GET"),
-    headers,
-    body: options.params?.toString(),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${STRIPE_API_BASE}${path}`, {
+      method: options.method ?? (options.params ? "POST" : "GET"),
+      headers,
+      body: options.params?.toString(),
+      cache: "no-store",
+      signal: stripeRequestSignal(),
+    });
+  } catch (error) {
+    throwStripeNetworkError(error);
+  }
+
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(safeStripeError(payload, `Stripe request failed (${response.status}).`));
