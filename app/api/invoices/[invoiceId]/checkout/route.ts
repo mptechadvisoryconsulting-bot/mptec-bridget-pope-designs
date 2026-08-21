@@ -15,15 +15,12 @@ import {
 export const dynamic = "force-dynamic";
 
 const NON_PAYABLE_STATUSES = new Set(["draft", "paid", "cancelled", "refunded", "void"]);
+const CHECKOUT_FAILURE_MESSAGE = "Unable to start secure checkout right now. Please try again shortly.";
 
 function moneyToCents(value: unknown) {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return 0;
   return Math.round(amount * 100);
-}
-
-function safeError(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to start secure checkout.";
 }
 
 export async function POST(_request: Request, { params }: { params: Promise<{ invoiceId: string }> }) {
@@ -65,7 +62,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
   try {
     const account = await retrieveConnectedMerchantAccount(settings.stripe_connected_account_id);
     const snapshot = mapConnectedAccountSnapshot(account);
-    await supabase
+    const { error: syncError } = await supabase
       .from("business_settings")
       .update({
         stripe_charges_enabled: snapshot.cardPaymentsStatus === "active",
@@ -77,6 +74,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
         payment_readiness_status: snapshot.ready ? "ready" : "action_required",
       })
       .eq("id", settings.id);
+    if (syncError) throw new Error("Unable to synchronize Stripe readiness.");
 
     if (!snapshot.ready) {
       return NextResponse.json(
@@ -128,7 +126,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
       throw new Error("Stripe did not return a checkout URL.");
     }
 
-    await supabase
+    const { error: invoiceUpdateError } = await supabase
       .from("invoices")
       .update({
         stripe_checkout_session_id: session.id,
@@ -136,9 +134,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ in
         updated_at: new Date().toISOString(),
       })
       .eq("id", invoice.id);
+    if (invoiceUpdateError) throw new Error("Unable to persist Stripe checkout state.");
 
     return NextResponse.json({ success: true, url: session.url });
   } catch (error) {
-    return NextResponse.json({ success: false, message: safeError(error) }, { status: 400 });
+    console.error("Stripe checkout creation failed", {
+      invoiceId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ success: false, message: CHECKOUT_FAILURE_MESSAGE }, { status: 502 });
   }
 }
