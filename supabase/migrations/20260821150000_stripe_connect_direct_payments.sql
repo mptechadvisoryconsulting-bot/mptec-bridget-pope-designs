@@ -1,6 +1,25 @@
 -- Stripe Connect direct-charge support for Bridget Pope Designs.
 -- Additive only: existing manual/offline payments remain unchanged.
 -- Production already contains the original Stripe event table, so preserve it and extend it.
+-- Application code uses lib/supabase/namespace.ts, which maps logical
+-- `stripe_events` / `payment_adjustments` access to these bpd_-prefixed tables.
+
+alter table bpd_business_settings
+  add column if not exists payment_readiness_status text not null default 'not_configured',
+  add column if not exists platform_fee_basis_points integer not null default 100;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'bpd_business_settings_platform_fee_site_range_check'
+  ) then
+    alter table bpd_business_settings
+      add constraint bpd_business_settings_platform_fee_site_range_check
+      check (platform_fee_basis_points between 100 and 300);
+  end if;
+end $$;
 
 create table if not exists bpd_stripe_events (
   id uuid primary key default gen_random_uuid(),
