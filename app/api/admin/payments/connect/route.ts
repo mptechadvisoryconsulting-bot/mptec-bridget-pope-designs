@@ -14,6 +14,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const CONNECT_FAILURE_MESSAGE = "Stripe setup could not be completed right now. Please try again.";
+const PROVISIONING_CLAIM_TTL_MS = 15 * 60 * 1000;
 
 async function syncSettings(supabase: ReturnType<typeof createAdminClient>, settingsId: string, account: any) {
   const snapshot = mapConnectedAccountSnapshot(account);
@@ -43,16 +44,26 @@ async function syncSettings(supabase: ReturnType<typeof createAdminClient>, sett
   return snapshot;
 }
 
+function isFreshProvisioningClaim(status: string | null, startedAt: string | null) {
+  if (status !== "provisioning" || !startedAt) return false;
+  const started = new Date(startedAt).getTime();
+  return Number.isFinite(started) && Date.now() - started < PROVISIONING_CLAIM_TTL_MS;
+}
+
 async function claimProvisioningKey(
   supabase: ReturnType<typeof createAdminClient>,
   settingsId: string,
   existingKey: string | null,
+  existingStatus: string | null,
+  existingStartedAt: string | null,
 ) {
-  if (existingKey) return existingKey;
+  if (existingKey && isFreshProvisioningClaim(existingStatus, existingStartedAt)) {
+    return existingKey;
+  }
 
   const candidateKey = `bpd-connect-${randomUUID()}`;
   const startedAt = new Date().toISOString();
-  const { data: claimed, error: claimError } = await supabase
+  let claim = supabase
     .from("business_settings")
     .update({
       stripe_connect_provisioning_status: "provisioning",
@@ -61,8 +72,13 @@ async function claimProvisioningKey(
       stripe_connect_provisioning_error: null,
     })
     .eq("id", settingsId)
-    .is("stripe_connected_account_id", null)
-    .is("stripe_connect_provisioning_key", null)
+    .is("stripe_connected_account_id", null);
+
+  claim = existingKey
+    ? claim.eq("stripe_connect_provisioning_key", existingKey)
+    : claim.is("stripe_connect_provisioning_key", null);
+
+  const { data: claimed, error: claimError } = await claim
     .select("stripe_connect_provisioning_key")
     .maybeSingle();
 
@@ -132,7 +148,7 @@ export async function POST() {
   const { data: settings, error: settingsError } = await supabase
     .from("business_settings")
     .select(
-      "id,business_name,business_display_name,business_email,inquiry_recipient_email,stripe_connected_account_id,stripe_payment_model,stripe_connect_provisioning_key",
+      "id,business_name,business_display_name,business_email,inquiry_recipient_email,stripe_connected_account_id,stripe_payment_model,stripe_connect_provisioning_key,stripe_connect_provisioning_status,stripe_connect_provisioning_started_at",
     )
     .limit(1)
     .maybeSingle();
@@ -150,7 +166,13 @@ export async function POST() {
 
   try {
     if (!accountId) {
-      provisioningKey = await claimProvisioningKey(supabase, settings.id, provisioningKey);
+      provisioningKey = await claimProvisioningKey(
+        supabase,
+        settings.id,
+        provisioningKey,
+        settings.stripe_connect_provisioning_status ?? null,
+        settings.stripe_connect_provisioning_started_at ?? null,
+      );
 
       if (!provisioningKey) {
         const { data: current, error: currentError } = await supabase
