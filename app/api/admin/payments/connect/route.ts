@@ -13,9 +13,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function safeError(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to configure Stripe Connect.";
-}
+const CONNECT_FAILURE_MESSAGE = "Stripe setup could not be completed right now. Please try again.";
 
 async function syncSettings(supabase: ReturnType<typeof createAdminClient>, settingsId: string, account: any) {
   const snapshot = mapConnectedAccountSnapshot(account);
@@ -23,7 +21,7 @@ async function syncSettings(supabase: ReturnType<typeof createAdminClient>, sett
   const provisioningStatus = snapshot.ready ? "ready" : "onboarding_required";
   const disabledReason = snapshot.cardPaymentsStatus === "active" ? null : "card_payments_not_active";
 
-  await supabase
+  const { error } = await supabase
     .from("business_settings")
     .update({
       stripe_connected_account_id: snapshot.id,
@@ -41,7 +39,82 @@ async function syncSettings(supabase: ReturnType<typeof createAdminClient>, sett
     })
     .eq("id", settingsId);
 
+  if (error) throw new Error(`Unable to persist Stripe readiness: ${error.message}`);
   return snapshot;
+}
+
+async function claimProvisioningKey(
+  supabase: ReturnType<typeof createAdminClient>,
+  settingsId: string,
+  existingKey: string | null,
+) {
+  if (existingKey) return existingKey;
+
+  const candidateKey = `bpd-connect-${randomUUID()}`;
+  const startedAt = new Date().toISOString();
+  const { data: claimed, error: claimError } = await supabase
+    .from("business_settings")
+    .update({
+      stripe_connect_provisioning_status: "provisioning",
+      stripe_connect_provisioning_key: candidateKey,
+      stripe_connect_provisioning_started_at: startedAt,
+      stripe_connect_provisioning_error: null,
+    })
+    .eq("id", settingsId)
+    .is("stripe_connected_account_id", null)
+    .is("stripe_connect_provisioning_key", null)
+    .select("stripe_connect_provisioning_key")
+    .maybeSingle();
+
+  if (claimError) throw new Error(`Unable to claim Stripe provisioning: ${claimError.message}`);
+  if (claimed?.stripe_connect_provisioning_key) return String(claimed.stripe_connect_provisioning_key);
+
+  const { data: current, error: reloadError } = await supabase
+    .from("business_settings")
+    .select("stripe_connected_account_id,stripe_connect_provisioning_key")
+    .eq("id", settingsId)
+    .maybeSingle();
+  if (reloadError) throw new Error(`Unable to reload Stripe provisioning state: ${reloadError.message}`);
+  if (current?.stripe_connected_account_id) return null;
+  if (!current?.stripe_connect_provisioning_key) {
+    throw new Error("Stripe provisioning could not be claimed.");
+  }
+  return String(current.stripe_connect_provisioning_key);
+}
+
+async function persistConnectedAccount(
+  supabase: ReturnType<typeof createAdminClient>,
+  settingsId: string,
+  provisioningKey: string,
+  accountId: string,
+) {
+  const { data: saved, error: saveError } = await supabase
+    .from("business_settings")
+    .update({
+      stripe_connected_account_id: accountId,
+      stripe_payment_model: "direct_charge_v2",
+      stripe_connect_provisioning_status: "account_created",
+      stripe_connect_provisioning_error: null,
+    })
+    .eq("id", settingsId)
+    .is("stripe_connected_account_id", null)
+    .eq("stripe_connect_provisioning_key", provisioningKey)
+    .select("stripe_connected_account_id")
+    .maybeSingle();
+
+  if (saveError) throw new Error(`Unable to persist connected Stripe account: ${saveError.message}`);
+  if (saved?.stripe_connected_account_id === accountId) return accountId;
+
+  const { data: current, error: reloadError } = await supabase
+    .from("business_settings")
+    .select("stripe_connected_account_id")
+    .eq("id", settingsId)
+    .maybeSingle();
+  if (reloadError) throw new Error(`Unable to verify connected Stripe account: ${reloadError.message}`);
+  if (current?.stripe_connected_account_id !== accountId) {
+    throw new Error("Connected Stripe account state changed during provisioning.");
+  }
+  return accountId;
 }
 
 export async function POST() {
@@ -72,43 +145,40 @@ export async function POST() {
     return NextResponse.json({ success: false, message: "Unsupported Stripe payment model." }, { status: 409 });
   }
 
-  const provisioningKey = settings.stripe_connect_provisioning_key || `bpd-connect-${randomUUID()}`;
   let accountId = settings.stripe_connected_account_id as string | null;
+  let provisioningKey = settings.stripe_connect_provisioning_key as string | null;
 
   try {
     if (!accountId) {
-      await supabase
-        .from("business_settings")
-        .update({
-          stripe_connect_provisioning_status: "provisioning",
-          stripe_connect_provisioning_key: provisioningKey,
-          stripe_connect_provisioning_started_at: new Date().toISOString(),
-          stripe_connect_provisioning_error: null,
-        })
-        .eq("id", settings.id);
+      provisioningKey = await claimProvisioningKey(supabase, settings.id, provisioningKey);
 
-      const created = await createConnectedMerchantAccount({
-        contactEmail: settings.business_email || settings.inquiry_recipient_email,
-        displayName: settings.business_display_name || settings.business_name || "Bridget Pope Designs",
-        idempotencyKey: provisioningKey,
-      });
-      accountId = String(created.id);
+      if (!provisioningKey) {
+        const { data: current, error: currentError } = await supabase
+          .from("business_settings")
+          .select("stripe_connected_account_id,stripe_connect_provisioning_key")
+          .eq("id", settings.id)
+          .maybeSingle();
+        if (currentError) throw new Error(`Unable to reload Stripe account state: ${currentError.message}`);
+        accountId = current?.stripe_connected_account_id ?? null;
+        provisioningKey = current?.stripe_connect_provisioning_key ?? null;
+      }
 
-      await supabase
-        .from("business_settings")
-        .update({
-          stripe_connected_account_id: accountId,
-          stripe_payment_model: "direct_charge_v2",
-          stripe_connect_provisioning_status: "account_created",
-          stripe_connect_provisioning_error: null,
-        })
-        .eq("id", settings.id);
+      if (!accountId) {
+        if (!provisioningKey) throw new Error("Stripe provisioning key is unavailable.");
+        const created = await createConnectedMerchantAccount({
+          contactEmail: settings.business_email || settings.inquiry_recipient_email,
+          displayName: settings.business_display_name || settings.business_name || "Bridget Pope Designs",
+          idempotencyKey: provisioningKey,
+        });
+        accountId = String(created.id);
+        await persistConnectedAccount(supabase, settings.id, provisioningKey, accountId);
+      }
     }
 
     const account = await retrieveConnectedMerchantAccount(accountId);
     const snapshot = await syncSettings(supabase, settings.id, account);
 
-    await supabase.from("activity_logs").insert({
+    const { error: activityError } = await supabase.from("activity_logs").insert({
       actor_id: owner.profile.id,
       action: "stripe_connect_status_checked",
       entity_type: "business_settings",
@@ -121,6 +191,9 @@ export async function POST() {
         ready: snapshot.ready,
       },
     });
+    if (activityError) {
+      console.warn("Unable to write Stripe Connect activity log", { message: activityError.message });
+    }
 
     if (snapshot.ready) {
       return NextResponse.json({ success: true, ready: true, accountId });
@@ -135,16 +208,24 @@ export async function POST() {
 
     return NextResponse.json({ success: true, ready: false, accountId, url: link.url });
   } catch (error) {
-    const message = safeError(error);
-    await supabase
+    console.error("Stripe Connect provisioning failed", {
+      settingsId: settings.id,
+      accountId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    const { error: statusError } = await supabase
       .from("business_settings")
       .update({
         stripe_connect_provisioning_status: accountId ? "onboarding_required" : "failed",
-        stripe_connect_provisioning_error: message.slice(0, 1000),
+        stripe_connect_provisioning_error: CONNECT_FAILURE_MESSAGE,
         payment_readiness_status: "action_required",
       })
       .eq("id", settings.id);
+    if (statusError) {
+      console.error("Unable to persist Stripe Connect failure state", { message: statusError.message });
+    }
 
-    return NextResponse.json({ success: false, message }, { status: 400 });
+    return NextResponse.json({ success: false, message: CONNECT_FAILURE_MESSAGE }, { status: 502 });
   }
 }
