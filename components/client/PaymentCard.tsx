@@ -1,4 +1,4 @@
-﻿import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { currency } from "@/lib/currency";
 
@@ -33,7 +33,7 @@ export function PaymentCard({
       ) : null}
       <div className="queue-row-actions" style={{ marginTop: 12 }}>
         <ButtonLink href={viewHref} variant="quiet">
-          {invoiceId ? "View invoice" : "View invoices"}
+          {invoiceId ? "View invoice & payment options" : "View invoices"}
         </ButtonLink>
         {downloadHref ? (
           <a className="panel-link" href={downloadHref} style={{ marginTop: 0 }}>
@@ -42,7 +42,7 @@ export function PaymentCard({
         ) : null}
       </div>
       <p className="mini-meta" style={{ marginBottom: 0, marginTop: 10 }}>
-        Payment arrangements are handled directly with Bridget Pope Designs. Your balance updates when a payment is recorded.
+        Available payment options are shown on the invoice. Your balance updates when a payment is recorded.
       </p>
     </section>
   );
