@@ -4,6 +4,7 @@ import { DownloadInvoicePdfButton } from "@/components/invoices/DownloadInvoiceP
 import { InvoicePaymentHistory } from "@/components/invoices/InvoicePaymentHistory";
 import { OfflinePaymentInstructions } from "@/components/invoices/OfflinePaymentInstructions";
 import { PrintInvoiceButton } from "@/components/invoices/PrintInvoiceButton";
+import { StripeCheckoutButton } from "@/components/payments/StripeCheckoutButton";
 import { displayName } from "@/lib/auth/current-profile";
 import { formatOfflinePaymentInstructions, loadOfflinePaymentSettings } from "@/lib/business/payment-instructions";
 import { isClientVisibleInvoice } from "@/lib/invoices/client-visibility";
@@ -16,13 +17,20 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
   const { invoiceId } = await params;
   const { profile, client } = await requireClientPortalContext(`/client/invoices/${invoiceId}`);
   const supabase = createAdminClient();
-  const { data: invoice } = await supabase
-    .from("invoices")
-    .select(
-      "*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_projects!project_id(event_name,event_date,venue_name,bpd_clients!client_id(profile_id))",
-    )
-    .eq("id", invoiceId)
-    .maybeSingle();
+  const [{ data: invoice }, { data: stripeSettings }] = await Promise.all([
+    supabase
+      .from("invoices")
+      .select(
+        "*, bpd_invoice_items(*), bpd_invoice_versions(*), bpd_projects!project_id(event_name,event_date,venue_name,bpd_clients!client_id(profile_id))",
+      )
+      .eq("id", invoiceId)
+      .maybeSingle(),
+    supabase
+      .from("business_settings")
+      .select("stripe_connected_account_id,stripe_payment_model,payment_readiness_status")
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   if (!invoice || invoice.client_id !== client?.id || !isClientVisibleInvoice(invoice)) {
     notFound();
@@ -42,7 +50,12 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
     .order("paid_at", { ascending: false });
 
   const items = invoice.bpd_invoice_items ?? [];
-  const isPayable = !["paid", "cancelled", "refunded"].includes(invoice.status) && Number(invoice.balance_due ?? 0) > 0;
+  const isPayable = !["draft", "paid", "cancelled", "refunded", "void"].includes(invoice.status) && Number(invoice.balance_due ?? 0) > 0;
+  const stripeReady = Boolean(
+    stripeSettings?.stripe_connected_account_id &&
+      stripeSettings?.stripe_payment_model === "direct_charge_v2" &&
+      stripeSettings?.payment_readiness_status === "ready",
+  );
   const paymentSettings = await loadOfflinePaymentSettings(supabase);
   const offlinePaymentInstructions = formatOfflinePaymentInstructions(paymentSettings);
 
@@ -62,10 +75,20 @@ export default async function ClientInvoiceDetailPage({ params }: { params: Prom
       {isPayable ? (
         <section className="panel" style={{ marginTop: 16 }}>
           <h2>Payment</h2>
-          <p className="mini-meta">
-            Payment arrangements are handled offline with Bridget Pope Designs.
-            Your balance updates when a payment is recorded.
-          </p>
+          {stripeReady ? (
+            <>
+              <p className="mini-meta">
+                Pay online through Bridget Pope Designs&apos; secure Stripe checkout, or use an offline payment arrangement below.
+              </p>
+              <div style={{ maxWidth: 360, margin: "14px 0 18px" }}>
+                <StripeCheckoutButton invoiceId={invoice.id} />
+              </div>
+            </>
+          ) : (
+            <p className="mini-meta">
+              Payment arrangements are handled directly with Bridget Pope Designs. Your balance updates when a payment is recorded.
+            </p>
+          )}
           <OfflinePaymentInstructions settings={paymentSettings} compact />
         </section>
       ) : null}
