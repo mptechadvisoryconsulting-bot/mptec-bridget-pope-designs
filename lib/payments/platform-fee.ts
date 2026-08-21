@@ -8,6 +8,10 @@ export const MAX_PLATFORM_FEE_BASIS_POINTS = 300;
  * silently take an excessive fee from a client payment.
  */
 export function normalizePlatformFeeBasisPoints(value: unknown) {
+  if (value == null || (typeof value === "string" && !value.trim())) {
+    return DEFAULT_PLATFORM_FEE_BASIS_POINTS;
+  }
+
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) return DEFAULT_PLATFORM_FEE_BASIS_POINTS;
   if (parsed < MIN_PLATFORM_FEE_BASIS_POINTS || parsed > MAX_PLATFORM_FEE_BASIS_POINTS) {
