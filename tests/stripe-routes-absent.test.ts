@@ -31,6 +31,13 @@ describe("Stripe Connect direct payments", () => {
     expect(normalizePlatformFeeBasisPoints(200)).toBe(200);
   });
 
+  it("uses the documented one-percent default when the fee is unset", () => {
+    expect(normalizePlatformFeeBasisPoints(null)).toBe(100);
+    expect(normalizePlatformFeeBasisPoints(undefined)).toBe(100);
+    expect(normalizePlatformFeeBasisPoints("")).toBe(100);
+    expect(normalizePlatformFeeBasisPoints("   ")).toBe(100);
+  });
+
   it("rejects an application fee outside the agreed site range", () => {
     expect(() => normalizePlatformFeeBasisPoints(400)).toThrow(/between 1% and 3%/);
     expect(() => normalizePlatformFeeBasisPoints(50)).toThrow(/between 1% and 3%/);
