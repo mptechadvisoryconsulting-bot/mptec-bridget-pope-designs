@@ -15,15 +15,17 @@ export default async function PaymentSettingsPage() {
     .limit(1)
     .maybeSingle();
 
-  let feeBasisPoints = 100;
+  let feePercent: number | null = null;
+  let feeConfigurationError: string | null = null;
   try {
-    feeBasisPoints = normalizePlatformFeeBasisPoints(settings?.platform_fee_basis_points);
+    feePercent = basisPointsToPercent(normalizePlatformFeeBasisPoints(settings?.platform_fee_basis_points));
   } catch {
-    feeBasisPoints = 100;
+    feeConfigurationError = "The configured MP Tech application fee is outside the allowed 1%–3% range. Online checkout is blocked until this setting is corrected.";
   }
-  const feePercent = basisPointsToPercent(feeBasisPoints);
+
   const stripeReady = Boolean(
-    settings?.stripe_connected_account_id &&
+    !feeConfigurationError &&
+      settings?.stripe_connected_account_id &&
       settings?.stripe_payment_model === "direct_charge_v2" &&
       settings?.payment_readiness_status === "ready" &&
       settings?.stripe_charges_enabled &&
@@ -57,12 +59,15 @@ export default async function PaymentSettingsPage() {
           <ul className="list" style={{ marginTop: 16 }}>
             <li><span>Connected merchant</span><span className="status">{accountLabel}</span></li>
             <li><span>Payment model</span><span className="status">Direct charge</span></li>
-            <li><span>MP Tech application fee</span><span className="status">{feePercent}%</span></li>
+            <li><span>MP Tech application fee</span><span className="status">{feePercent == null ? "Configuration error" : `${feePercent}%`}</span></li>
             <li><span>Card payments</span><span className="status">{settings?.stripe_charges_enabled ? "Active" : "Not active"}</span></li>
             <li><span>Payouts to Bridget</span><span className="status">{settings?.stripe_payouts_enabled ? "Active" : "Not active"}</span></li>
             <li><span>Server integration</span><span className="status">{stripeServerConfigured() ? "Configured" : "Credential needed"}</span></li>
             <li><span>Webhook reconciliation</span><span className="status">{stripeWebhookConfigured() ? "Configured" : "Secret needed"}</span></li>
           </ul>
+          {feeConfigurationError ? (
+            <p className="form-error" role="alert">{feeConfigurationError}</p>
+          ) : null}
           {settings?.stripe_requirements_currently_due?.length ? (
             <p className="mini-meta" style={{ marginTop: 14 }}>
               Stripe still requires {settings.stripe_requirements_currently_due.length} onboarding item(s). Continue Stripe setup to complete them.
